@@ -1,0 +1,19 @@
+[project]
+name = "demo-api"
+version = "0.1.0"
+description = "A Coding Assistant Continuity Framework. Demonstration API"
+authors = [
+    {name = "John Hoff",email = "john.hoff@braindonor.net"},
+]
+dependencies = []
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = false

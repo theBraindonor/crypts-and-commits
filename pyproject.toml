@@ -1,0 +1,24 @@
+[project]
+name = "crypts-and-commits-workspace"
+version = "0.1.0"
+description = "A Coding Assistant Continuity Framework. Crypts and Commits uses a tabletop-gaming metaphor to describe collaboration between a developer and an AI coding assistant. The developer acts as the Game Master: establishing context, making decisions, and retaining final authority."
+authors = [
+    {name = "John Hoff",email = "john.hoff@braindonor.net"},
+]
+dependencies = []
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+
+
+[tool.pdm]
+distribution = false
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "-e file:///${PROJECT_ROOT}/packages/crypts-and-commits#egg=crypts-and-commits",
+    "-e file:///${PROJECT_ROOT}/packages/demo-api#egg=demo-api"
+]
+
+[tool.pdm.workspace]
+members = ["packages/crypts-and-commits", "packages/demo-api"]
