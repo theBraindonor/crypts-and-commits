@@ -19,6 +19,18 @@ dev = [
     "-e file:///${PROJECT_ROOT}/packages/crypts-and-commits#egg=crypts-and-commits",
     "-e file:///${PROJECT_ROOT}/packages/demo-api#egg=demo-api"
 ]
+test = [
+    "pytest",
+]
+lint = [
+    "ruff",
+]
 
 [tool.pdm.workspace]
 members = ["packages/crypts-and-commits", "packages/demo-api"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages"]
+
+[tool.ruff]
+line-length = 120
