@@ -1,4 +1,6 @@
 ---
+assigned_lore:
+- console-best-practices
 name: crypts-and-commits
 path: packages/crypts-and-commits
 ---
