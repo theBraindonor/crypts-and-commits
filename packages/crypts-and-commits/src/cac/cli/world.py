@@ -1,0 +1,53 @@
+from pathlib import Path
+
+import typer
+from rich.console import Console
+
+from cac.cli.common import edit_markdown, fail
+from cac.core import world as world_core
+
+app = typer.Typer(help="View and edit the project's world file.")
+console = Console()
+
+
+@app.command("get")
+def get_world() -> None:
+    """Show the world file's frontmatter and body."""
+    try:
+        world = world_core.read_world(Path.cwd())
+    except world_core.WorldNotFoundError as exc:
+        fail(console, str(exc))
+
+    for key, value in world.metadata.items():
+        console.print(f"[bold]{key}[/bold]: {value}")
+    console.print()
+    console.print(world.body)
+
+
+@app.command("set")
+def set_attribute(
+    key: str = typer.Argument(..., help="Frontmatter attribute name."),
+    value: str = typer.Argument(..., help="Frontmatter attribute value."),
+) -> None:
+    """Set a frontmatter attribute on the world file."""
+    try:
+        world_core.set_attribute(Path.cwd(), key, value)
+    except world_core.WorldNotFoundError as exc:
+        fail(console, str(exc))
+
+    console.print(f"Set [bold]{key}[/bold] = {value}")
+
+
+@app.command("set-body")
+def set_body(
+    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+) -> None:
+    """Update the world file's body."""
+    try:
+        current = world_core.read_world(Path.cwd())
+    except world_core.WorldNotFoundError as exc:
+        fail(console, str(exc))
+
+    content = body if body is not None else edit_markdown(current.body)
+    world_core.update_body(Path.cwd(), content)
+    console.print("Updated world body.")

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-SOURCEBOOK_DIR_NAME = ".sourcebook"
+from cac.core.paths import sourcebook_dir
 
 
 def initialize(root: Path) -> tuple[Path, bool]:
@@ -8,7 +8,7 @@ def initialize(root: Path) -> tuple[Path, bool]:
 
     Returns the sourcebook directory path and whether it was newly created.
     """
-    sourcebook_dir = root / SOURCEBOOK_DIR_NAME
-    created = not sourcebook_dir.exists()
-    sourcebook_dir.mkdir(exist_ok=True)
-    return sourcebook_dir, created
+    directory = sourcebook_dir(root)
+    created = not directory.exists()
+    directory.mkdir(exist_ok=True)
+    return directory, created

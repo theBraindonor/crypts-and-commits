@@ -1,0 +1,13 @@
+import re
+
+SOURCEBOOK_DIR_NAME = ".sourcebook"
+LORE_DIR_NAME = "lore"
+REGION_DIR_NAME = "region"
+CAMPAIGN_DIR_NAME = "campaigns"
+ENCOUNTER_DIR_NAME = "encounters"
+NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+WORLD_FILE_NAME = "world.md"
+CAMPAIGN_STATUSES = ("draft", "open", "completed", "abandoned")
+DEFAULT_CAMPAIGN_STATUS = "draft"
+ENCOUNTER_STATUSES = ("draft", "open", "completed", "abandoned")
+DEFAULT_ENCOUNTER_STATUS = "draft"
