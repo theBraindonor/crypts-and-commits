@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 
@@ -61,6 +62,11 @@ def template_body() -> str:
 def read_lore(root: Path, name: str) -> Lore:
     post = frontmatter.load(_existing_lore_path(root, name))
     return Lore(name=post.get("name", name), body=post.content)
+
+
+def read_metadata(root: Path, name: str) -> tuple[dict[str, Any], str]:
+    post = frontmatter.load(_existing_lore_path(root, name))
+    return dict(post.metadata), post.content
 
 
 def create_lore(root: Path, name: str, body: str) -> Path:

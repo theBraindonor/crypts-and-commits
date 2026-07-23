@@ -17,6 +17,22 @@ app = typer.Typer(
 console = Console()
 
 
+@app.command("get")
+def get_campaign(
+    name: str = typer.Argument(..., help="Campaign name to show."),
+) -> None:
+    """Show a campaign file's frontmatter and body."""
+    try:
+        metadata, body = campaign_core.read_metadata(Path.cwd(), name)
+    except campaign_core.CampaignNotFoundError as exc:
+        fail(console, str(exc))
+
+    for key, value in metadata.items():
+        console.print(f"[bold]{key}[/bold]: {value}")
+    console.print()
+    console.print(body)
+
+
 @app.command("list")
 def list_campaigns() -> None:
     """List the campaign files in .sourcebook/campaigns."""

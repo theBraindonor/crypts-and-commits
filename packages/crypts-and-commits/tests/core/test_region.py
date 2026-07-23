@@ -65,6 +65,21 @@ def test_read_region_returns_name_and_body(tmp_path: Path) -> None:
     assert result.body.strip() == "Body text."
 
 
+def test_read_metadata_returns_full_frontmatter_and_body(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "frontend", "Body text.", "src/frontend")
+
+    metadata, body = region.read_metadata(tmp_path, "frontend")
+
+    assert metadata["name"] == "frontend"
+    assert metadata["path"] == "src/frontend"
+    assert body.strip() == "Body text."
+
+
+def test_read_metadata_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(region.RegionNotFoundError):
+        region.read_metadata(tmp_path, "missing")
+
+
 def test_create_region_accepts_path(tmp_path: Path) -> None:
     path = region.create_region(tmp_path, "frontend", "Body.", "src/frontend")
 

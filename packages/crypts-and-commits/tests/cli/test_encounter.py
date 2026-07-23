@@ -18,6 +18,26 @@ def _create_campaign(name: str = "opening-gambit") -> None:
     runner.invoke(app, ["campaign", "create", name, "--body", "text"])
 
 
+def test_get_missing_encounter_fails() -> None:
+    _create_campaign()
+
+    result = runner.invoke(app, ["encounter", "get", "opening-gambit", "missing"])
+
+    assert result.exit_code == 1
+
+
+def test_get_shows_metadata_and_body() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "Body text."])
+
+    result = runner.invoke(app, ["encounter", "get", "opening-gambit", "goblin-ambush"])
+
+    assert result.exit_code == 0
+    assert "name" in result.output
+    assert "status" in result.output
+    assert "Body text." in result.output
+
+
 def test_list_reports_no_encounter_files() -> None:
     _create_campaign()
 

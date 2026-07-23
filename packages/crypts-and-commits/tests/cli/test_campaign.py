@@ -14,6 +14,23 @@ def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
 
+def test_get_missing_campaign_fails() -> None:
+    result = runner.invoke(app, ["campaign", "get", "missing"])
+
+    assert result.exit_code == 1
+
+
+def test_get_shows_metadata_and_body() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body text."])
+
+    result = runner.invoke(app, ["campaign", "get", "opening-gambit"])
+
+    assert result.exit_code == 0
+    assert "name" in result.output
+    assert "status" in result.output
+    assert "Body text." in result.output
+
+
 def test_list_reports_no_campaign_files() -> None:
     result = runner.invoke(app, ["campaign", "list"])
 

@@ -23,6 +23,23 @@ app = typer.Typer(
 console = Console()
 
 
+@app.command("get")
+def get_encounter(
+    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
+    name: str = typer.Argument(..., help="Encounter name to show."),
+) -> None:
+    """Show an encounter file's frontmatter and body."""
+    try:
+        metadata, body = encounter_core.read_metadata(Path.cwd(), campaign, name)
+    except encounter_core.EncounterNotFoundError as exc:
+        fail(console, str(exc))
+
+    for key, value in metadata.items():
+        console.print(f"[bold]{key}[/bold]: {value}")
+    console.print()
+    console.print(body)
+
+
 @app.command("list")
 def list_encounters(
     campaign: str = typer.Argument(..., help="Campaign the encounters belong to."),

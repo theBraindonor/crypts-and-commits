@@ -79,6 +79,25 @@ def test_read_lore_missing_raises(tmp_path: Path) -> None:
         lore.read_lore(tmp_path, "missing")
 
 
+def test_read_metadata_returns_full_frontmatter_and_body(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body text.")
+    lore.set_enabled(tmp_path, "conventions", False)
+    lore.add_assigned_region(tmp_path, "conventions", "northlands")
+
+    metadata, body = lore.read_metadata(tmp_path, "conventions")
+
+    assert metadata["name"] == "conventions"
+    assert metadata["enabled"] is False
+    assert metadata["assigned_to_world"] is False
+    assert metadata["assigned_regions"] == ["northlands"]
+    assert body.strip() == "Body text."
+
+
+def test_read_metadata_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(lore.LoreNotFoundError):
+        lore.read_metadata(tmp_path, "missing")
+
+
 def test_update_lore_replaces_body(tmp_path: Path) -> None:
     lore.create_lore(tmp_path, "conventions", "Original.")
 

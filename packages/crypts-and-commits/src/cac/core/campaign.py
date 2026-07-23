@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 
@@ -71,6 +72,11 @@ def template_body() -> str:
 def read_campaign(root: Path, name: str) -> Campaign:
     post = frontmatter.load(_existing_campaign_path(root, name))
     return _to_campaign(post, name)
+
+
+def read_metadata(root: Path, name: str) -> tuple[dict[str, Any], str]:
+    post = frontmatter.load(_existing_campaign_path(root, name))
+    return dict(post.metadata), post.content
 
 
 def create_campaign(root: Path, name: str, body: str) -> Path:

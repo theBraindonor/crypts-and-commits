@@ -109,6 +109,26 @@ def test_read_encounter_missing_raises(tmp_path: Path) -> None:
         encounter.read_encounter(tmp_path, "opening-gambit", "missing")
 
 
+def test_read_metadata_returns_full_frontmatter_and_body(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    region.create_region(tmp_path, "northlands", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body text.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+
+    metadata, body = encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")
+
+    assert metadata["name"] == "goblin-ambush"
+    assert metadata["campaign"] == "opening-gambit"
+    assert metadata["status"] == "draft"
+    assert metadata["regions"] == ["northlands"]
+    assert body.strip() == "Body text."
+
+
+def test_read_metadata_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(encounter.EncounterNotFoundError):
+        encounter.read_metadata(tmp_path, "opening-gambit", "missing")
+
+
 def test_update_encounter_replaces_body(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Original.")

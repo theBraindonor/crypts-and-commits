@@ -14,6 +14,23 @@ def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
 
+def test_get_missing_lore_fails() -> None:
+    result = runner.invoke(app, ["lore", "get", "missing"])
+
+    assert result.exit_code == 1
+
+
+def test_get_shows_metadata_and_body() -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "Body text."])
+
+    result = runner.invoke(app, ["lore", "get", "conventions"])
+
+    assert result.exit_code == 0
+    assert "name" in result.output
+    assert "enabled" in result.output
+    assert "Body text." in result.output
+
+
 def test_list_reports_no_lore_files() -> None:
     result = runner.invoke(app, ["lore", "list"])
 

@@ -19,6 +19,22 @@ app = typer.Typer(
 console = Console()
 
 
+@app.command("get")
+def get_lore(
+    name: str = typer.Argument(..., help="Lore name to show."),
+) -> None:
+    """Show a lore file's frontmatter and body."""
+    try:
+        metadata, body = lore_core.read_metadata(Path.cwd(), name)
+    except lore_core.LoreNotFoundError as exc:
+        fail(console, str(exc))
+
+    for key, value in metadata.items():
+        console.print(f"[bold]{key}[/bold]: {value}")
+    console.print()
+    console.print(body)
+
+
 @app.command("list")
 def list_lore() -> None:
     """List the lore files in .sourcebook/lore."""

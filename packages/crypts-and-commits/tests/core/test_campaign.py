@@ -71,6 +71,22 @@ def test_read_campaign_missing_raises(tmp_path: Path) -> None:
         campaign.read_campaign(tmp_path, "missing")
 
 
+def test_read_metadata_returns_full_frontmatter_and_body(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body text.")
+    campaign.set_status(tmp_path, "opening-gambit", "open")
+
+    metadata, body = campaign.read_metadata(tmp_path, "opening-gambit")
+
+    assert metadata["name"] == "opening-gambit"
+    assert metadata["status"] == "open"
+    assert body.strip() == "Body text."
+
+
+def test_read_metadata_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(campaign.CampaignNotFoundError):
+        campaign.read_metadata(tmp_path, "missing")
+
+
 def test_update_campaign_replaces_body(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Original.")
 

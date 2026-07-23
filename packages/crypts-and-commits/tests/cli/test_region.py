@@ -14,6 +14,23 @@ def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
 
 
+def test_get_missing_region_fails() -> None:
+    result = runner.invoke(app, ["region", "get", "missing"])
+
+    assert result.exit_code == 1
+
+
+def test_get_shows_metadata_and_body() -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--path", "src/frontend", "--body", "Body text."])
+
+    result = runner.invoke(app, ["region", "get", "northlands"])
+
+    assert result.exit_code == 0
+    assert "name" in result.output
+    assert "src/frontend" in result.output
+    assert "Body text." in result.output
+
+
 def test_list_reports_no_region_files() -> None:
     result = runner.invoke(app, ["region", "list"])
 

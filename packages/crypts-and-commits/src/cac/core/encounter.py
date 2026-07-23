@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 
@@ -77,6 +78,11 @@ def template_body() -> str:
 def read_encounter(root: Path, campaign: str, name: str) -> Encounter:
     post = frontmatter.load(_existing_encounter_path(root, campaign, name))
     return _to_encounter(post, campaign, name)
+
+
+def read_metadata(root: Path, campaign: str, name: str) -> tuple[dict[str, Any], str]:
+    post = frontmatter.load(_existing_encounter_path(root, campaign, name))
+    return dict(post.metadata), post.content
 
 
 def create_encounter(root: Path, campaign: str, name: str, body: str) -> Path:

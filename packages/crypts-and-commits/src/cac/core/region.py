@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 
@@ -63,6 +64,11 @@ def template_body() -> str:
 def read_region(root: Path, name: str) -> Region:
     post = frontmatter.load(_existing_region_path(root, name))
     return _to_region(post, name)
+
+
+def read_metadata(root: Path, name: str) -> tuple[dict[str, Any], str]:
+    post = frontmatter.load(_existing_region_path(root, name))
+    return dict(post.metadata), post.content
 
 
 def create_region(root: Path, name: str, body: str, path_value: str = "") -> Path:

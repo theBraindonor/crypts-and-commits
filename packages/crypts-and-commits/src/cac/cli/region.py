@@ -17,6 +17,22 @@ app = typer.Typer(
 console = Console()
 
 
+@app.command("get")
+def get_region(
+    name: str = typer.Argument(..., help="Region name to show."),
+) -> None:
+    """Show a region file's frontmatter and body."""
+    try:
+        metadata, body = region_core.read_metadata(Path.cwd(), name)
+    except region_core.RegionNotFoundError as exc:
+        fail(console, str(exc))
+
+    for key, value in metadata.items():
+        console.print(f"[bold]{key}[/bold]: {value}")
+    console.print()
+    console.print(body)
+
+
 @app.command("list")
 def list_regions() -> None:
     """List the region files in .sourcebook/region."""
