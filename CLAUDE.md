@@ -8,11 +8,17 @@ Crypts and Commits ("C&C") is a Coding Assistant Continuity Framework. It uses a
 
 The framework's own CLI (`cac`) is meant to be driven by the coding assistant, not just the developer — it is the mechanism by which an agent records project context and tracks its own work. This repository is dogfooding that idea: as we build C&C, we are also bootstrapping this repo's own `.sourcebook` (see below) to track the work of building it, ahead of the longer-term goal of using the same framework to drive AI-assisted work on *other* projects.
 
-## Guardrail: never edit `.sourcebook/` directly
+## Guardrail: `.sourcebook/` is CLI-only
 
-Once a project has been bootstrapped, its `.sourcebook/` directory is managed exclusively through the `cac` CLI (`cac world`, `cac lore`, `cac region`, `cac campaign`, `cac encounter`) — never by editing, creating, moving, or deleting files under `.sourcebook/` directly, whether with the `Edit`/`Write` tools or via `Bash` (`rm`, `mv`, `sed -i`, shell redirection, etc.). The `Edit` and `Write` tools are also technically denied for `.sourcebook/**` in `.claude/settings.json`, but that only covers those two tools — treat the rule itself, not just the enforced subset, as binding. Reading files under `.sourcebook/` directly (to inspect current state) is fine.
+Once a project has been bootstrapped, its `.sourcebook/` directory is managed exclusively through the `cac` CLI (`cac world`, `cac lore`, `cac region`, `cac campaign`, `cac encounter`) — never by creating, reading, editing, moving, or deleting files under `.sourcebook/` directly, whether with the `Edit`/`Write`/`Read` tools or via `Bash` (`rm`, `mv`, `sed -i`, `cat`, shell redirection, etc.). The long-term goal is for the coding assistant to have **no awareness of the `.sourcebook` directory's existence at all** — an MCP server (see `mcp/` below) is meant to eventually replace CLI shell-outs as the interaction layer entirely.
+
+Today, only `Edit`/`Write` are technically denied for `.sourcebook/**` in `.claude/settings.json`. `Read` is deliberately **not** blocked yet: skill instructions should still prefer `cac ... get`/`list`/etc. over reading files directly, but shelling out to a CLI process per read/write is not viable for high-volume interaction, so enforcing that half of the rule is being deferred until an MCP server exists to replace it. Treat the CLI-only rule itself as binding even where it isn't (yet) technically enforced.
+
+`cac bootstrap init` is invoked by the **developer only** — the coding assistant must never run it itself, even to fix a missing `.sourcebook`. If `.sourcebook` is missing, ask the user to bootstrap the project.
 
 This restriction is about `.sourcebook/` *content*, not the `cac` source code itself — freely edit `packages/crypts-and-commits/src/cac/**` and its tests as normal.
+
+Planned: `cac bootstrap init` should provision (create, or merge into an existing) `.claude/settings.json` with this same `.sourcebook/**` Edit/Write deny rule for whatever project it bootstraps, rather than that guardrail having to be set up by hand as it was in this repo. Not yet implemented.
 
 ## Repository layout
 
@@ -32,6 +38,7 @@ This is a [PDM workspace](https://pdm-project.org/en/latest/usage/monorepo/) (`[
   - `pdm run cac <command> --help` — exercise the CLI directly against the current working directory
 - Python: requires `>=3.11`.
 - Adding a *new* PDM dev-dependency group requires `pdm lock -d -G:all` before `pdm install` will recognize it.
+- In this workspace, `cac` is only on `PATH` via `pdm run cac ...` (the package is an editable install inside the workspace `.venv`, not a global install). This is a wrinkle of this repo's own dev setup — skill content (see below) invokes `cac` generically and should not encode `pdm run`.
 
 ## Architecture: the `cac` package
 
@@ -61,3 +68,12 @@ Bootstrapping a project (`cac bootstrap init`) creates a `.sourcebook/` director
 Cross-object linking always lives on the "target" object's `core` module (e.g. `world.py` owns `assign_lore`/`unassign_lore`, `region.py` owns its own `assign_lore`/`unassign_lore`), while the corresponding CLI commands live under the "source" object being assigned (e.g. `cac lore assign-world`, `cac lore assign-region`, `cac encounter assign-region`).
 
 Known limitation: deleting a lore/region/campaign entry does not cascade-clean stale references left in objects that were assigned to it.
+
+## Agent skills
+
+Two Claude Code skills wrap the `cac` CLI so an agent session can drive `.sourcebook` content without ever touching it directly, per the guardrail above:
+
+- **`world-manager`** — the static world-building context: `cac world`, `cac lore`, `cac region`. Never calls `cac bootstrap init` (developer-only, see the guardrail section).
+- **`campaign-manager`** — the active work-tracking loop: `cac campaign`, `cac encounter`, including the lore-review gate before an encounter moves `draft` → `open` and the verification/confirmation step before `open` → `completed`.
+
+These are currently authored directly under `.claude/skills/` in this repository. Once they're stable, they will move to `packages/crypts-and-commits/src/cac/core/templates/skills/` (a sibling of `templates/sourcebook/`) and be deployed into a target project's `.claude/skills/` by `cac bootstrap`, the same way `world.md` is templated into `.sourcebook/world.md` today. Do not start that migration until the skills themselves are fully bootstrapped and working — this is forward-looking context, not a current task.
