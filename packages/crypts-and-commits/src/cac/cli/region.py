@@ -6,7 +6,14 @@ from rich.console import Console
 from cac.cli.common import edit_markdown, fail
 from cac.core import region as region_core
 
-app = typer.Typer(help="Manage region files describing places in the project's world.")
+app = typer.Typer(
+    help=(
+        "Manage region entries - paths within the repository that need their own "
+        "documentation and that specific lore rules can be applied to. For example, a web "
+        "application's world might have a 'frontend' region and a 'backend' region, each "
+        "with its own tech stack, tooling, and conventions."
+    )
+)
 console = Console()
 
 
@@ -25,13 +32,14 @@ def list_regions() -> None:
 @app.command("create")
 def create_region(
     name: str = typer.Argument(..., help="Region name (letters, numbers, underscores, hyphens)."),
+    path_value: str = typer.Option("", "--path", "-p", help="Path within the repository this region covers."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
 ) -> None:
     """Create a new region file."""
     content = body if body is not None else edit_markdown(region_core.template_body())
 
     try:
-        path = region_core.create_region(Path.cwd(), name, content)
+        path = region_core.create_region(Path.cwd(), name, content, path_value)
     except (region_core.InvalidRegionNameError, region_core.RegionAlreadyExistsError) as exc:
         fail(console, str(exc))
 
@@ -69,3 +77,17 @@ def delete_region(
         fail(console, str(exc))
 
     console.print(f"Deleted [bold green]{path}[/bold green]")
+
+
+@app.command("set-path")
+def set_path(
+    name: str = typer.Argument(..., help="Region name to update."),
+    path_value: str = typer.Argument(..., help="Path within the repository this region covers."),
+) -> None:
+    """Set a region's path."""
+    try:
+        region_core.set_path(Path.cwd(), name, path_value)
+    except region_core.RegionNotFoundError as exc:
+        fail(console, str(exc))
+
+    console.print(f"Set [bold]{name}[/bold] path to [bold]{path_value}[/bold].")

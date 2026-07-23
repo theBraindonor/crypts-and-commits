@@ -2,7 +2,7 @@
 name: ""
 campaign: ""
 status: "draft"
-region: null
+regions: []
 ---
 
 # Encounter

@@ -35,7 +35,7 @@ def test_read_world_returns_metadata_and_body(tmp_path: Path) -> None:
 
     result = world.read_world(tmp_path)
 
-    assert result.metadata == {"name": "unnamed_world"}
+    assert result.metadata == {"name": "unnamed_world", "assigned_lore": []}
     assert "Be sure to edit this world definition file before starting development!" in result.body
 
 

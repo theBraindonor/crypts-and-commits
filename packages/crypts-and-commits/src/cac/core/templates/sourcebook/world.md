@@ -1,5 +1,6 @@
 ---
 name: "unnamed_world"
+assigned_lore: []
 ---
 
 # Unnamed World

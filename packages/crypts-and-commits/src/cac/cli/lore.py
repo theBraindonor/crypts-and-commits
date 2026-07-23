@@ -8,7 +8,14 @@ from cac.core import lore as lore_core
 from cac.core import region as region_core
 from cac.core import world as world_core
 
-app = typer.Typer(help="Manage lore files describing project rules and conventions.")
+app = typer.Typer(
+    help=(
+        "Manage lore entries - standards, conventions, and best practices to apply to the "
+        "project. Lore is used to review encounters before work on them begins. Lore assigned "
+        "to the world is global and applies to every encounter; otherwise, a lore entry only "
+        "applies to an encounter when it is assigned to a region the encounter takes place in."
+    )
+)
 console = Console()
 
 

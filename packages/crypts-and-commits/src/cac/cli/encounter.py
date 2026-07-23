@@ -8,7 +8,18 @@ from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
 from cac.core import region as region_core
 
-app = typer.Typer(help="Manage encounter files describing units of work within a campaign.")
+app = typer.Typer(
+    help=(
+        "Manage encounter entries - a concrete unit of work within a campaign, representing "
+        "a plan the AI agent is expected to execute. An encounter starts in the 'draft' "
+        "status while it is being documented and planned. Once it has passed all applicable "
+        "lore checks (world lore and the lore of any region it is assigned to) and the user "
+        "has approved it, it moves to 'open' and the agent begins the work. Once all work is "
+        "finished and verification has passed, the agent confirms with the user before "
+        "marking it 'completed'. An encounter may be marked 'abandoned' at any time, for any "
+        "reason."
+    )
+)
 console = Console()
 
 
@@ -103,7 +114,7 @@ def assign_region(
     name: str = typer.Argument(..., help="Encounter name to assign."),
     region: str = typer.Argument(..., help="Region name to assign the encounter to."),
 ) -> None:
-    """Assign an encounter to a region."""
+    """Assign an encounter to a region. An encounter may be assigned to one or more regions."""
     try:
         encounter_core.assign_region(Path.cwd(), campaign, name, region)
     except (encounter_core.EncounterNotFoundError, region_core.RegionNotFoundError) as exc:
@@ -116,11 +127,12 @@ def assign_region(
 def unassign_region(
     campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to unassign."),
+    region: str = typer.Argument(..., help="Region name to unassign the encounter from."),
 ) -> None:
-    """Unassign an encounter from its region."""
+    """Unassign an encounter from a region."""
     try:
-        encounter_core.unassign_region(Path.cwd(), campaign, name)
+        encounter_core.unassign_region(Path.cwd(), campaign, name, region)
     except encounter_core.EncounterNotFoundError as exc:
         fail(console, str(exc))
 
-    console.print(f"Unassigned [bold]{name}[/bold] from its region.")
+    console.print(f"Unassigned [bold]{name}[/bold] from region [bold]{region}[/bold].")

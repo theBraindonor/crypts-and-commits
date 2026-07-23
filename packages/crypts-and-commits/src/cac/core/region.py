@@ -29,6 +29,7 @@ class RegionAlreadyExistsError(FileExistsError):
 @dataclass(frozen=True)
 class Region:
     name: str
+    path: str
     body: str
 
 
@@ -61,16 +62,17 @@ def template_body() -> str:
 
 def read_region(root: Path, name: str) -> Region:
     post = frontmatter.load(_existing_region_path(root, name))
-    return Region(name=post.get("name", name), body=post.content)
+    return _to_region(post, name)
 
 
-def create_region(root: Path, name: str, body: str) -> Path:
+def create_region(root: Path, name: str, body: str, path_value: str = "") -> Path:
     path = _region_path(root, name)
     if path.exists():
         raise RegionAlreadyExistsError(f"Region {name!r} already exists.")
     path.parent.mkdir(parents=True, exist_ok=True)
     post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
     post["name"] = name
+    post["path"] = path_value
     post.content = body
     write_post(path, post)
     return path
@@ -88,6 +90,14 @@ def delete_region(root: Path, name: str) -> Path:
     path = _existing_region_path(root, name)
     path.unlink()
     return path
+
+
+def set_path(root: Path, name: str, path_value: str) -> Region:
+    path = _existing_region_path(root, name)
+    post = frontmatter.load(path)
+    post["path"] = path_value
+    write_post(path, post)
+    return _to_region(post, name)
 
 
 def assign_lore(root: Path, region_name: str, lore_name: str) -> Region:
@@ -113,7 +123,15 @@ def _update_assigned_lore(root: Path, region_name: str, *, add: str | None = Non
     post = frontmatter.load(path)
     toggle_list_attribute(post, ASSIGNED_LORE_KEY, add=add, remove=remove)
     write_post(path, post)
-    return Region(name=post.get("name", region_name), body=post.content)
+    return _to_region(post, region_name)
+
+
+def _to_region(post: frontmatter.Post, name: str) -> Region:
+    return Region(
+        name=post.get("name", name),
+        path=post.get("path", ""),
+        body=post.content,
+    )
 
 
 def _region_path(root: Path, name: str) -> Path:

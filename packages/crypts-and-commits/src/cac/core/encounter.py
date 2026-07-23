@@ -7,11 +7,12 @@ from cac.core import campaign as campaign_core
 from cac.core import region as region_core
 from cac.core import templates
 from cac.core.config import DEFAULT_ENCOUNTER_STATUS, ENCOUNTER_DIR_NAME, ENCOUNTER_STATUSES, NAME_PATTERN
-from cac.core.frontmatter_utils import write_post
+from cac.core.frontmatter_utils import toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
 
 _TEMPLATE_PACKAGE = "sourcebook"
 _TEMPLATE_FILENAME = "encounter.md"
+REGIONS_KEY = "regions"
 
 
 class InvalidEncounterNameError(ValueError):
@@ -35,7 +36,7 @@ class Encounter:
     name: str
     campaign: str
     status: str
-    region: str | None
+    regions: list[str]
     body: str
 
 
@@ -120,17 +121,19 @@ def assign_region(root: Path, campaign: str, name: str, region: str) -> Encounte
     """Assign an encounter to a region. The link is recorded only on the encounter."""
     if not region_core.exists(root, region):
         raise region_core.RegionNotFoundError(f"Region {region!r} does not exist.")
-    return _set_region(root, campaign, name, region)
+    return _update_regions(root, campaign, name, add=region)
 
 
-def unassign_region(root: Path, campaign: str, name: str) -> Encounter:
-    return _set_region(root, campaign, name, None)
+def unassign_region(root: Path, campaign: str, name: str, region: str) -> Encounter:
+    return _update_regions(root, campaign, name, remove=region)
 
 
-def _set_region(root: Path, campaign: str, name: str, region: str | None) -> Encounter:
+def _update_regions(
+    root: Path, campaign: str, name: str, *, add: str | None = None, remove: str | None = None
+) -> Encounter:
     path = _existing_encounter_path(root, campaign, name)
     post = frontmatter.load(path)
-    post["region"] = region
+    toggle_list_attribute(post, REGIONS_KEY, add=add, remove=remove)
     write_post(path, post)
     return _to_encounter(post, campaign, name)
 
@@ -140,7 +143,7 @@ def _to_encounter(post: frontmatter.Post, campaign: str, name: str) -> Encounter
         name=post.get("name", name),
         campaign=post.get("campaign", campaign),
         status=post.get("status", DEFAULT_ENCOUNTER_STATUS),
-        region=post.get("region"),
+        regions=post.get("regions", []),
         body=post.content,
     )
 

@@ -140,9 +140,25 @@ def test_assign_region_sets_region(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
-    assert "region: northlands" in text
+    assert "regions:" in text
+    assert "northlands" in text
     region_text = (tmp_path / ".sourcebook" / "region" / "northlands.md").read_text(encoding="utf-8")
     assert "goblin-ambush" not in region_text
+
+
+def test_assign_region_allows_multiple_regions(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+    runner.invoke(app, ["region", "create", "southlands", "--body", "text"])
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+
+    runner.invoke(app, ["encounter", "assign-region", "opening-gambit", "goblin-ambush", "northlands"])
+    result = runner.invoke(app, ["encounter", "assign-region", "opening-gambit", "goblin-ambush", "southlands"])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "northlands" in text
+    assert "southlands" in text
 
 
 def test_assign_region_missing_region_fails() -> None:
@@ -160,8 +176,8 @@ def test_unassign_region_clears_region(tmp_path: Path) -> None:
     runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
     runner.invoke(app, ["encounter", "assign-region", "opening-gambit", "goblin-ambush", "northlands"])
 
-    result = runner.invoke(app, ["encounter", "unassign-region", "opening-gambit", "goblin-ambush"])
+    result = runner.invoke(app, ["encounter", "unassign-region", "opening-gambit", "goblin-ambush", "northlands"])
 
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
-    assert "region: null" in text
+    assert "regions: []" in text

@@ -6,7 +6,14 @@ from rich.console import Console
 from cac.cli.common import edit_markdown, fail
 from cac.core import campaign as campaign_core
 
-app = typer.Typer(help="Manage campaign files describing runs through the project's world.")
+app = typer.Typer(
+    help=(
+        "Manage campaign entries - long-running initiatives on the project, similar to an "
+        "'Epic' in Jira-style work tracking. A campaign is expected to require many "
+        "encounters, completed over time, before it is considered complete. Examples "
+        "include 'Create the MVP', 'Add Payment Processing', or a version increment."
+    )
+)
 console = Console()
 
 
@@ -74,7 +81,7 @@ def delete_campaign(
 @app.command("set-status")
 def set_status(
     name: str = typer.Argument(..., help="Campaign name to update."),
-    status: str = typer.Argument(..., help="New status: draft, open, or completed."),
+    status: str = typer.Argument(..., help="New status: draft, open, completed, or abandoned."),
 ) -> None:
     """Set a campaign's status."""
     try:

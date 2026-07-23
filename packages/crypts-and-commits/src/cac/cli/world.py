@@ -6,7 +6,14 @@ from rich.console import Console
 from cac.cli.common import edit_markdown, fail
 from cac.core import world as world_core
 
-app = typer.Typer(help="View and edit the project's world file.")
+app = typer.Typer(
+    help=(
+        "View and edit the project's world file. The world file holds summary details of the "
+        "project - a description of its goals and/or purpose. It is intended for use when "
+        "generating context, prior to including the world-level lore items. World-level lore "
+        "items are used to review all encounters before they are opened."
+    )
+)
 console = Console()
 
 

@@ -6,7 +6,7 @@ from rich.console import Console
 
 
 def edit_markdown(initial: str) -> str:
-    edited = click.edit(initial, extension=".md")
+    edited = click.edit(initial, extension=".txt")
     return edited if edited is not None else initial
 
 

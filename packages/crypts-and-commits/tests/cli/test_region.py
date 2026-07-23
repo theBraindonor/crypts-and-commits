@@ -92,3 +92,27 @@ def test_delete_missing_region_fails() -> None:
     result = runner.invoke(app, ["region", "delete", "missing", "--yes"])
 
     assert result.exit_code == 1
+
+
+def test_create_with_path_option(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["region", "create", "frontend", "--path", "src/frontend", "--body", "text"])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "region" / "frontend.md").read_text(encoding="utf-8")
+    assert "path: src/frontend" in text
+
+
+def test_set_path_updates_path(tmp_path: Path) -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+
+    result = runner.invoke(app, ["region", "set-path", "northlands", "src/backend"])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "region" / "northlands.md").read_text(encoding="utf-8")
+    assert "path: src/backend" in text
+
+
+def test_set_path_missing_region_fails() -> None:
+    result = runner.invoke(app, ["region", "set-path", "missing", "src/backend"])
+
+    assert result.exit_code == 1

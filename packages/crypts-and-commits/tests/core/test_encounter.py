@@ -100,7 +100,7 @@ def test_read_encounter_returns_metadata_and_body(tmp_path: Path) -> None:
     assert result.name == "goblin-ambush"
     assert result.campaign == "opening-gambit"
     assert result.status == "draft"
-    assert result.region is None
+    assert result.regions == []
     assert result.body.strip() == "Body text."
 
 
@@ -167,9 +167,32 @@ def test_assign_region_sets_region_on_encounter_only(tmp_path: Path) -> None:
 
     result = encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
 
-    assert result.region == "northlands"
+    assert result.regions == ["northlands"]
     region_text = (tmp_path / ".sourcebook" / "region" / "northlands.md").read_text(encoding="utf-8")
     assert "goblin-ambush" not in region_text
+
+
+def test_assign_region_is_idempotent(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    region.create_region(tmp_path, "northlands", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+    result = encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+
+    assert result.regions == ["northlands"]
+
+
+def test_encounter_can_be_assigned_to_multiple_regions(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "southlands", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+    result = encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "southlands")
+
+    assert result.regions == ["northlands", "southlands"]
 
 
 def test_assign_region_missing_region_raises(tmp_path: Path) -> None:
@@ -194,11 +217,24 @@ def test_unassign_region_clears_region(tmp_path: Path) -> None:
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
     encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
 
-    result = encounter.unassign_region(tmp_path, "opening-gambit", "goblin-ambush")
+    result = encounter.unassign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
 
-    assert result.region is None
+    assert result.regions == []
+
+
+def test_unassign_region_leaves_other_regions(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "southlands", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "southlands")
+
+    result = encounter.unassign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+
+    assert result.regions == ["southlands"]
 
 
 def test_unassign_region_missing_encounter_raises(tmp_path: Path) -> None:
     with pytest.raises(encounter.EncounterNotFoundError):
-        encounter.unassign_region(tmp_path, "opening-gambit", "missing")
+        encounter.unassign_region(tmp_path, "opening-gambit", "missing", "northlands")

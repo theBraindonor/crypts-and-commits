@@ -61,7 +61,30 @@ def test_read_region_returns_name_and_body(tmp_path: Path) -> None:
     result = region.read_region(tmp_path, "northlands")
 
     assert result.name == "northlands"
+    assert result.path == ""
     assert result.body.strip() == "Body text."
+
+
+def test_create_region_accepts_path(tmp_path: Path) -> None:
+    path = region.create_region(tmp_path, "frontend", "Body.", "src/frontend")
+
+    text = path.read_text(encoding="utf-8")
+    assert "path: src/frontend" in text
+    assert region.read_region(tmp_path, "frontend").path == "src/frontend"
+
+
+def test_set_path_updates_path(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "northlands", "Body.")
+
+    result = region.set_path(tmp_path, "northlands", "src/backend")
+
+    assert result.path == "src/backend"
+    assert region.read_region(tmp_path, "northlands").path == "src/backend"
+
+
+def test_set_path_missing_region_raises(tmp_path: Path) -> None:
+    with pytest.raises(region.RegionNotFoundError):
+        region.set_path(tmp_path, "missing", "src/backend")
 
 
 def test_read_region_missing_raises(tmp_path: Path) -> None:
