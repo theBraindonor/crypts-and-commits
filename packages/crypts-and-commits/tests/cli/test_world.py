@@ -30,6 +30,16 @@ def test_get_shows_metadata_and_body() -> None:
     assert "Be sure to edit this world definition file before starting development!" in result.output
 
 
+def test_get_preserves_bracketed_body_text(tmp_path: Path) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["world", "set-body", "--body", "See [tool.pdm.workspace] for details."])
+
+    result = runner.invoke(app, ["world", "get"])
+
+    assert result.exit_code == 0
+    assert "[tool.pdm.workspace]" in result.output
+
+
 def test_set_updates_frontmatter_attribute(tmp_path: Path) -> None:
     runner.invoke(app, ["bootstrap", "init"])
 

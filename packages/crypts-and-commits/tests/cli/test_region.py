@@ -31,6 +31,15 @@ def test_get_shows_metadata_and_body() -> None:
     assert "Body text." in result.output
 
 
+def test_get_preserves_bracketed_body_text() -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "See [tool.pdm.workspace] for details."])
+
+    result = runner.invoke(app, ["region", "get", "northlands"])
+
+    assert result.exit_code == 0
+    assert "[tool.pdm.workspace]" in result.output
+
+
 def test_list_reports_no_region_files() -> None:
     result = runner.invoke(app, ["region", "list"])
 

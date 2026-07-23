@@ -31,6 +31,15 @@ def test_get_shows_metadata_and_body() -> None:
     assert "Body text." in result.output
 
 
+def test_get_preserves_bracketed_body_text() -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "See [tool.pdm.workspace] for details."])
+
+    result = runner.invoke(app, ["lore", "get", "conventions"])
+
+    assert result.exit_code == 0
+    assert "[tool.pdm.workspace]" in result.output
+
+
 def test_list_reports_no_lore_files() -> None:
     result = runner.invoke(app, ["lore", "list"])
 

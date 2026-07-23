@@ -31,6 +31,15 @@ def test_get_shows_metadata_and_body() -> None:
     assert "Body text." in result.output
 
 
+def test_get_preserves_bracketed_body_text() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "See [tool.pdm.workspace] for details."])
+
+    result = runner.invoke(app, ["campaign", "get", "opening-gambit"])
+
+    assert result.exit_code == 0
+    assert "[tool.pdm.workspace]" in result.output
+
+
 def test_list_reports_no_campaign_files() -> None:
     result = runner.invoke(app, ["campaign", "list"])
 

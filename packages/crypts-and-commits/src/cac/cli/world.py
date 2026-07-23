@@ -28,7 +28,7 @@ def get_world() -> None:
     for key, value in world.metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
     console.print()
-    console.print(world.body)
+    console.print(world.body, markup=False)
 
 
 @app.command("set")

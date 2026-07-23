@@ -37,7 +37,7 @@ def get_encounter(
     for key, value in metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
     console.print()
-    console.print(body)
+    console.print(body, markup=False)
 
 
 @app.command("list")

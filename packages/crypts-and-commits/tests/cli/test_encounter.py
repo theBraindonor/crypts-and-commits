@@ -38,6 +38,18 @@ def test_get_shows_metadata_and_body() -> None:
     assert "Body text." in result.output
 
 
+def test_get_preserves_bracketed_body_text() -> None:
+    _create_campaign()
+    runner.invoke(
+        app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "See [tool.pdm.workspace] here."]
+    )
+
+    result = runner.invoke(app, ["encounter", "get", "opening-gambit", "goblin-ambush"])
+
+    assert result.exit_code == 0
+    assert "[tool.pdm.workspace]" in result.output
+
+
 def test_list_reports_no_encounter_files() -> None:
     _create_campaign()
 
