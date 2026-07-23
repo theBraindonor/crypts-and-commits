@@ -47,7 +47,7 @@ def list_regions() -> None:
 
 @app.command("create")
 def create_region(
-    name: str = typer.Argument(..., help="Region name (letters, numbers, underscores, hyphens)."),
+    name: str = typer.Argument(..., help="Region name (letters, numbers, underscores, hyphens, periods)."),
     path_value: str = typer.Option("", "--path", "-p", help="Path within the repository this region covers."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
 ) -> None:

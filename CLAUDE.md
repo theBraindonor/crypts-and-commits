@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project purpose
 
-Crypts and Commits ("C&C") is a Coding Assistant Continuity Framework. It uses a tabletop-gaming metaphor to describe collaboration between a developer and an AI coding assistant: the developer acts as the Game Master, establishing context, making decisions, and retaining final authority over the session.
+Crypts and Commits ("CAC") is a Coding Assistant Continuity Framework. It uses a tabletop-gaming metaphor to describe collaboration between a developer and an AI coding assistant: the developer acts as the Game Master, establishing context, making decisions, and retaining final authority over the session. Use "CAC", not "C&C", as the project's abbreviation — it aligns with the "Coding Assistant Continuity" subtitle and avoids reading as a direct D&D reference.
 
-The framework's own CLI (`cac`) is meant to be driven by the coding assistant, not just the developer — it is the mechanism by which an agent records project context and tracks its own work. This repository is dogfooding that idea: as we build C&C, we are also bootstrapping this repo's own `.sourcebook` (see below) to track the work of building it, ahead of the longer-term goal of using the same framework to drive AI-assisted work on *other* projects.
+The framework's own CLI (`cac`) is meant to be driven by the coding assistant, not just the developer — it is the mechanism by which an agent records project context and tracks its own work. This repository is dogfooding that idea: as we build CAC, we are also bootstrapping this repo's own `.sourcebook` (see below) to track the work of building it, ahead of the longer-term goal of using the same framework to drive AI-assisted work on *other* projects.
 
 ## Guardrail: `.sourcebook/` is CLI-only
 

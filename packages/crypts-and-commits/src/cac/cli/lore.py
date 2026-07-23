@@ -49,7 +49,7 @@ def list_lore() -> None:
 
 @app.command("create")
 def create_lore(
-    name: str = typer.Argument(..., help="Lore name (letters, numbers, underscores, hyphens)."),
+    name: str = typer.Argument(..., help="Lore name (letters, numbers, underscores, hyphens, periods)."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
 ) -> None:
     """Create a new lore file."""

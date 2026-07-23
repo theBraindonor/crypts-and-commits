@@ -39,6 +39,27 @@ def test_create_encounter_rejects_invalid_name(tmp_path: Path) -> None:
         encounter.create_encounter(tmp_path, "opening-gambit", "bad name!", "body")
 
 
+def test_create_encounter_allows_periods(tmp_path: Path) -> None:
+    _make_campaign(tmp_path, "v0.1.0-bootstrapping")
+
+    path = encounter.create_encounter(tmp_path, "v0.1.0-bootstrapping", "fix-1.2", "body")
+
+    assert path == tmp_path / ".sourcebook" / "encounters" / "v0.1.0-bootstrapping" / "fix-1.2.md"
+
+
+@pytest.mark.parametrize("name", [".", ".."])
+def test_create_encounter_rejects_reserved_names(tmp_path: Path, name: str) -> None:
+    _make_campaign(tmp_path)
+
+    with pytest.raises(encounter.InvalidEncounterNameError):
+        encounter.create_encounter(tmp_path, "opening-gambit", name, "body")
+
+
+def test_create_encounter_rejects_reserved_campaign_name(tmp_path: Path) -> None:
+    with pytest.raises(campaign.InvalidCampaignNameError):
+        encounter.create_encounter(tmp_path, "..", "goblin-ambush", "body")
+
+
 def test_create_encounter_rejects_duplicate_name(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "duplicate", "first")

@@ -24,6 +24,18 @@ def test_create_region_rejects_invalid_name(tmp_path: Path) -> None:
         region.create_region(tmp_path, "bad name!", "body")
 
 
+def test_create_region_allows_periods(tmp_path: Path) -> None:
+    path = region.create_region(tmp_path, "v0.1.0-region", "body")
+
+    assert path == tmp_path / ".sourcebook" / "region" / "v0.1.0-region.md"
+
+
+@pytest.mark.parametrize("name", [".", ".."])
+def test_create_region_rejects_reserved_names(tmp_path: Path, name: str) -> None:
+    with pytest.raises(region.InvalidRegionNameError):
+        region.create_region(tmp_path, name, "body")
+
+
 def test_create_region_rejects_duplicate_name(tmp_path: Path) -> None:
     region.create_region(tmp_path, "duplicate", "first")
 

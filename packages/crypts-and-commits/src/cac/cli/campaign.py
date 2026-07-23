@@ -47,7 +47,7 @@ def list_campaigns() -> None:
 
 @app.command("create")
 def create_campaign(
-    name: str = typer.Argument(..., help="Campaign name (letters, numbers, underscores, hyphens)."),
+    name: str = typer.Argument(..., help="Campaign name (letters, numbers, underscores, hyphens, periods)."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
 ) -> None:
     """Create a new campaign file."""

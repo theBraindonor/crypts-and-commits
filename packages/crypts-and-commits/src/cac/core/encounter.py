@@ -7,7 +7,13 @@ import frontmatter
 from cac.core import campaign as campaign_core
 from cac.core import region as region_core
 from cac.core import templates
-from cac.core.config import DEFAULT_ENCOUNTER_STATUS, ENCOUNTER_DIR_NAME, ENCOUNTER_STATUSES, NAME_PATTERN
+from cac.core.config import (
+    DEFAULT_ENCOUNTER_STATUS,
+    ENCOUNTER_DIR_NAME,
+    ENCOUNTER_STATUSES,
+    NAME_PATTERN,
+    RESERVED_NAMES,
+)
 from cac.core.frontmatter_utils import toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
 
@@ -47,9 +53,10 @@ def encounter_dir(root: Path, campaign: str) -> Path:
 
 
 def validate_name(name: str) -> None:
-    if not NAME_PATTERN.fullmatch(name):
+    if not NAME_PATTERN.fullmatch(name) or name in RESERVED_NAMES:
         raise InvalidEncounterNameError(
-            f"Encounter name {name!r} is invalid: only letters, numbers, underscores, and hyphens are allowed."
+            f"Encounter name {name!r} is invalid: only letters, numbers, underscores, hyphens, and periods are "
+            "allowed (and the name cannot be '.' or '..')."
         )
 
 

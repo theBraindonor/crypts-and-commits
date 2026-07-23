@@ -51,6 +51,18 @@ def test_create_lore_rejects_invalid_name(tmp_path: Path) -> None:
         lore.create_lore(tmp_path, "bad name!", "body")
 
 
+def test_create_lore_allows_periods(tmp_path: Path) -> None:
+    path = lore.create_lore(tmp_path, "v0.1.0-style", "body")
+
+    assert path == tmp_path / ".sourcebook" / "lore" / "v0.1.0-style.md"
+
+
+@pytest.mark.parametrize("name", [".", ".."])
+def test_create_lore_rejects_reserved_names(tmp_path: Path, name: str) -> None:
+    with pytest.raises(lore.InvalidLoreNameError):
+        lore.create_lore(tmp_path, name, "body")
+
+
 def test_create_lore_rejects_duplicate_name(tmp_path: Path) -> None:
     lore.create_lore(tmp_path, "duplicate", "first")
 

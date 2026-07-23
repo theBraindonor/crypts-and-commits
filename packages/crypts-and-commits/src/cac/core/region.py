@@ -6,7 +6,7 @@ import frontmatter
 
 from cac.core import lore as lore_core
 from cac.core import templates
-from cac.core.config import NAME_PATTERN, REGION_DIR_NAME
+from cac.core.config import NAME_PATTERN, REGION_DIR_NAME, RESERVED_NAMES
 from cac.core.frontmatter_utils import toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
 
@@ -39,9 +39,10 @@ def region_dir(root: Path) -> Path:
 
 
 def validate_name(name: str) -> None:
-    if not NAME_PATTERN.fullmatch(name):
+    if not NAME_PATTERN.fullmatch(name) or name in RESERVED_NAMES:
         raise InvalidRegionNameError(
-            f"Region name {name!r} is invalid: only letters, numbers, underscores, and hyphens are allowed."
+            f"Region name {name!r} is invalid: only letters, numbers, underscores, hyphens, and periods are "
+            "allowed (and the name cannot be '.' or '..')."
         )
 
 

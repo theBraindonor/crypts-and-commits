@@ -1,0 +1,16 @@
+---
+name: demo-ui
+path: packages/demo-ui
+---
+
+# Demo UI (frontend)
+
+The chat frontend for the demo-api RAG chatbot, demonstrating crypts-and-commits end to end. This region is fully aspirational - the package does not exist yet (not part of the PDM workspace, which only covers Python packages).
+
+## Intended shape
+
+A **Node.js** / **React** application providing a chat interface against the `demo-api` backend region. Users converse with a chatbot whose answers are grounded in this project's own `.sourcebook` content.
+
+## Status
+
+Not yet started - no scaffold, no chosen build tooling or package manager yet. Treat any specifics above as the current plan, not settled fact - confirm with the user before assuming implementation details (bundler, styling approach, state management, etc.) not yet reflected in code.

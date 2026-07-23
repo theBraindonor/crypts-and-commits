@@ -25,6 +25,18 @@ def test_create_campaign_rejects_invalid_name(tmp_path: Path) -> None:
         campaign.create_campaign(tmp_path, "bad name!", "body")
 
 
+def test_create_campaign_allows_periods(tmp_path: Path) -> None:
+    path = campaign.create_campaign(tmp_path, "v0.1.0-bootstrapping", "body")
+
+    assert path == tmp_path / ".sourcebook" / "campaigns" / "v0.1.0-bootstrapping.md"
+
+
+@pytest.mark.parametrize("name", [".", ".."])
+def test_create_campaign_rejects_reserved_names(tmp_path: Path, name: str) -> None:
+    with pytest.raises(campaign.InvalidCampaignNameError):
+        campaign.create_campaign(tmp_path, name, "body")
+
+
 def test_create_campaign_rejects_duplicate_name(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "duplicate", "first")
 

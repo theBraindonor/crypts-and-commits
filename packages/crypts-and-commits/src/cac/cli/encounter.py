@@ -57,7 +57,7 @@ def list_encounters(
 @app.command("create")
 def create_encounter(
     campaign: str = typer.Argument(..., help="Campaign to assign the encounter to."),
-    name: str = typer.Argument(..., help="Encounter name (letters, numbers, underscores, hyphens)."),
+    name: str = typer.Argument(..., help="Encounter name (letters, numbers, underscores, hyphens, periods)."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
 ) -> None:
     """Create a new encounter file."""

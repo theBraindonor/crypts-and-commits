@@ -5,7 +5,7 @@ from typing import Any
 import frontmatter
 
 from cac.core import templates
-from cac.core.config import LORE_DIR_NAME, NAME_PATTERN
+from cac.core.config import LORE_DIR_NAME, NAME_PATTERN, RESERVED_NAMES
 from cac.core.frontmatter_utils import toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
 
@@ -37,9 +37,10 @@ def lore_dir(root: Path) -> Path:
 
 
 def validate_name(name: str) -> None:
-    if not NAME_PATTERN.fullmatch(name):
+    if not NAME_PATTERN.fullmatch(name) or name in RESERVED_NAMES:
         raise InvalidLoreNameError(
-            f"Lore name {name!r} is invalid: only letters, numbers, underscores, and hyphens are allowed."
+            f"Lore name {name!r} is invalid: only letters, numbers, underscores, hyphens, and periods are allowed "
+            "(and the name cannot be '.' or '..')."
         )
 
 
