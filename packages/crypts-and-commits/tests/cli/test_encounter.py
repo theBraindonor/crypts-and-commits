@@ -124,6 +124,19 @@ def test_update_missing_encounter_fails() -> None:
     assert result.exit_code == 1
 
 
+def test_update_rejects_once_not_draft(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "Original"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "--message", "Checked lore."])
+
+    result = runner.invoke(app, ["encounter", "update", "opening-gambit", "goblin-ambush", "--body", "Updated"])
+
+    assert result.exit_code == 1
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "Original" in text
+    assert "Updated" not in text
+
+
 def test_delete_with_yes_flag(tmp_path: Path) -> None:
     _create_campaign()
     runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
@@ -142,25 +155,191 @@ def test_delete_missing_encounter_fails() -> None:
     assert result.exit_code == 1
 
 
-def test_set_status_updates_status(tmp_path: Path) -> None:
+def test_set_status_command_removed() -> None:
     _create_campaign()
     runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
 
     result = runner.invoke(app, ["encounter", "set-status", "opening-gambit", "goblin-ambush", "abandoned"])
+
+    assert result.exit_code != 0
+
+
+def test_review_appends_message_and_updates_status(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+
+    result = runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "status: reviewed" in text
+    assert "Checked lore." in text
+
+
+def test_review_requires_message() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+
+    result = runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush"])
+
+    assert result.exit_code != 0
+
+
+def test_review_rejects_wrong_status() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "First."])
+
+    result = runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Second."])
+
+    assert result.exit_code == 1
+
+
+def test_open_without_message_succeeds(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+
+    result = runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "status: open" in text
+
+
+def test_open_with_message_appends_entry(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+
+    result = runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush", "-m", "Go ahead."])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "Go ahead." in text
+
+
+def test_open_rejects_from_draft() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+
+    result = runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+
+    assert result.exit_code == 1
+
+
+def test_record_message_succeeds_when_reviewed(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+
+    result = runner.invoke(app, ["encounter", "record-message", "opening-gambit", "goblin-ambush", "-m", "Noted."])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "Noted." in text
+
+
+def test_record_message_succeeds_when_open(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+
+    result = runner.invoke(app, ["encounter", "record-message", "opening-gambit", "goblin-ambush", "-m", "Noted."])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "Noted." in text
+
+
+def test_record_message_rejects_when_draft() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+
+    result = runner.invoke(app, ["encounter", "record-message", "opening-gambit", "goblin-ambush", "-m", "Noted."])
+
+    assert result.exit_code == 1
+
+
+def test_record_message_requires_message() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+
+    result = runner.invoke(app, ["encounter", "record-message", "opening-gambit", "goblin-ambush"])
+
+    assert result.exit_code != 0
+
+
+def test_complete_without_message_succeeds(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+
+    result = runner.invoke(app, ["encounter", "complete", "opening-gambit", "goblin-ambush"])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "status: completed" in text
+
+
+def test_complete_with_message_appends_entry(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+
+    result = runner.invoke(app, ["encounter", "complete", "opening-gambit", "goblin-ambush", "-m", "All verified."])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "All verified." in text
+
+
+def test_complete_rejects_from_reviewed() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+
+    result = runner.invoke(app, ["encounter", "complete", "opening-gambit", "goblin-ambush"])
+
+    assert result.exit_code == 1
+
+
+def test_abandon_from_open_succeeds(tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+
+    result = runner.invoke(app, ["encounter", "abandon", "opening-gambit", "goblin-ambush", "-m", "Cancelled."])
 
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
     assert "status: abandoned" in text
 
 
-def test_set_status_rejects_invalid_status() -> None:
+def test_abandon_rejects_from_completed() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+    runner.invoke(app, ["encounter", "complete", "opening-gambit", "goblin-ambush"])
+
+    result = runner.invoke(app, ["encounter", "abandon", "opening-gambit", "goblin-ambush", "-m", "Too late."])
+
+    assert result.exit_code == 1
+
+
+def test_abandon_requires_message() -> None:
     _create_campaign()
     runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
 
-    result = runner.invoke(app, ["encounter", "set-status", "opening-gambit", "goblin-ambush", "cancelled"])
+    result = runner.invoke(app, ["encounter", "abandon", "opening-gambit", "goblin-ambush"])
 
-    assert result.exit_code == 1
-    assert "invalid" in result.output
+    assert result.exit_code != 0
 
 
 def test_assign_region_sets_region(tmp_path: Path) -> None:

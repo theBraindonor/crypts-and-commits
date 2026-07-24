@@ -164,6 +164,34 @@ def test_update_encounter_missing_raises(tmp_path: Path) -> None:
         encounter.update_encounter(tmp_path, "opening-gambit", "missing", "body")
 
 
+@pytest.mark.parametrize(
+    "advance",
+    [
+        lambda tmp_path: encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+        lambda tmp_path: (
+            encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+            encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
+        ),
+        lambda tmp_path: (
+            encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+            encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
+            encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
+        ),
+        lambda tmp_path: encounter.abandon_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Not needed."),
+    ],
+    ids=["reviewed", "open", "completed", "abandoned"],
+)
+def test_update_encounter_rejects_once_not_draft(tmp_path: Path, advance) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Original.")
+    advance(tmp_path)
+
+    with pytest.raises(encounter.EncounterNotDraftError):
+        encounter.update_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Updated.")
+
+    assert encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush").body.strip().startswith("Original.")
+
+
 def test_delete_encounter_removes_file(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     path = encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
@@ -178,27 +206,213 @@ def test_delete_encounter_missing_raises(tmp_path: Path) -> None:
         encounter.delete_encounter(tmp_path, "opening-gambit", "missing")
 
 
-def test_set_status_updates_status(tmp_path: Path) -> None:
+def test_review_encounter_transitions_status_and_appends_message(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
-    result = encounter.set_status(tmp_path, "opening-gambit", "goblin-ambush", "abandoned")
+    result = encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+
+    assert result.status == "reviewed"
+    body = encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush").body
+    assert "## Log" in body
+    assert "### Review" in body
+    assert "Looks good." in body
+
+
+@pytest.mark.parametrize("message", ["", "   "])
+def test_review_encounter_requires_message(tmp_path: Path, message: str) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    with pytest.raises(encounter.EncounterMessageRequiredError):
+        encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", message)
+
+
+def test_review_encounter_rejects_when_not_draft(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "First review.")
+
+    with pytest.raises(encounter.InvalidEncounterTransitionError):
+        encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Second review.")
+
+
+def test_review_encounter_missing_encounter_raises(tmp_path: Path) -> None:
+    with pytest.raises(encounter.EncounterNotFoundError):
+        encounter.review_encounter(tmp_path, "opening-gambit", "missing", "Looks good.")
+
+
+@pytest.mark.parametrize(
+    "advance",
+    [
+        lambda tmp_path: None,
+        lambda tmp_path: encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+        lambda tmp_path: (
+            encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+            encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
+        ),
+    ],
+    ids=["draft", "reviewed", "open"],
+)
+def test_abandon_encounter_succeeds_from_non_terminal_statuses(tmp_path: Path, advance) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    advance(tmp_path)
+
+    result = encounter.abandon_encounter(tmp_path, "opening-gambit", "goblin-ambush", "No longer needed.")
 
     assert result.status == "abandoned"
-    assert encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush").status == "abandoned"
+    body = encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush").body
+    assert "### Abandoned" in body
+    assert "No longer needed." in body
 
 
-def test_set_status_rejects_invalid_status(tmp_path: Path) -> None:
+def test_abandon_encounter_rejects_from_completed(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    with pytest.raises(encounter.InvalidEncounterTransitionError):
+        encounter.abandon_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Too late.")
+
+
+def test_abandon_encounter_rejects_from_abandoned(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.abandon_encounter(tmp_path, "opening-gambit", "goblin-ambush", "First.")
+
+    with pytest.raises(encounter.InvalidEncounterTransitionError):
+        encounter.abandon_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Second.")
+
+
+@pytest.mark.parametrize("message", ["", "   "])
+def test_abandon_encounter_requires_message(tmp_path: Path, message: str) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
-    with pytest.raises(encounter.InvalidEncounterStatusError):
-        encounter.set_status(tmp_path, "opening-gambit", "goblin-ambush", "cancelled")
+    with pytest.raises(encounter.EncounterMessageRequiredError):
+        encounter.abandon_encounter(tmp_path, "opening-gambit", "goblin-ambush", message)
 
 
-def test_set_status_missing_encounter_raises(tmp_path: Path) -> None:
+def test_open_encounter_transitions_from_reviewed_without_message(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+
+    result = encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    assert result.status == "open"
+    assert "### Opened" not in result.body
+
+
+def test_open_encounter_transitions_from_reviewed_with_message(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+
+    result = encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Go ahead.")
+
+    assert result.status == "open"
+    assert "### Opened" in result.body
+    assert "Go ahead." in result.body
+
+
+def test_open_encounter_rejects_from_draft(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    with pytest.raises(encounter.InvalidEncounterTransitionError):
+        encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+
+def test_complete_encounter_transitions_from_open(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    result = encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush", "All verified.")
+
+    assert result.status == "completed"
+    assert "### Completed" in result.body
+    assert "All verified." in result.body
+
+
+def test_complete_encounter_rejects_from_reviewed(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+
+    with pytest.raises(encounter.InvalidEncounterTransitionError):
+        encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+
+@pytest.mark.parametrize("status", ["reviewed", "open"])
+def test_record_message_allowed_in_reviewed_and_open_statuses(tmp_path: Path, status: str) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    if status == "open":
+        encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    result = encounter.record_message(tmp_path, "opening-gambit", "goblin-ambush", "Noted a deviation.")
+
+    assert result.status == status
+    assert "### Message" in result.body
+    assert "Noted a deviation." in result.body
+
+
+@pytest.mark.parametrize(
+    "advance",
+    [
+        lambda tmp_path: None,
+        lambda tmp_path: (
+            encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+            encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
+            encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
+        ),
+        lambda tmp_path: encounter.abandon_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Nope."),
+    ],
+    ids=["draft", "completed", "abandoned"],
+)
+def test_record_message_rejects_outside_reviewed_or_open(tmp_path: Path, advance) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    advance(tmp_path)
+
+    with pytest.raises(encounter.InvalidEncounterTransitionError):
+        encounter.record_message(tmp_path, "opening-gambit", "goblin-ambush", "Noted.")
+
+
+@pytest.mark.parametrize("message", ["", "   "])
+def test_record_message_requires_message(tmp_path: Path, message: str) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+
+    with pytest.raises(encounter.EncounterMessageRequiredError):
+        encounter.record_message(tmp_path, "opening-gambit", "goblin-ambush", message)
+
+
+def test_record_message_missing_encounter_raises(tmp_path: Path) -> None:
     with pytest.raises(encounter.EncounterNotFoundError):
-        encounter.set_status(tmp_path, "opening-gambit", "missing", "open")
+        encounter.record_message(tmp_path, "opening-gambit", "missing", "Noted.")
+
+
+def test_record_message_multiple_calls_append_multiple_entries_under_one_log_section(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    encounter.record_message(tmp_path, "opening-gambit", "goblin-ambush", "First note.")
+    result = encounter.record_message(tmp_path, "opening-gambit", "goblin-ambush", "Second note.")
+
+    assert result.body.count("## Log") == 1
+    assert result.body.count("### Message") == 2
+    assert result.body.index("First note.") < result.body.index("Second note.")
 
 
 def test_assign_region_sets_region_on_encounter_only(tmp_path: Path) -> None:

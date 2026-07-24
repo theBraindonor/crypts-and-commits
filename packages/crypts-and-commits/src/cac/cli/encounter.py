@@ -11,13 +11,14 @@ from cac.core import region as region_core
 app = typer.Typer(
     help=(
         "Manage encounter entries - a concrete unit of work within a campaign, representing "
-        "a plan the AI agent is expected to execute. An encounter starts in the 'draft' "
-        "status while it is being documented and planned. Once it has passed all applicable "
-        "lore checks (world lore and the lore of any region it is assigned to) and the user "
-        "has approved it, it moves to 'open' and the agent begins the work. Once all work is "
-        "finished and verification has passed, the agent confirms with the user before "
-        "marking it 'completed'. An encounter may be marked 'abandoned' at any time, for any "
-        "reason."
+        "a plan the AI agent is expected to execute. An encounter moves through a fixed "
+        "lifecycle: 'draft' (being planned; the only status in which its content may be "
+        "replaced with 'update') -> 'reviewed' (via 'review', after a lore check; locks the "
+        "content) -> 'open' (via 'open'; work begins) -> 'completed' (via 'complete', after "
+        "verification passes). It may instead be marked 'abandoned' (via 'abandon') from "
+        "'draft', 'reviewed', or 'open' - but not once 'completed'. Once past 'draft', content "
+        "can no longer be replaced, only appended to via the 'review'/'abandon'/'open'/"
+        "'complete' messages or 'record-message'."
     )
 )
 console = Console()
@@ -81,14 +82,25 @@ def update_encounter(
     name: str = typer.Argument(..., help="Encounter name to update."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
 ) -> None:
-    """Update an existing encounter file's body."""
+    """Update an existing encounter file's body. Only permitted while status is 'draft'."""
     try:
         current = encounter_core.read_encounter(Path.cwd(), campaign, name)
     except encounter_core.EncounterNotFoundError as exc:
         fail(console, str(exc))
 
+    if current.status != "draft":
+        fail(
+            console,
+            f"Encounter {name!r} is in status {current.status!r}; its content can only be replaced while in "
+            "'draft' status. Use 'cac encounter record-message' to append additional context instead.",
+        )
+
     content = body if body is not None else edit_markdown(current.body)
-    path = encounter_core.update_encounter(Path.cwd(), campaign, name, content)
+    try:
+        path = encounter_core.update_encounter(Path.cwd(), campaign, name, content)
+    except encounter_core.EncounterNotDraftError as exc:
+        fail(console, str(exc))
+
     console.print(f"Updated [bold green]{path}[/bold green]")
 
 
@@ -110,19 +122,91 @@ def delete_encounter(
     console.print(f"Deleted [bold green]{path}[/bold green]")
 
 
-@app.command("set-status")
-def set_status(
+@app.command("review")
+def review_encounter(
     campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
-    name: str = typer.Argument(..., help="Encounter name to update."),
-    status: str = typer.Argument(..., help="New status: draft, open, completed, or abandoned."),
+    name: str = typer.Argument(..., help="Encounter name to review."),
+    message: str = typer.Option(..., "--message", "-m", help="Lore-review result. Required."),
 ) -> None:
-    """Set an encounter's status."""
+    """Move an encounter from 'draft' to 'reviewed' after a lore review. Locks its content."""
     try:
-        encounter_core.set_status(Path.cwd(), campaign, name, status)
-    except (encounter_core.EncounterNotFoundError, encounter_core.InvalidEncounterStatusError) as exc:
+        encounter_core.review_encounter(Path.cwd(), campaign, name, message)
+    except (
+        encounter_core.EncounterNotFoundError,
+        encounter_core.InvalidEncounterTransitionError,
+        encounter_core.EncounterMessageRequiredError,
+    ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Set [bold]{name}[/bold] status to [bold]{status}[/bold].")
+    console.print(f"Reviewed [bold]{name}[/bold]; status is now [bold]reviewed[/bold].")
+
+
+@app.command("open")
+def open_encounter(
+    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
+    name: str = typer.Argument(..., help="Encounter name to open."),
+    message: str | None = typer.Option(None, "--message", "-m", help="Optional instructions or feedback."),
+) -> None:
+    """Move an encounter from 'reviewed' to 'open' and begin execution."""
+    try:
+        encounter_core.open_encounter(Path.cwd(), campaign, name, message)
+    except (encounter_core.EncounterNotFoundError, encounter_core.InvalidEncounterTransitionError) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Opened [bold]{name}[/bold].")
+
+
+@app.command("record-message")
+def record_message(
+    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
+    name: str = typer.Argument(..., help="Encounter name to record a message on."),
+    message: str = typer.Option(..., "--message", "-m", help="Message to append. Required."),
+) -> None:
+    """Append a message to an encounter without changing its status. Valid while 'reviewed' or 'open'."""
+    try:
+        encounter_core.record_message(Path.cwd(), campaign, name, message)
+    except (
+        encounter_core.EncounterNotFoundError,
+        encounter_core.InvalidEncounterTransitionError,
+        encounter_core.EncounterMessageRequiredError,
+    ) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Recorded message on [bold]{name}[/bold].")
+
+
+@app.command("complete")
+def complete_encounter(
+    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
+    name: str = typer.Argument(..., help="Encounter name to complete."),
+    message: str | None = typer.Option(None, "--message", "-m", help="Optional closing notes."),
+) -> None:
+    """Move an encounter from 'open' to 'completed' once verification passes."""
+    try:
+        encounter_core.complete_encounter(Path.cwd(), campaign, name, message)
+    except (encounter_core.EncounterNotFoundError, encounter_core.InvalidEncounterTransitionError) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Completed [bold]{name}[/bold].")
+
+
+@app.command("abandon")
+def abandon_encounter(
+    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
+    name: str = typer.Argument(..., help="Encounter name to abandon."),
+    message: str = typer.Option(..., "--message", "-m", help="Reason for abandoning. Required."),
+) -> None:
+    """Abandon an encounter from 'draft', 'reviewed', or 'open'. Not available once 'completed'."""
+    try:
+        encounter_core.abandon_encounter(Path.cwd(), campaign, name, message)
+    except (
+        encounter_core.EncounterNotFoundError,
+        encounter_core.InvalidEncounterTransitionError,
+        encounter_core.EncounterMessageRequiredError,
+    ) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Abandoned [bold]{name}[/bold].")
 
 
 @app.command("assign-region")

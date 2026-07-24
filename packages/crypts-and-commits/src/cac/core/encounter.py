@@ -10,24 +10,42 @@ from cac.core import templates
 from cac.core.config import (
     DEFAULT_ENCOUNTER_STATUS,
     ENCOUNTER_DIR_NAME,
-    ENCOUNTER_STATUSES,
     NAME_PATTERN,
     RESERVED_NAMES,
 )
-from cac.core.frontmatter_utils import toggle_list_attribute, write_post
+from cac.core.frontmatter_utils import append_log_entry, toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
 
 _TEMPLATE_PACKAGE = "sourcebook"
 _TEMPLATE_FILENAME = "encounter.md"
 REGIONS_KEY = "regions"
+_LOG_SECTION = "Log"
+
+_ENCOUNTER_TRANSITIONS: dict[str, frozenset[str]] = {
+    "draft": frozenset({"reviewed", "abandoned"}),
+    "reviewed": frozenset({"open", "abandoned"}),
+    "open": frozenset({"completed", "abandoned"}),
+    "completed": frozenset(),
+    "abandoned": frozenset(),
+}
+_RECORD_MESSAGE_STATUSES = frozenset({"reviewed", "open"})
 
 
 class InvalidEncounterNameError(ValueError):
     """Raised when an encounter name contains characters other than letters, numbers, underscores, and hyphens."""
 
 
-class InvalidEncounterStatusError(ValueError):
-    """Raised when an encounter status is not one of the allowed values."""
+class InvalidEncounterTransitionError(ValueError):
+    """Raised when an encounter status transition, or a status-gated operation, isn't permitted from the
+    encounter's current status."""
+
+
+class EncounterNotDraftError(InvalidEncounterTransitionError):
+    """Raised when attempting to replace an encounter's body while its status isn't 'draft'."""
+
+
+class EncounterMessageRequiredError(ValueError):
+    """Raised when a required message is missing or blank."""
 
 
 class EncounterNotFoundError(FileNotFoundError):
@@ -58,12 +76,6 @@ def validate_name(name: str) -> None:
             f"Encounter name {name!r} is invalid: only letters, numbers, underscores, hyphens, and periods are "
             "allowed (and the name cannot be '.' or '..')."
         )
-
-
-def validate_status(status: str) -> None:
-    if status not in ENCOUNTER_STATUSES:
-        allowed = ", ".join(ENCOUNTER_STATUSES)
-        raise InvalidEncounterStatusError(f"Encounter status {status!r} is invalid: must be one of {allowed}.")
 
 
 def exists(root: Path, campaign: str, name: str) -> bool:
@@ -110,6 +122,12 @@ def create_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
 def update_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
     path = _existing_encounter_path(root, campaign, name)
     post = frontmatter.load(path)
+    current_status = post.get("status", DEFAULT_ENCOUNTER_STATUS)
+    if current_status != "draft":
+        raise EncounterNotDraftError(
+            f"Encounter {name!r} is in status {current_status!r}; its content can only be replaced while in "
+            "'draft' status. Use 'cac encounter record-message' to append additional context instead."
+        )
     post.content = body
     write_post(path, post)
     return path
@@ -121,11 +139,80 @@ def delete_encounter(root: Path, campaign: str, name: str) -> Path:
     return path
 
 
-def set_status(root: Path, campaign: str, name: str, status: str) -> Encounter:
-    validate_status(status)
+def review_encounter(root: Path, campaign: str, name: str, message: str) -> Encounter:
+    """Move an encounter from 'draft' to 'reviewed'. Message is required and permanently locks
+    the Requirements/Rationale/Plan/Verification sections against further replacement."""
+    return _transition(
+        root, campaign, name, to_status="reviewed", log_heading="Review", message=message, message_required=True
+    )
+
+
+def abandon_encounter(root: Path, campaign: str, name: str, message: str) -> Encounter:
+    """Move an encounter from 'draft', 'reviewed', or 'open' to 'abandoned'. Message is required.
+    Not reachable from 'completed' or 'abandoned'."""
+    return _transition(
+        root, campaign, name, to_status="abandoned", log_heading="Abandoned", message=message, message_required=True
+    )
+
+
+def open_encounter(root: Path, campaign: str, name: str, message: str | None = None) -> Encounter:
+    """Move an encounter from 'reviewed' to 'open'. Message is optional."""
+    return _transition(
+        root, campaign, name, to_status="open", log_heading="Opened", message=message, message_required=False
+    )
+
+
+def complete_encounter(root: Path, campaign: str, name: str, message: str | None = None) -> Encounter:
+    """Move an encounter from 'open' to 'completed'. Message is optional."""
+    return _transition(
+        root, campaign, name, to_status="completed", log_heading="Completed", message=message, message_required=False
+    )
+
+
+def record_message(root: Path, campaign: str, name: str, message: str) -> Encounter:
+    """Append a message to an encounter without changing its status. Valid only while status is
+    'reviewed' or 'open'."""
+    if not message or not message.strip():
+        raise EncounterMessageRequiredError(f"A message is required to record a message on encounter {name!r}.")
     path = _existing_encounter_path(root, campaign, name)
     post = frontmatter.load(path)
-    post["status"] = status
+    current_status = post.get("status", DEFAULT_ENCOUNTER_STATUS)
+    if current_status not in _RECORD_MESSAGE_STATUSES:
+        allowed = ", ".join(sorted(_RECORD_MESSAGE_STATUSES))
+        raise InvalidEncounterTransitionError(
+            f"Cannot record a message on encounter {name!r}: status is {current_status!r}, but recording a "
+            f"message requires status to be one of: {allowed}."
+        )
+    append_log_entry(post, section=_LOG_SECTION, heading="Message", message=message)
+    write_post(path, post)
+    return _to_encounter(post, campaign, name)
+
+
+def _transition(
+    root: Path,
+    campaign: str,
+    name: str,
+    *,
+    to_status: str,
+    log_heading: str,
+    message: str | None,
+    message_required: bool,
+) -> Encounter:
+    path = _existing_encounter_path(root, campaign, name)
+    post = frontmatter.load(path)
+    current_status = post.get("status", DEFAULT_ENCOUNTER_STATUS)
+    allowed = _ENCOUNTER_TRANSITIONS.get(current_status, frozenset())
+    if to_status not in allowed:
+        raise InvalidEncounterTransitionError(
+            f"Cannot move encounter {name!r} from status {current_status!r} to {to_status!r}. "
+            f"Allowed transitions from {current_status!r}: "
+            f"{', '.join(sorted(allowed)) or 'none (terminal status)'}."
+        )
+    if message_required and not (message and message.strip()):
+        raise EncounterMessageRequiredError(f"A --message is required to move encounter {name!r} to {to_status!r}.")
+    if message:
+        append_log_entry(post, section=_LOG_SECTION, heading=log_heading, message=message)
+    post["status"] = to_status
     write_post(path, post)
     return _to_encounter(post, campaign, name)
 

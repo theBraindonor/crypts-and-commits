@@ -10,5 +10,5 @@ RESERVED_NAMES = frozenset({".", ".."})
 WORLD_FILE_NAME = "world.md"
 CAMPAIGN_STATUSES = ("draft", "open", "completed", "abandoned")
 DEFAULT_CAMPAIGN_STATUS = "draft"
-ENCOUNTER_STATUSES = ("draft", "open", "completed", "abandoned")
+ENCOUNTER_STATUSES = ("draft", "reviewed", "open", "completed", "abandoned")
 DEFAULT_ENCOUNTER_STATUS = "draft"
