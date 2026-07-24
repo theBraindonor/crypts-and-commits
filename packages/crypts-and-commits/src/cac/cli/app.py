@@ -1,5 +1,6 @@
 import typer
 
+from cac.cli.common import configure_output_encoding
 from cac.cli.bootstrap import app as bootstrap_app
 from cac.cli.campaign import app as campaign_app
 from cac.cli.encounter import app as encounter_app
@@ -23,3 +24,4 @@ app.add_typer(world_app, name="world")
 @app.callback()
 def main() -> None:
     """Crypts and Commits - a Coding Assistant Continuity Framework."""
+    configure_output_encoding()
