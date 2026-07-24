@@ -3,10 +3,11 @@ campaign: v0.1.0-bootstrapping
 created_by: John Hoff
 created_on: '2026-07-24T04:54:40Z'
 name: independent-review-subagent
-regions: []
-status: draft
+regions:
+- crypts-and-commits
+status: completed
 updated_by: John Hoff
-updated_on: '2026-07-24T04:54:40Z'
+updated_on: '2026-07-24T05:31:30Z'
 ---
 
 # Independent Review Subagent for the Encounter Lore Review
@@ -62,37 +63,94 @@ the region path as a fence can tighten it, but not enforce it.
 
 ## Plan
 
-*(To be developed in a fresh context — this draft captures the decision, not the
-final implementation.)*
+This is a **skill-only** change: no `cac` Python code is modified. Every edit
+lands in the `campaign-manager` skill's `SKILL.md`. (MCP-driven enforcement of
+the reading bound is future work, explicitly out of scope here.)
 
-- Choose the mechanism: which subagent type (a fresh `general-purpose` or
-  read-only `Explore`-style agent, explicitly **not** a fork), how it is
-  invoked from the `campaign-manager` review step, and how findings return to
-  the main thread.
-- Author the reviewer prompt template embodying guardrails 1-4, including the
-  allowed-reading-surface definition and the "flag, don't chase" instruction,
-  and the permitted verdicts (pass-with-notes / reject / not-reviewable).
-- Update `.claude/skills/campaign-manager/SKILL.md`, `draft → reviewed`:
-  replace the inline "gather lore / check the Plan" step with "spawn an
-  independent review subagent → it primes lore and reviews within the bounded
-  surface → it returns findings + a proposed review message → the user confirms
-  → the main thread runs `cac encounter review`."
-- Decide whether any of this belongs in code (e.g. a future MCP-driven flow)
-  versus skill instructions only. Skill-only is the expected answer for now.
-- Keep the wording portable against the planned move of skills into
-  `packages/crypts-and-commits/src/cac/core/templates/skills/` (per CLAUDE.md).
-- Decide whether this encounter should be assigned to the `crypts-and-commits`
-  region (the skills' eventual home) or left region-less while the skills still
-  live under `.claude/skills/`.
+1. **Reviewer mechanism — fresh `general-purpose` subagent.** The
+   `draft → reviewed` step spawns a fresh `general-purpose` agent via the Agent
+   tool (`subagent_type: "general-purpose"`), explicitly **not** a fork, so it
+   inherits none of the authoring conversation's context (guardrail 1). Only the
+   agent's final report — findings + proposed review message + verdict — returns
+   to the main thread. `general-purpose` is chosen over a read-only `Explore`
+   agent because the review is a reasoning/critique task, not a code-locating
+   fan-out; guardrail 4's reading bound is advisory (prompt-level) under either
+   choice, so the read-only fence buys little here.
+
+2. **Author the reviewer prompt template.** Add a verbatim, fill-in-the-blanks
+   prompt block to `SKILL.md` that the main agent hands the subagent. It carries
+   only the **encounter name** and **campaign name** — never pre-digested lore —
+   and instructs the reviewer to:
+   - **Prime context itself** (guardrail 1): run `cac world get`, enumerate
+     world-assigned `enabled` lore via `cac lore list`/`get`, and for each region
+     in the encounter's `regions` run `cac region get <region>` plus that
+     region's `enabled` assigned lore. Read the encounter with
+     `cac encounter get <name> -c <campaign>`.
+   - **Check the Plan** against each applicable lore item.
+   - **Stay within the bounded reading surface** (guardrail 4): read only the
+     encounter body, applicable lore bodies (including any paths/globs the lore
+     names), the assigned regions' documented `path`s, and files the Plan
+     explicitly names. A lore-relevant area the Plan did not cite is **flagged as
+     unverifiable / possibly out of scope**, not chased.
+   - **Be critical, with a mandate to reject** (guardrail 2), returning exactly
+     one verdict: **pass-with-notes**, **reject** (Plan conflicts with lore), or
+     **not-reviewable / underspecified** (too vague to review within the cited
+     surface).
+   - **Produce findings plus a *proposed* `cac encounter review --message`
+     string**, and run **no** `cac encounter` mutation itself (guardrail 3).
+   The framing must stay neutral — the prompt must not argue the plan is sound.
+
+3. **Rewrite the `draft → reviewed` section of `SKILL.md`.** Replace the current
+   inline "gather lore / check the Plan / confirm / run review" text with:
+   spawn the independent subagent → it primes lore and reviews within the bounded
+   surface → it returns findings + proposed review message + verdict → the main
+   thread relays them to the user → on user approval the main thread runs
+   `cac encounter review <name> --message "<the reviewer's findings>"`. The
+   message content is the reviewer's independent findings, replacing the acting
+   agent's self-summary (per Requirements).
+
+4. **State guardrail 4 as advisory** within the template: the reading bound is a
+   prompt-level instruction, not a technical sandbox — nothing today denies an
+   out-of-path read.
+
+5. **Portability.** Keep the new wording free of hardcoded `.claude/skills/...`
+   self-paths so it survives the planned move into
+   `packages/crypts-and-commits/src/cac/core/templates/skills/`. Refer to the
+   `cac` CLI and the `world-manager` skill by name, not by file path.
+
+6. **Region note.** This encounter is assigned to the `crypts-and-commits`
+   region, so its own review surface includes `console-best-practices`; since no
+   `rich.Console`/CLI code changes here, that lore is satisfied vacuously.
 
 ## Verification
 
-- The `campaign-manager` skill clearly instructs the independent-subagent review
-  with all four guardrails and the human-held approval gate.
-- Trial run: take a fresh draft encounter, invoke the new review procedure, and
-  confirm the reviewer (a) primes lore independently, (b) stays within the
-  bounded reading surface, (c) can return a reject / underspecified verdict, and
-  (d) leaves the `cac encounter review` transition to the human-approved main
-  thread.
-- If any code changes are introduced, `pdm run pytest -q` passes and
-  `pdm run ruff check .` / `ruff format .` are clean (per `clean-tests-and-lint`).
+1. **Skill content review.** The `campaign-manager` `SKILL.md` `draft → reviewed`
+   section instructs the independent-subagent flow with all four guardrails, the
+   three verdicts, the bounded reading surface, and the human-held approval gate
+   and transition. The reviewer prompt template is present and neutrally framed.
+2. **Trial run.** Take a fresh draft encounter and invoke the new procedure,
+   confirming the subagent (a) primes lore independently, (b) stays within the
+   bounded reading surface, (c) can return a reject / underspecified verdict, and
+   (d) leaves the `cac encounter review` transition to the human-approved main
+   thread.
+3. **Lint/tests (per `clean-tests-and-lint`).** Though the change is skill-only,
+   run `pdm run pytest -q` and `pdm run ruff check .` / `pdm run ruff format .`;
+   all must be clean (trivially, as no Python changes).
+
+## Log
+
+### Review - 2026-07-24T05:27:52Z - John Hoff
+
+Inline lore review (draft->reviewed gate). Applicable lore: clean-tests-and-lint (world) and console-best-practices (crypts-and-commits region). clean-tests-and-lint: Plan is skill-only with no Python changes; Verification step 3 runs pytest -q and ruff check/format, honoring the gate. console-best-practices: no rich.Console/CLI code touched, so satisfied vacuously. No conflicts; Plan is reviewable and self-consistent as written. Locking sections.
+
+### Opened - 2026-07-24T05:27:59Z - John Hoff
+
+Opening to execute: skill-only edits to campaign-manager SKILL.md per the Plan.
+
+### Message - 2026-07-24T05:30:40Z - John Hoff
+
+Executed: campaign-manager SKILL.md rewritten. draft->reviewed now spawns a fresh general-purpose reviewer subagent (never a fork), with a neutral prompt template embodying all four guardrails (self-priming, bounded reading surface stated as advisory, flag-don't-chase, human-held approval+transition) and three verdicts (PASS-WITH-NOTES/REJECT/NOT-REVIEWABLE). Added 'Task' to allowed-tools. Verification: step 1 (content review) done; step 3 (clean-tests-and-lint) done - pytest 351 passed, ruff check clean, format no diffs. Step 2 (live trial run / dogfood) intentionally DEFERRED per user's decision to dogfood soon rather than now; encounter left open pending that trial before completion.
+
+### Completed - 2026-07-24T05:31:30Z - John Hoff
+
+Completing. Skill-only change delivered and verified (content review + clean-tests-and-lint: 351 tests pass, ruff clean). Live trial run (Verification step 2) deferred by GM decision to dogfood on the next fresh draft encounter rather than blocking this one; the new draft->reviewed procedure is documented and ready to exercise.

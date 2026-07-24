@@ -1,7 +1,7 @@
 ---
 name: campaign-manager
 description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work with Requirements/Rationale/Plan/Verification sections) - through the cac CLI. Use when asked to start a new initiative, move a campaign through its draft/open/paused/completed/abandoned lifecycle, plan a new unit of work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
-allowed-tools: Bash(cac *)
+allowed-tools: Bash(cac *), Task
 ---
 
 # Campaign Manager
@@ -66,7 +66,63 @@ In the command forms below, `[--campaign <campaign>]` is shown explicitly, but o
 
 **`draft`** — the encounter is being documented and planned. Write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. This is the only status in which `cac encounter update` can replace the body.
 
-**`draft` → `reviewed`** — before reviewing, gather applicable lore (ask `world-manager`, or gather it directly): all `enabled` lore that is `assigned_to_world`, plus all `enabled` lore assigned to any region the encounter is assigned to. Check the Plan against each item. Confirm with the user before running `cac encounter review <name> --message "<review summary>"` — this permanently locks the Requirements, Rationale, Plan, and Verification sections; they can no longer be replaced with `update`, only appended to.
+**`draft` → `reviewed`** — this gate is performed by an **independent, fresh reviewer subagent**, never inline by the agent that authored the plan. An agent reviewing its own plan just re-checks it against the priors that produced it — a rubber stamp — so **do not review the Plan yourself**.
+
+1. **Spawn a fresh reviewer.** Use the `Task` tool with `subagent_type: "general-purpose"` — a fresh agent, **never a fork** (a fork inherits the authoring conversation and reproduces its bias). Hand it the [reviewer prompt template](#reviewer-subagent-prompt-template) below, filling in only the encounter and campaign names. Pass nothing else — no lore, no analysis of your own — so the review stays independent and also tests whether the encounter is self-contained enough to survive a context reset.
+2. **Let it review within bounds.** The subagent primes the world/lore itself, checks the Plan against applicable lore within a bounded reading surface, and returns findings, a verdict (**PASS-WITH-NOTES** / **REJECT** / **NOT-REVIEWABLE**), and a *proposed* review message. It does **not** run any `cac encounter` command — the transition is the human's to authorize.
+3. **Relay, then transition from the main thread.** Relay the reviewer's findings and verdict to the user. Only on the user's approval does the **main thread** run `cac encounter review <name> --message "<the reviewer's findings>"`; the message content is the reviewer's independent findings, not a self-summary. This permanently locks the Requirements, Rationale, Plan, and Verification sections — they can no longer be replaced with `update`, only appended to.
+
+If the verdict is **REJECT** or **NOT-REVIEWABLE**, do not transition: relay the reviewer's reasons, revise the draft with `cac encounter update` (still allowed while `draft`), and spawn a fresh reviewer again.
+
+#### Reviewer subagent prompt template
+
+Spawn with `subagent_type: "general-purpose"` (fresh, not a fork). Replace `<ENCOUNTER>` and `<CAMPAIGN>`; do not add anything else to the prompt.
+
+```
+You are an independent reviewer for a Crypts and Commits (CAC) "encounter" — a
+planned unit of work. Review it critically against the project's lore
+(standards and conventions). You did not write this plan; do not assume it is
+sound, and you are expected to reject it if it does not hold up.
+
+Encounter: <ENCOUNTER>
+Campaign:  <CAMPAIGN>
+
+Prime the context yourself — do not accept any summary of it. Use the
+`world-manager` skill if it is available, or run these reads directly:
+- `cac world get` — read the world summary.
+- `cac lore list`, then `cac lore get <name>` for each entry. Applicable lore is
+  every `enabled` entry with `assigned_to_world: true`, PLUS every `enabled`
+  entry assigned to a region this encounter is assigned to.
+- `cac encounter get <ENCOUNTER> -c <CAMPAIGN>` — read the encounter and note its
+  `regions`. For each region, `cac region get <region>` for its documented
+  `path` and assigned lore.
+
+Check the Plan against each applicable lore item.
+
+Bounded reading surface — you may READ only:
+- the encounter body,
+- the applicable lore bodies (including any paths or globs the lore names),
+- the assigned regions' documented `path`s,
+- files the Plan explicitly names.
+This bound is an instruction, not a technical sandbox — nothing stops you
+reading elsewhere, so honor it deliberately. If you suspect a lore-relevant area
+the Plan did NOT cite, FLAG it as unverifiable / possibly out of scope — do not
+go read it or reverse-engineer intent from the wider repo. Catching such sins of
+omission is valuable; chasing them is not.
+
+Return this and nothing more:
+1. Findings — for each applicable lore item, whether the Plan honors it, with any
+   conflict or gap. List "flagged but unverified" concerns separately.
+2. Verdict — exactly one of:
+   - PASS-WITH-NOTES — reviewable and consistent with lore;
+   - REJECT — the Plan conflicts with lore;
+   - NOT-REVIEWABLE — too underspecified to review within the cited surface.
+3. A proposed one-paragraph `cac encounter review --message` string capturing
+   your findings.
+
+Do NOT run `cac encounter review`, `open`, `update`, or any other mutating `cac`
+command, and do not edit any files. You are reviewing only.
+```
 
 **`reviewed` → `open`** — get explicit approval from the user, then run `cac encounter open <name> [--message "<any extra instructions/feedback>"]`. A message is optional here.
 
