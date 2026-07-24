@@ -1,6 +1,6 @@
 ---
 name: campaign-manager
-description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work with Requirements/Rationale/Plan/Verification sections) - through the cac CLI. Use when asked to start a new initiative, plan a new unit of work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
+description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work with Requirements/Rationale/Plan/Verification sections) - through the cac CLI. Use when asked to start a new initiative, move a campaign through its draft/open/paused/completed/abandoned lifecycle, plan a new unit of work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
 allowed-tools: Bash(cac *)
 ---
 
@@ -14,12 +14,27 @@ If a command reports that the project hasn't been bootstrapped, stop and ask the
 
 A campaign is a long-running initiative, similar to an "Epic" in Jira-style work tracking (e.g. "Create the MVP", "Add Payment Processing", a version increment). It's expected to require many encounters, completed over time, before it's done.
 
-- `cac campaign list` — list all campaigns by name.
-- `cac campaign get <name>` — show a campaign's frontmatter (`status`) and body.
-- `cac campaign create <name> [--body "..."]` — create a new campaign.
+- `cac campaign list` — list all campaigns by name, with their current status.
+- `cac campaign get <name>` — show a campaign's frontmatter (`status`, `created_on`/`created_by`/`updated_on`/`updated_by`) and body.
+- `cac campaign create <name> [--body "..."]` — create a new campaign, in `draft` status.
 - `cac campaign update <name> [--body "..."]` — replace a campaign's body.
-- `cac campaign set-status <name> <status>` — `draft`, `open`, `completed`, or `abandoned`.
+- `cac campaign open <name>` — move `draft` or `paused` → `open` and begin work. Only one campaign may be `open` at a time.
+- `cac campaign pause <name>` — move `open` → `paused`. Fails if the campaign has an encounter that is currently `open`.
+- `cac campaign complete <name>` — move `open` or `paused` → `completed`. Fails if the campaign has an encounter that is currently `open`.
+- `cac campaign abandon <name>` — move `draft`, `open`, or `paused` → `abandoned`. Not available once `completed`. Fails if the campaign has an encounter that is currently `open`.
 - `cac campaign delete <name>` — remove a campaign.
+
+## Campaign Lifecycle
+
+**`draft`** — the campaign was just created and hasn't started yet.
+
+**`draft`/`paused` → `open`** — run `cac campaign open <name>`. Only one campaign may be `open` at a time; if another campaign is already `open`, this fails naming that campaign — pause or complete it first.
+
+**`open` → `paused`** — run `cac campaign pause <name>` to set work aside without completing it. Fails, naming the offending encounter(s), if any encounter under the campaign is currently `open`; complete or abandon those encounters first (or wait for them to finish).
+
+**`open`/`paused` → `completed`** — run `cac campaign complete <name>` once the initiative is done. Same open-encounter restriction as `pause`.
+
+**`draft`/`open`/`paused` → `abandoned`** — run `cac campaign abandon <name>`. Not available once `completed`. Same open-encounter restriction as `pause`.
 
 ## Encounters
 
@@ -37,7 +52,7 @@ An encounter is a concrete unit of work within a campaign: a plan the agent is e
 - `cac encounter assign-region <campaign> <name> <region>` / `cac encounter unassign-region <campaign> <name> <region>` — an encounter may be assigned to one or more regions. This link is recorded only on the encounter.
 - `cac encounter delete <campaign> <name>` — remove an encounter.
 
-## Lifecycle
+## Encounter Lifecycle
 
 **`draft`** — the encounter is being documented and planned. Write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. This is the only status in which `cac encounter update` can replace the body.
 

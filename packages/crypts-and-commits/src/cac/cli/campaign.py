@@ -5,13 +5,20 @@ from rich.console import Console
 
 from cac.cli.common import edit_markdown, fail
 from cac.core import campaign as campaign_core
+from cac.core.git_utils import GitIdentityError
 
 app = typer.Typer(
     help=(
         "Manage campaign entries - long-running initiatives on the project, similar to an "
         "'Epic' in Jira-style work tracking. A campaign is expected to require many "
         "encounters, completed over time, before it is considered complete. Examples "
-        "include 'Create the MVP', 'Add Payment Processing', or a version increment."
+        "include 'Create the MVP', 'Add Payment Processing', or a version increment. A "
+        "campaign moves through a fixed lifecycle: 'draft' (just created) -> 'open' (via "
+        "'open'; only one campaign may be open at a time) -> 'paused' (via 'pause') or back "
+        "to 'open' again -> 'completed' (via 'complete', from 'open' or 'paused'). It may "
+        "instead be 'abandoned' (via 'abandon') from 'draft', 'open', or 'paused' - but not "
+        "once 'completed'. 'pause', 'complete', and 'abandon' all fail while the campaign "
+        "still has an open encounter."
     )
 )
 console = Console()
@@ -35,14 +42,14 @@ def get_campaign(
 
 @app.command("list")
 def list_campaigns() -> None:
-    """List the campaign files in .sourcebook/campaigns."""
-    names = campaign_core.list_campaigns(Path.cwd())
-    if not names:
+    """List the campaign files in .sourcebook/campaigns, with their current status."""
+    entries = campaign_core.list_campaigns_with_status(Path.cwd())
+    if not entries:
         console.print("No campaign files found.")
         return
 
-    for name in names:
-        console.print(name)
+    for name, status in entries:
+        console.print(f"{name} ({status})")
 
 
 @app.command("create")
@@ -55,7 +62,7 @@ def create_campaign(
 
     try:
         path = campaign_core.create_campaign(Path.cwd(), name, content)
-    except (campaign_core.InvalidCampaignNameError, campaign_core.CampaignAlreadyExistsError) as exc:
+    except (campaign_core.InvalidCampaignNameError, campaign_core.CampaignAlreadyExistsError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Created [bold green]{path}[/bold green]")
@@ -73,7 +80,11 @@ def update_campaign(
         fail(console, str(exc))
 
     content = body if body is not None else edit_markdown(current.body)
-    path = campaign_core.update_campaign(Path.cwd(), name, content)
+    try:
+        path = campaign_core.update_campaign(Path.cwd(), name, content)
+    except GitIdentityError as exc:
+        fail(console, str(exc))
+
     console.print(f"Updated [bold green]{path}[/bold green]")
 
 
@@ -94,15 +105,76 @@ def delete_campaign(
     console.print(f"Deleted [bold green]{path}[/bold green]")
 
 
-@app.command("set-status")
-def set_status(
-    name: str = typer.Argument(..., help="Campaign name to update."),
-    status: str = typer.Argument(..., help="New status: draft, open, completed, or abandoned."),
+@app.command("open")
+def open_campaign(
+    name: str = typer.Argument(..., help="Campaign name to open."),
 ) -> None:
-    """Set a campaign's status."""
+    """Move a campaign from 'draft' or 'paused' to 'open'. Only one campaign may be open at a
+    time."""
     try:
-        campaign_core.set_status(Path.cwd(), name, status)
-    except (campaign_core.CampaignNotFoundError, campaign_core.InvalidCampaignStatusError) as exc:
+        campaign_core.open_campaign(Path.cwd(), name)
+    except (
+        campaign_core.CampaignNotFoundError,
+        campaign_core.InvalidCampaignTransitionError,
+        campaign_core.AnotherCampaignOpenError,
+        GitIdentityError,
+    ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Set [bold]{name}[/bold] status to [bold]{status}[/bold].")
+    console.print(f"Opened [bold]{name}[/bold].")
+
+
+@app.command("pause")
+def pause_campaign(
+    name: str = typer.Argument(..., help="Campaign name to pause."),
+) -> None:
+    """Move a campaign from 'open' to 'paused'. Fails if it has an open encounter."""
+    try:
+        campaign_core.pause_campaign(Path.cwd(), name)
+    except (
+        campaign_core.CampaignNotFoundError,
+        campaign_core.InvalidCampaignTransitionError,
+        campaign_core.CampaignHasOpenEncountersError,
+        GitIdentityError,
+    ) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Paused [bold]{name}[/bold].")
+
+
+@app.command("complete")
+def complete_campaign(
+    name: str = typer.Argument(..., help="Campaign name to complete."),
+) -> None:
+    """Move a campaign from 'open' or 'paused' to 'completed'. Fails if it has an open
+    encounter."""
+    try:
+        campaign_core.complete_campaign(Path.cwd(), name)
+    except (
+        campaign_core.CampaignNotFoundError,
+        campaign_core.InvalidCampaignTransitionError,
+        campaign_core.CampaignHasOpenEncountersError,
+        GitIdentityError,
+    ) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Completed [bold]{name}[/bold].")
+
+
+@app.command("abandon")
+def abandon_campaign(
+    name: str = typer.Argument(..., help="Campaign name to abandon."),
+) -> None:
+    """Move a campaign from 'draft', 'open', or 'paused' to 'abandoned'. Fails if it has an open
+    encounter."""
+    try:
+        campaign_core.abandon_campaign(Path.cwd(), name)
+    except (
+        campaign_core.CampaignNotFoundError,
+        campaign_core.InvalidCampaignTransitionError,
+        campaign_core.CampaignHasOpenEncountersError,
+        GitIdentityError,
+    ) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Abandoned [bold]{name}[/bold].")

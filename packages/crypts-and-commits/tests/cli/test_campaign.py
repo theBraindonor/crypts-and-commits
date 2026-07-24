@@ -5,8 +5,16 @@ from typer.testing import CliRunner
 
 from cac.cli import common as cli_common
 from cac.cli.app import app
+from cac.core import git_utils
 
 runner = CliRunner()
+
+
+def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("git user.name is not configured.")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
 
 
 @pytest.fixture(autouse=True)
@@ -120,26 +128,169 @@ def test_delete_missing_campaign_fails() -> None:
     assert result.exit_code == 1
 
 
-def test_set_status_updates_status(tmp_path: Path) -> None:
+def test_list_shows_campaign_status(tmp_path: Path) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+
+    result = runner.invoke(app, ["campaign", "list"])
+
+    assert result.exit_code == 0
+    assert "opening-gambit (open)" in result.output
+
+
+def test_create_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+
+    assert result.exit_code == 1
+
+
+def test_update_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["campaign", "update", "opening-gambit", "--body", "Updated"])
+
+    assert result.exit_code == 1
+
+
+def test_open_updates_status(tmp_path: Path) -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
 
-    result = runner.invoke(app, ["campaign", "set-status", "opening-gambit", "open"])
+    result = runner.invoke(app, ["campaign", "open", "opening-gambit"])
 
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").read_text(encoding="utf-8")
     assert "status: open" in text
 
 
-def test_set_status_rejects_invalid_status(tmp_path: Path) -> None:
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
-
-    result = runner.invoke(app, ["campaign", "set-status", "opening-gambit", "cancelled"])
+def test_open_missing_campaign_fails() -> None:
+    result = runner.invoke(app, ["campaign", "open", "missing"])
 
     assert result.exit_code == 1
-    assert "invalid" in result.output
 
 
-def test_set_status_missing_campaign_fails() -> None:
-    result = runner.invoke(app, ["campaign", "set-status", "missing", "open"])
+def test_open_rejects_invalid_transition() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["campaign", "complete", "opening-gambit"])
+
+    result = runner.invoke(app, ["campaign", "open", "opening-gambit"])
+
+    assert result.exit_code == 1
+
+
+def test_open_fails_while_another_campaign_is_open() -> None:
+    runner.invoke(app, ["campaign", "create", "first", "--body", "text"])
+    runner.invoke(app, ["campaign", "create", "second", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "first"])
+
+    result = runner.invoke(app, ["campaign", "open", "second"])
+
+    assert result.exit_code == 1
+    assert "first" in result.output
+
+
+def test_open_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["campaign", "open", "opening-gambit"])
+
+    assert result.exit_code == 1
+
+
+def test_pause_updates_status(tmp_path: Path) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+
+    result = runner.invoke(app, ["campaign", "pause", "opening-gambit"])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").read_text(encoding="utf-8")
+    assert "status: paused" in text
+
+
+def test_pause_rejects_invalid_transition_from_draft() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+
+    result = runner.invoke(app, ["campaign", "pause", "opening-gambit"])
+
+    assert result.exit_code == 1
+
+
+def test_pause_fails_with_open_encounter() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "--message", "ok"])
+    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+
+    result = runner.invoke(app, ["campaign", "pause", "opening-gambit"])
+
+    assert result.exit_code == 1
+    assert "goblin-ambush" in result.output
+
+
+def test_complete_updates_status(tmp_path: Path) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+
+    result = runner.invoke(app, ["campaign", "complete", "opening-gambit"])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").read_text(encoding="utf-8")
+    assert "status: completed" in text
+
+
+def test_complete_fails_with_open_encounter() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "--message", "ok"])
+    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+
+    result = runner.invoke(app, ["campaign", "complete", "opening-gambit"])
+
+    assert result.exit_code == 1
+    assert "goblin-ambush" in result.output
+
+
+def test_abandon_updates_status(tmp_path: Path) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+
+    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit"])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").read_text(encoding="utf-8")
+    assert "status: abandoned" in text
+
+
+def test_abandon_rejects_invalid_transition_from_completed() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["campaign", "complete", "opening-gambit"])
+
+    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit"])
+
+    assert result.exit_code == 1
+
+
+def test_abandon_fails_with_open_encounter() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "--message", "ok"])
+    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+
+    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit"])
+
+    assert result.exit_code == 1
+    assert "goblin-ambush" in result.output
+
+
+def test_abandon_missing_campaign_fails() -> None:
+    result = runner.invoke(app, ["campaign", "abandon", "missing"])
 
     assert result.exit_code == 1

@@ -4,21 +4,48 @@ from typing import Any
 
 import frontmatter
 
-from cac.core import templates
-from cac.core.config import CAMPAIGN_DIR_NAME, CAMPAIGN_STATUSES, DEFAULT_CAMPAIGN_STATUS, NAME_PATTERN, RESERVED_NAMES
+from cac.core import frontmatter_utils, git_utils, templates
+from cac.core.config import (
+    CAMPAIGN_DIR_NAME,
+    DEFAULT_CAMPAIGN_STATUS,
+    DEFAULT_ENCOUNTER_STATUS,
+    ENCOUNTER_DIR_NAME,
+    NAME_PATTERN,
+    RESERVED_NAMES,
+)
 from cac.core.frontmatter_utils import write_post
 from cac.core.paths import sourcebook_dir
 
 _TEMPLATE_PACKAGE = "sourcebook"
 _TEMPLATE_FILENAME = "campaign.md"
+CREATED_BY_KEY = "created_by"
+CREATED_ON_KEY = "created_on"
+UPDATED_BY_KEY = "updated_by"
+UPDATED_ON_KEY = "updated_on"
+
+_CAMPAIGN_TRANSITIONS: dict[str, frozenset[str]] = {
+    "draft": frozenset({"open", "abandoned"}),
+    "open": frozenset({"paused", "completed", "abandoned"}),
+    "paused": frozenset({"open", "completed", "abandoned"}),
+    "completed": frozenset(),
+    "abandoned": frozenset(),
+}
 
 
 class InvalidCampaignNameError(ValueError):
     """Raised when a campaign name contains characters other than letters, numbers, underscores, and hyphens."""
 
 
-class InvalidCampaignStatusError(ValueError):
-    """Raised when a campaign status is not one of the allowed values."""
+class InvalidCampaignTransitionError(ValueError):
+    """Raised when a campaign status transition isn't permitted from the campaign's current status."""
+
+
+class AnotherCampaignOpenError(ValueError):
+    """Raised when opening a campaign while a different campaign is already open."""
+
+
+class CampaignHasOpenEncountersError(ValueError):
+    """Raised when pausing, completing, or abandoning a campaign that still has an open encounter."""
 
 
 class CampaignNotFoundError(FileNotFoundError):
@@ -36,6 +63,23 @@ class Campaign:
     body: str
 
 
+def _stamp_created(post: frontmatter.Post, root: Path) -> str:
+    user = git_utils.current_git_user(root)
+    ts = frontmatter_utils.format_timestamp(frontmatter_utils.utcnow())
+    post[CREATED_BY_KEY] = user
+    post[CREATED_ON_KEY] = ts
+    post[UPDATED_BY_KEY] = user
+    post[UPDATED_ON_KEY] = ts
+    return user
+
+
+def _stamp_updated(post: frontmatter.Post, root: Path) -> str:
+    user = git_utils.current_git_user(root)
+    post[UPDATED_BY_KEY] = user
+    post[UPDATED_ON_KEY] = frontmatter_utils.format_timestamp(frontmatter_utils.utcnow())
+    return user
+
+
 def campaign_dir(root: Path) -> Path:
     return sourcebook_dir(root) / CAMPAIGN_DIR_NAME
 
@@ -48,12 +92,6 @@ def validate_name(name: str) -> None:
         )
 
 
-def validate_status(status: str) -> None:
-    if status not in CAMPAIGN_STATUSES:
-        allowed = ", ".join(CAMPAIGN_STATUSES)
-        raise InvalidCampaignStatusError(f"Campaign status {status!r} is invalid: must be one of {allowed}.")
-
-
 def exists(root: Path, name: str) -> bool:
     validate_name(name)
     return (campaign_dir(root) / f"{name}.md").exists()
@@ -64,6 +102,17 @@ def list_campaigns(root: Path) -> list[str]:
     if not directory.is_dir():
         return []
     return sorted(path.stem for path in directory.glob("*.md"))
+
+
+def list_campaigns_with_status(root: Path) -> list[tuple[str, str]]:
+    directory = campaign_dir(root)
+    if not directory.is_dir():
+        return []
+    result = []
+    for path in sorted(directory.glob("*.md")):
+        post = frontmatter.load(path)
+        result.append((path.stem, post.get("status", DEFAULT_CAMPAIGN_STATUS)))
+    return result
 
 
 def template_body() -> str:
@@ -88,6 +137,7 @@ def create_campaign(root: Path, name: str, body: str) -> Path:
     post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
     post["name"] = name
     post.content = body
+    _stamp_created(post, root)
     write_post(path, post)
     return path
 
@@ -96,6 +146,7 @@ def update_campaign(root: Path, name: str, body: str) -> Path:
     path = _existing_campaign_path(root, name)
     post = frontmatter.load(path)
     post.content = body
+    _stamp_updated(post, root)
     write_post(path, post)
     return path
 
@@ -106,13 +157,85 @@ def delete_campaign(root: Path, name: str) -> Path:
     return path
 
 
-def set_status(root: Path, name: str, status: str) -> Campaign:
-    validate_status(status)
+def open_campaign(root: Path, name: str) -> Campaign:
+    """Move a campaign from 'draft' or 'paused' to 'open'. Fails if a different campaign is
+    already open - only one campaign may be open at a time."""
     path = _existing_campaign_path(root, name)
     post = frontmatter.load(path)
-    post["status"] = status
+    _check_transition(post, name, to_status="open")
+    other = _other_open_campaign(root, exclude=name)
+    if other is not None:
+        raise AnotherCampaignOpenError(
+            f"Cannot open campaign {name!r}: campaign {other!r} is already open. Only one campaign may be "
+            f"open at a time; pause or complete {other!r} first."
+        )
+    return _apply_status(post, path, name, "open", root)
+
+
+def pause_campaign(root: Path, name: str) -> Campaign:
+    """Move a campaign from 'open' to 'paused'. Fails if the campaign has an open encounter."""
+    return _guarded_transition(root, name, to_status="paused", action="pause")
+
+
+def complete_campaign(root: Path, name: str) -> Campaign:
+    """Move a campaign from 'open' or 'paused' to 'completed'. Fails if the campaign has an open
+    encounter."""
+    return _guarded_transition(root, name, to_status="completed", action="complete")
+
+
+def abandon_campaign(root: Path, name: str) -> Campaign:
+    """Move a campaign from 'draft', 'open', or 'paused' to 'abandoned'. Fails if the campaign has
+    an open encounter."""
+    return _guarded_transition(root, name, to_status="abandoned", action="abandon")
+
+
+def _guarded_transition(root: Path, name: str, *, to_status: str, action: str) -> Campaign:
+    path = _existing_campaign_path(root, name)
+    post = frontmatter.load(path)
+    _check_transition(post, name, to_status=to_status)
+    open_encounters = _open_encounter_names(root, name)
+    if open_encounters:
+        raise CampaignHasOpenEncountersError(
+            f"Cannot {action} campaign {name!r}: it has open encounter(s) {', '.join(open_encounters)}. "
+            "Complete or abandon them first."
+        )
+    return _apply_status(post, path, name, to_status, root)
+
+
+def _check_transition(post: frontmatter.Post, name: str, *, to_status: str) -> None:
+    current_status = post.get("status", DEFAULT_CAMPAIGN_STATUS)
+    allowed = _CAMPAIGN_TRANSITIONS.get(current_status, frozenset())
+    if to_status not in allowed:
+        raise InvalidCampaignTransitionError(
+            f"Cannot move campaign {name!r} from status {current_status!r} to {to_status!r}. "
+            f"Allowed transitions from {current_status!r}: {', '.join(sorted(allowed)) or 'none (terminal status)'}."
+        )
+
+
+def _apply_status(post: frontmatter.Post, path: Path, name: str, to_status: str, root: Path) -> Campaign:
+    _stamp_updated(post, root)
+    post["status"] = to_status
     write_post(path, post)
     return _to_campaign(post, name)
+
+
+def _other_open_campaign(root: Path, exclude: str) -> str | None:
+    for name, status in list_campaigns_with_status(root):
+        if name != exclude and status == "open":
+            return name
+    return None
+
+
+def _open_encounter_names(root: Path, name: str) -> list[str]:
+    directory = sourcebook_dir(root) / ENCOUNTER_DIR_NAME / name
+    if not directory.is_dir():
+        return []
+    names = []
+    for path in sorted(directory.glob("*.md")):
+        post = frontmatter.load(path)
+        if post.get("status", DEFAULT_ENCOUNTER_STATUS) == "open":
+            names.append(path.stem)
+    return names
 
 
 def _to_campaign(post: frontmatter.Post, name: str) -> Campaign:

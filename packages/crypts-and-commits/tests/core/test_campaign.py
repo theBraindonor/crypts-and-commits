@@ -1,8 +1,27 @@
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
-from cac.core import campaign
+from cac.core import campaign, encounter, frontmatter_utils, git_utils
+
+_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=timezone.utc)
+
+
+def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
+    monkeypatch.setattr(git_utils, "current_git_user", lambda root: user)
+    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: when)
+
+
+@pytest.fixture(autouse=True)
+def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_identity(monkeypatch)
+
+
+def _open_encounter(tmp_path: Path, campaign_name: str, encounter_name: str) -> None:
+    encounter.create_encounter(tmp_path, campaign_name, encounter_name, "Body.")
+    encounter.review_encounter(tmp_path, campaign_name, encounter_name, "Looks good.")
+    encounter.open_encounter(tmp_path, campaign_name, encounter_name)
 
 
 def test_list_campaigns_returns_empty_when_no_directory(tmp_path: Path) -> None:
@@ -85,7 +104,7 @@ def test_read_campaign_missing_raises(tmp_path: Path) -> None:
 
 def test_read_metadata_returns_full_frontmatter_and_body(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body text.")
-    campaign.set_status(tmp_path, "opening-gambit", "open")
+    campaign.open_campaign(tmp_path, "opening-gambit")
 
     metadata, body = campaign.read_metadata(tmp_path, "opening-gambit")
 
@@ -125,30 +144,247 @@ def test_delete_campaign_missing_raises(tmp_path: Path) -> None:
         campaign.delete_campaign(tmp_path, "missing")
 
 
-def test_set_status_updates_status(tmp_path: Path) -> None:
+def test_create_campaign_sets_created_and_updated_fields(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
 
-    result = campaign.set_status(tmp_path, "opening-gambit", "open")
+    metadata, _ = campaign.read_metadata(tmp_path, "opening-gambit")
+
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "John Hoff"
+    assert metadata["updated_on"] == "2026-07-23T18:04:12Z"
+
+
+def test_update_campaign_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Original.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=timezone.utc)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    campaign.update_campaign(tmp_path, "opening-gambit", "Updated.")
+
+    metadata, _ = campaign.read_metadata(tmp_path, "opening-gambit")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
+
+
+def test_list_campaigns_with_status(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "zeta", "z")
+    campaign.create_campaign(tmp_path, "alpha", "a")
+    campaign.open_campaign(tmp_path, "alpha")
+
+    assert campaign.list_campaigns_with_status(tmp_path) == [("alpha", "open"), ("zeta", "draft")]
+
+
+def test_open_campaign_from_draft(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+
+    result = campaign.open_campaign(tmp_path, "opening-gambit")
 
     assert result.status == "open"
     assert campaign.read_campaign(tmp_path, "opening-gambit").status == "open"
 
 
-def test_set_status_rejects_invalid_status(tmp_path: Path) -> None:
-    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
-
-    with pytest.raises(campaign.InvalidCampaignStatusError):
-        campaign.set_status(tmp_path, "opening-gambit", "cancelled")
-
-
-def test_set_status_missing_campaign_raises(tmp_path: Path) -> None:
+def test_open_campaign_missing_campaign_raises(tmp_path: Path) -> None:
     with pytest.raises(campaign.CampaignNotFoundError):
-        campaign.set_status(tmp_path, "missing", "open")
+        campaign.open_campaign(tmp_path, "missing")
 
 
-def test_set_status_allows_abandoned(tmp_path: Path) -> None:
+def test_open_campaign_rejects_invalid_transition_from_completed(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    campaign.complete_campaign(tmp_path, "opening-gambit")
+
+    with pytest.raises(campaign.InvalidCampaignTransitionError):
+        campaign.open_campaign(tmp_path, "opening-gambit")
+
+
+def test_open_campaign_conflicts_with_other_open_campaign(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "first", "Body.")
+    campaign.create_campaign(tmp_path, "second", "Body.")
+    campaign.open_campaign(tmp_path, "first")
+
+    with pytest.raises(campaign.AnotherCampaignOpenError, match="first"):
+        campaign.open_campaign(tmp_path, "second")
+
+    assert campaign.read_campaign(tmp_path, "second").status == "draft"
+
+
+def test_open_campaign_from_paused_succeeds(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    campaign.pause_campaign(tmp_path, "opening-gambit")
+
+    result = campaign.open_campaign(tmp_path, "opening-gambit")
+
+    assert result.status == "open"
+
+
+def test_pause_campaign_from_open(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+
+    result = campaign.pause_campaign(tmp_path, "opening-gambit")
+
+    assert result.status == "paused"
+
+
+def test_pause_campaign_rejects_invalid_transition_from_draft(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
 
-    result = campaign.set_status(tmp_path, "opening-gambit", "abandoned")
+    with pytest.raises(campaign.InvalidCampaignTransitionError):
+        campaign.pause_campaign(tmp_path, "opening-gambit")
+
+
+def test_pause_campaign_blocked_by_open_encounter(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    _open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    with pytest.raises(campaign.CampaignHasOpenEncountersError, match="goblin-ambush"):
+        campaign.pause_campaign(tmp_path, "opening-gambit")
+
+    assert campaign.read_campaign(tmp_path, "opening-gambit").status == "open"
+
+
+def test_pause_campaign_allowed_once_encounter_completed(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    _open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    result = campaign.pause_campaign(tmp_path, "opening-gambit")
+
+    assert result.status == "paused"
+
+
+def test_complete_campaign_from_open(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+
+    result = campaign.complete_campaign(tmp_path, "opening-gambit")
+
+    assert result.status == "completed"
+
+
+def test_complete_campaign_from_paused(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    campaign.pause_campaign(tmp_path, "opening-gambit")
+
+    result = campaign.complete_campaign(tmp_path, "opening-gambit")
+
+    assert result.status == "completed"
+
+
+def test_complete_campaign_blocked_by_open_encounter(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    _open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    with pytest.raises(campaign.CampaignHasOpenEncountersError, match="goblin-ambush"):
+        campaign.complete_campaign(tmp_path, "opening-gambit")
+
+
+def test_complete_campaign_rejects_invalid_transition_from_draft(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+
+    with pytest.raises(campaign.InvalidCampaignTransitionError):
+        campaign.complete_campaign(tmp_path, "opening-gambit")
+
+
+def test_abandon_campaign_from_draft(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+
+    result = campaign.abandon_campaign(tmp_path, "opening-gambit")
 
     assert result.status == "abandoned"
+
+
+def test_abandon_campaign_from_open(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+
+    result = campaign.abandon_campaign(tmp_path, "opening-gambit")
+
+    assert result.status == "abandoned"
+
+
+def test_abandon_campaign_from_paused(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    campaign.pause_campaign(tmp_path, "opening-gambit")
+
+    result = campaign.abandon_campaign(tmp_path, "opening-gambit")
+
+    assert result.status == "abandoned"
+
+
+def test_abandon_campaign_blocked_by_open_encounter(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    _open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    with pytest.raises(campaign.CampaignHasOpenEncountersError, match="goblin-ambush"):
+        campaign.abandon_campaign(tmp_path, "opening-gambit")
+
+
+def test_abandon_campaign_rejects_invalid_transition_from_completed(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    campaign.complete_campaign(tmp_path, "opening-gambit")
+
+    with pytest.raises(campaign.InvalidCampaignTransitionError):
+        campaign.abandon_campaign(tmp_path, "opening-gambit")
+
+
+def test_pause_campaign_missing_campaign_raises(tmp_path: Path) -> None:
+    with pytest.raises(campaign.CampaignNotFoundError):
+        campaign.pause_campaign(tmp_path, "missing")
+
+
+def test_create_campaign_propagates_git_identity_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+
+    assert not campaign.exists(tmp_path, "opening-gambit")
+
+
+def test_update_campaign_propagates_git_identity_error_and_leaves_file_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Original.")
+    path = campaign.campaign_dir(tmp_path) / "opening-gambit.md"
+    before = path.read_text(encoding="utf-8")
+
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        campaign.update_campaign(tmp_path, "opening-gambit", "Updated.")
+
+    assert path.read_text(encoding="utf-8") == before
+
+
+def test_open_campaign_propagates_git_identity_error_and_leaves_status_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        campaign.open_campaign(tmp_path, "opening-gambit")
+
+    assert campaign.read_campaign(tmp_path, "opening-gambit").status == "draft"
