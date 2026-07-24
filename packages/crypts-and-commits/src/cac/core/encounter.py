@@ -107,10 +107,14 @@ def exists(root: Path, campaign: str, name: str) -> bool:
 
 
 def list_encounters(root: Path, campaign: str) -> list[str]:
+    """List encounter names in a campaign, ascending by their `updated_on` timestamp (oldest first).
+    Encounters missing `updated_on` are treated as EPOCH and sort first; the stored timestamp format
+    (`%Y-%m-%dT%H:%M:%SZ`) is fixed-width, so a plain text comparison orders them chronologically."""
     directory = encounter_dir(root, campaign)
     if not directory.is_dir():
         return []
-    return sorted(path.stem for path in directory.glob("*.md"))
+    paths = directory.glob("*.md")
+    return [path.stem for path in sorted(paths, key=lambda p: frontmatter.load(p).get(UPDATED_ON_KEY, ""))]
 
 
 def template_body() -> str:

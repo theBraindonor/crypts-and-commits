@@ -223,9 +223,9 @@ def test_pause_rejects_invalid_transition_from_draft() -> None:
 def test_pause_fails_with_open_encounter() -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["campaign", "open", "opening-gambit"])
-    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
-    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "--message", "ok"])
-    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "ok"])
+    runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
 
     result = runner.invoke(app, ["campaign", "pause", "opening-gambit"])
 
@@ -247,9 +247,9 @@ def test_complete_updates_status(tmp_path: Path) -> None:
 def test_complete_fails_with_open_encounter() -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["campaign", "open", "opening-gambit"])
-    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
-    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "--message", "ok"])
-    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "ok"])
+    runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
 
     result = runner.invoke(app, ["campaign", "complete", "opening-gambit"])
 
@@ -280,9 +280,9 @@ def test_abandon_rejects_invalid_transition_from_completed() -> None:
 def test_abandon_fails_with_open_encounter() -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["campaign", "open", "opening-gambit"])
-    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
-    runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "--message", "ok"])
-    runner.invoke(app, ["encounter", "open", "opening-gambit", "goblin-ambush"])
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "ok"])
+    runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
 
     result = runner.invoke(app, ["campaign", "abandon", "opening-gambit"])
 

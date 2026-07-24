@@ -388,3 +388,68 @@ def test_open_campaign_propagates_git_identity_error_and_leaves_status_unchanged
         campaign.open_campaign(tmp_path, "opening-gambit")
 
     assert campaign.read_campaign(tmp_path, "opening-gambit").status == "draft"
+
+
+def test_active_campaign_is_none_when_none_open(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "drafting", "Body.")
+
+    assert campaign.active_campaign(tmp_path) is None
+
+
+def test_active_campaign_returns_the_open_campaign(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "drafting", "Body.")
+    campaign.create_campaign(tmp_path, "live", "Body.")
+    campaign.open_campaign(tmp_path, "live")
+
+    assert campaign.active_campaign(tmp_path) == "live"
+
+
+def test_resolve_campaign_falls_back_to_active(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "live", "Body.")
+    campaign.open_campaign(tmp_path, "live")
+
+    assert campaign.resolve_campaign(tmp_path, None, require_mutable=True) == "live"
+
+
+def test_resolve_campaign_without_active_raises(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "drafting", "Body.")
+
+    with pytest.raises(campaign.NoActiveCampaignError):
+        campaign.resolve_campaign(tmp_path, None, require_mutable=False)
+
+
+def test_resolve_campaign_named_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(campaign.CampaignNotFoundError):
+        campaign.resolve_campaign(tmp_path, "missing", require_mutable=False)
+
+
+@pytest.mark.parametrize("require_mutable", [True, False])
+def test_resolve_campaign_named_draft_is_allowed(tmp_path: Path, require_mutable: bool) -> None:
+    campaign.create_campaign(tmp_path, "drafting", "Body.")
+
+    assert campaign.resolve_campaign(tmp_path, "drafting", require_mutable=require_mutable) == "drafting"
+
+
+@pytest.mark.parametrize("terminal", ["completed", "abandoned"])
+def test_resolve_campaign_rejects_terminal_when_mutable_required(tmp_path: Path, terminal: str) -> None:
+    campaign.create_campaign(tmp_path, "closed", "Body.")
+    campaign.open_campaign(tmp_path, "closed")
+    if terminal == "completed":
+        campaign.complete_campaign(tmp_path, "closed")
+    else:
+        campaign.abandon_campaign(tmp_path, "closed")
+
+    with pytest.raises(campaign.CampaignNotMutableError):
+        campaign.resolve_campaign(tmp_path, "closed", require_mutable=True)
+
+
+@pytest.mark.parametrize("terminal", ["completed", "abandoned"])
+def test_resolve_campaign_allows_terminal_when_mutable_not_required(tmp_path: Path, terminal: str) -> None:
+    campaign.create_campaign(tmp_path, "closed", "Body.")
+    campaign.open_campaign(tmp_path, "closed")
+    if terminal == "completed":
+        campaign.complete_campaign(tmp_path, "closed")
+    else:
+        campaign.abandon_campaign(tmp_path, "closed")
+
+    assert campaign.resolve_campaign(tmp_path, "closed", require_mutable=False) == "closed"

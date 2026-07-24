@@ -30,6 +30,7 @@ _CAMPAIGN_TRANSITIONS: dict[str, frozenset[str]] = {
     "completed": frozenset(),
     "abandoned": frozenset(),
 }
+_TERMINAL_STATUSES = frozenset({"completed", "abandoned"})
 
 
 class InvalidCampaignNameError(ValueError):
@@ -46,6 +47,15 @@ class AnotherCampaignOpenError(ValueError):
 
 class CampaignHasOpenEncountersError(ValueError):
     """Raised when pausing, completing, or abandoning a campaign that still has an open encounter."""
+
+
+class NoActiveCampaignError(ValueError):
+    """Raised when a campaign must be resolved from the active (open) campaign but none is open."""
+
+
+class CampaignNotMutableError(ValueError):
+    """Raised when an operation that mutates a campaign's encounters targets a campaign whose status
+    is terminal (completed or abandoned)."""
 
 
 class CampaignNotFoundError(FileNotFoundError):
@@ -117,6 +127,39 @@ def list_campaigns_with_status(root: Path) -> list[tuple[str, str]]:
 
 def template_body() -> str:
     return frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME)).content
+
+
+def active_campaign(root: Path) -> str | None:
+    """Return the name of the single open campaign, or None if none is open. Only one campaign may
+    be open at a time, so the first match is the active campaign."""
+    for name, status in list_campaigns_with_status(root):
+        if status == "open":
+            return name
+    return None
+
+
+def resolve_campaign(root: Path, campaign: str | None, *, require_mutable: bool) -> str:
+    """Resolve the campaign an encounter command should act on.
+
+    When `campaign` is None, fall back to the active (open) campaign, raising NoActiveCampaignError
+    if none is open. When `campaign` is given, verify it exists and - if `require_mutable` - that its
+    status is not terminal (completed/abandoned)."""
+    if campaign is None:
+        active = active_campaign(root)
+        if active is None:
+            raise NoActiveCampaignError(
+                "No campaign is currently open. Open a campaign first, or pass --campaign to target a specific one."
+            )
+        return active
+    path = _existing_campaign_path(root, campaign)
+    if require_mutable:
+        status = frontmatter.load(path).get("status", DEFAULT_CAMPAIGN_STATUS)
+        if status in _TERMINAL_STATUSES:
+            raise CampaignNotMutableError(
+                f"Campaign {campaign!r} is {status!r}; its encounters can no longer be created or modified. "
+                "Only campaigns that are not completed or abandoned may be changed."
+            )
+    return campaign
 
 
 def read_campaign(root: Path, name: str) -> Campaign:
@@ -220,10 +263,8 @@ def _apply_status(post: frontmatter.Post, path: Path, name: str, to_status: str,
 
 
 def _other_open_campaign(root: Path, exclude: str) -> str | None:
-    for name, status in list_campaigns_with_status(root):
-        if name != exclude and status == "open":
-            return name
-    return None
+    active = active_campaign(root)
+    return active if active != exclude else None
 
 
 def _open_encounter_names(root: Path, name: str) -> list[str]:

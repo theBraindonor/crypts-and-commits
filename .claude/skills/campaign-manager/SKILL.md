@@ -40,28 +40,38 @@ A campaign is a long-running initiative, similar to an "Epic" in Jira-style work
 
 An encounter is a concrete unit of work within a campaign: a plan the agent is expected to execute, with `Requirements`, `Rationale`, `Plan`, and `Verification` sections in its body.
 
-- `cac encounter list <campaign>` — list encounter names within a campaign.
-- `cac encounter get <campaign> <name>` — show an encounter's frontmatter (`status`, `regions`) and body.
-- `cac encounter create <campaign> <name> [--body "..."]` — create a new encounter. The campaign must already exist.
-- `cac encounter update <campaign> <name> [--body "..."]` — replace an encounter's body. Only works while status is `draft`.
-- `cac encounter review <campaign> <name> --message "..."` — move `draft` → `reviewed` after a lore review. Message is required and permanently locks the content.
-- `cac encounter open <campaign> <name> [--message "..."]` — move `reviewed` → `open` and begin execution. Message is optional.
-- `cac encounter record-message <campaign> <name> --message "..."` — append a note without changing status. Works while `reviewed` or `open`.
-- `cac encounter complete <campaign> <name> [--message "..."]` — move `open` → `completed` once verification passes. Message is optional.
-- `cac encounter abandon <campaign> <name> --message "..."` — move `draft`, `reviewed`, or `open` → `abandoned`. Not available once `completed`. Message is required.
-- `cac encounter assign-region <campaign> <name> <region>` / `cac encounter unassign-region <campaign> <name> <region>` — an encounter may be assigned to one or more regions. This link is recorded only on the encounter.
-- `cac encounter delete <campaign> <name>` — remove an encounter.
+### Choosing the campaign
+
+The campaign is **optional** on every encounter command: when omitted, it defaults to the currently **active** (the single `open`) campaign. Since normal work happens inside the open campaign, you usually don't pass a campaign at all. Pass `--campaign <campaign>` (`-c`) only to act on a *different* campaign.
+
+- If no campaign is open and you don't pass `--campaign`, the command fails asking you to open a campaign or pass one explicitly.
+- The **mutating** commands (`create`, `update`, `delete`, `review`, `open`, `record-message`, `complete`, `abandon`, `assign-region`, `unassign-region`) refuse a `--campaign` that is `completed` or `abandoned` — you cannot change encounters in a closed campaign.
+- The **read** commands (`get`, `list`) accept any existing campaign, including `completed`/`abandoned` ones, so past work stays inspectable.
+
+In the command forms below, `[--campaign <campaign>]` is shown explicitly, but omit it to use the active campaign.
+
+- `cac encounter list [--campaign <campaign>]` — list encounter names within a campaign, ordered oldest-updated first (ascending by `updated_on`).
+- `cac encounter get <name> [--campaign <campaign>]` — show an encounter's frontmatter (`status`, `regions`) and body.
+- `cac encounter create <name> [--campaign <campaign>] [--body "..."]` — create a new encounter. The campaign must already exist and not be completed/abandoned.
+- `cac encounter update <name> [--campaign <campaign>] [--body "..."]` — replace an encounter's body. Only works while status is `draft`.
+- `cac encounter review <name> [--campaign <campaign>] --message "..."` — move `draft` → `reviewed` after a lore review. Message is required and permanently locks the content.
+- `cac encounter open <name> [--campaign <campaign>] [--message "..."]` — move `reviewed` → `open` and begin execution. Message is optional.
+- `cac encounter record-message <name> [--campaign <campaign>] --message "..."` — append a note without changing status. Works while `reviewed` or `open`.
+- `cac encounter complete <name> [--campaign <campaign>] [--message "..."]` — move `open` → `completed` once verification passes. Message is optional.
+- `cac encounter abandon <name> [--campaign <campaign>] --message "..."` — move `draft`, `reviewed`, or `open` → `abandoned`. Not available once `completed`. Message is required.
+- `cac encounter assign-region <name> <region> [--campaign <campaign>]` / `cac encounter unassign-region <name> <region> [--campaign <campaign>]` — an encounter may be assigned to one or more regions. This link is recorded only on the encounter.
+- `cac encounter delete <name> [--campaign <campaign>]` — remove an encounter.
 
 ## Encounter Lifecycle
 
 **`draft`** — the encounter is being documented and planned. Write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. This is the only status in which `cac encounter update` can replace the body.
 
-**`draft` → `reviewed`** — before reviewing, gather applicable lore (ask `world-manager`, or gather it directly): all `enabled` lore that is `assigned_to_world`, plus all `enabled` lore assigned to any region the encounter is assigned to. Check the Plan against each item. Confirm with the user before running `cac encounter review <campaign> <name> --message "<review summary>"` — this permanently locks the Requirements, Rationale, Plan, and Verification sections; they can no longer be replaced with `update`, only appended to.
+**`draft` → `reviewed`** — before reviewing, gather applicable lore (ask `world-manager`, or gather it directly): all `enabled` lore that is `assigned_to_world`, plus all `enabled` lore assigned to any region the encounter is assigned to. Check the Plan against each item. Confirm with the user before running `cac encounter review <name> --message "<review summary>"` — this permanently locks the Requirements, Rationale, Plan, and Verification sections; they can no longer be replaced with `update`, only appended to.
 
-**`reviewed` → `open`** — get explicit approval from the user, then run `cac encounter open <campaign> <name> [--message "<any extra instructions/feedback>"]`. A message is optional here.
+**`reviewed` → `open`** — get explicit approval from the user, then run `cac encounter open <name> [--message "<any extra instructions/feedback>"]`. A message is optional here.
 
-**`open`** — execute the Plan. If the Plan or Verification needs to change based on what's found during implementation, do not attempt to edit them directly — use `cac encounter record-message <campaign> <name> --message "..."` to record the deviation and why (also usable between `review` and `open`, i.e. while `reviewed`).
+**`open`** — execute the Plan. If the Plan or Verification needs to change based on what's found during implementation, do not attempt to edit them directly — use `cac encounter record-message <name> --message "..."` to record the deviation and why (also usable between `review` and `open`, i.e. while `reviewed`).
 
-**`open` → `completed`** — once all work is finished, run the steps described in Verification. Once verification passes, confirm with the user before marking it complete — do not do this unilaterally — then run `cac encounter complete <campaign> <name> [--message "<closing notes>"]`. A message is optional.
+**`open` → `completed`** — once all work is finished, run the steps described in Verification. Once verification passes, confirm with the user before marking it complete — do not do this unilaterally — then run `cac encounter complete <name> [--message "<closing notes>"]`. A message is optional.
 
-**`draft`/`reviewed`/`open` → `abandoned`** — on request from the user, run `cac encounter abandon <campaign> <name> --message "<reason>"` (message required). Not available once an encounter is `completed`.
+**`draft`/`reviewed`/`open` → `abandoned`** — on request from the user, run `cac encounter abandon <name> --message "<reason>"` (message required). Not available once an encounter is `completed`.

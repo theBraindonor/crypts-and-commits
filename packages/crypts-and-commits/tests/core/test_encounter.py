@@ -94,12 +94,41 @@ def test_encounters_are_scoped_per_campaign(tmp_path: Path) -> None:
     assert encounter.read_encounter(tmp_path, "campaign-two", "shared-name").body.strip() == "second"
 
 
-def test_list_encounters_returns_sorted_names(tmp_path: Path) -> None:
+def test_list_encounters_orders_by_updated_on_ascending(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _make_campaign(tmp_path)
-    encounter.create_encounter(tmp_path, "opening-gambit", "zeta", "z")
-    encounter.create_encounter(tmp_path, "opening-gambit", "alpha", "a")
+    _set_identity(monkeypatch, when=datetime(2026, 7, 3, tzinfo=timezone.utc))
+    encounter.create_encounter(tmp_path, "opening-gambit", "middle", "m")
+    _set_identity(monkeypatch, when=datetime(2026, 7, 1, tzinfo=timezone.utc))
+    encounter.create_encounter(tmp_path, "opening-gambit", "oldest", "o")
+    _set_identity(monkeypatch, when=datetime(2026, 7, 5, tzinfo=timezone.utc))
+    encounter.create_encounter(tmp_path, "opening-gambit", "newest", "n")
 
-    assert encounter.list_encounters(tmp_path, "opening-gambit") == ["alpha", "zeta"]
+    assert encounter.list_encounters(tmp_path, "opening-gambit") == ["oldest", "middle", "newest"]
+
+
+def test_list_encounters_orders_by_updated_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _make_campaign(tmp_path)
+    _set_identity(monkeypatch, when=datetime(2026, 7, 1, tzinfo=timezone.utc))
+    encounter.create_encounter(tmp_path, "opening-gambit", "created-first", "a")
+    _set_identity(monkeypatch, when=datetime(2026, 7, 2, tzinfo=timezone.utc))
+    encounter.create_encounter(tmp_path, "opening-gambit", "created-second", "b")
+
+    # Touch the first-created encounter so its updated_on is the most recent.
+    _set_identity(monkeypatch, when=datetime(2026, 7, 3, tzinfo=timezone.utc))
+    encounter.update_encounter(tmp_path, "opening-gambit", "created-first", "a2")
+
+    assert encounter.list_encounters(tmp_path, "opening-gambit") == ["created-second", "created-first"]
+
+
+def test_list_encounters_sorts_missing_updated_on_first(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "has-timestamp", "t")
+    directory = encounter.encounter_dir(tmp_path, "opening-gambit")
+    (directory / "no-timestamp.md").write_text(
+        "---\nname: no-timestamp\nstatus: draft\n---\n\nBody.\n", encoding="utf-8"
+    )
+
+    assert encounter.list_encounters(tmp_path, "opening-gambit") == ["no-timestamp", "has-timestamp"]
 
 
 def test_template_body_contains_all_sections() -> None:

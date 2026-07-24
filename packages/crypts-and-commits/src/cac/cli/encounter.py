@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any, NoReturn
 
 import typer
 from rich.console import Console
@@ -19,18 +20,39 @@ app = typer.Typer(
         "verification passes). It may instead be marked 'abandoned' (via 'abandon') from "
         "'draft', 'reviewed', or 'open' - but not once 'completed'. Once past 'draft', content "
         "can no longer be replaced, only appended to via the 'review'/'abandon'/'open'/"
-        "'complete' messages or 'record-message'."
+        "'complete' messages or 'record-message'. The campaign defaults to the active (open) "
+        "campaign; use --campaign to target another one."
     )
 )
 console = Console()
 
+_CAMPAIGN_HELP = "Campaign to act on. Defaults to the active (open) campaign."
+
+
+def _campaign_option() -> Any:
+    return typer.Option(None, "--campaign", "-c", help=_CAMPAIGN_HELP)
+
+
+def _resolve_campaign(campaign: str | None, *, require_mutable: bool) -> str | NoReturn:
+    """Resolve the campaign to act on, failing with a clear message if none is active, the named
+    campaign does not exist, or (when mutating) it is completed/abandoned."""
+    try:
+        return campaign_core.resolve_campaign(Path.cwd(), campaign, require_mutable=require_mutable)
+    except (
+        campaign_core.NoActiveCampaignError,
+        campaign_core.CampaignNotFoundError,
+        campaign_core.CampaignNotMutableError,
+    ) as exc:
+        fail(console, str(exc))
+
 
 @app.command("get")
 def get_encounter(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to show."),
+    campaign: str | None = _campaign_option(),
 ) -> None:
     """Show an encounter file's frontmatter and body."""
+    campaign = _resolve_campaign(campaign, require_mutable=False)
     try:
         metadata, body = encounter_core.read_metadata(Path.cwd(), campaign, name)
     except encounter_core.EncounterNotFoundError as exc:
@@ -44,9 +66,10 @@ def get_encounter(
 
 @app.command("list")
 def list_encounters(
-    campaign: str = typer.Argument(..., help="Campaign the encounters belong to."),
+    campaign: str | None = _campaign_option(),
 ) -> None:
-    """List the encounter files in .sourcebook/encounters/<campaign>."""
+    """List the encounter files in a campaign, oldest-updated first."""
+    campaign = _resolve_campaign(campaign, require_mutable=False)
     names = encounter_core.list_encounters(Path.cwd(), campaign)
     if not names:
         console.print("No encounter files found.")
@@ -58,11 +81,12 @@ def list_encounters(
 
 @app.command("create")
 def create_encounter(
-    campaign: str = typer.Argument(..., help="Campaign to assign the encounter to."),
     name: str = typer.Argument(..., help="Encounter name (letters, numbers, underscores, hyphens, periods)."),
+    campaign: str | None = _campaign_option(),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
 ) -> None:
     """Create a new encounter file."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     content = body if body is not None else edit_markdown(encounter_core.template_body())
 
     try:
@@ -80,11 +104,12 @@ def create_encounter(
 
 @app.command("update")
 def update_encounter(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to update."),
+    campaign: str | None = _campaign_option(),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
 ) -> None:
     """Update an existing encounter file's body. Only permitted while status is 'draft'."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         current = encounter_core.read_encounter(Path.cwd(), campaign, name)
     except encounter_core.EncounterNotFoundError as exc:
@@ -108,11 +133,12 @@ def update_encounter(
 
 @app.command("delete")
 def delete_encounter(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to delete."),
+    campaign: str | None = _campaign_option(),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
 ) -> None:
     """Delete an encounter file."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     if not yes:
         typer.confirm(f"Delete encounter {name!r}?", abort=True)
 
@@ -126,11 +152,12 @@ def delete_encounter(
 
 @app.command("review")
 def review_encounter(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to review."),
+    campaign: str | None = _campaign_option(),
     message: str = typer.Option(..., "--message", "-m", help="Lore-review result. Required."),
 ) -> None:
     """Move an encounter from 'draft' to 'reviewed' after a lore review. Locks its content."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.review_encounter(Path.cwd(), campaign, name, message)
     except (
@@ -146,11 +173,12 @@ def review_encounter(
 
 @app.command("open")
 def open_encounter(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to open."),
+    campaign: str | None = _campaign_option(),
     message: str | None = typer.Option(None, "--message", "-m", help="Optional instructions or feedback."),
 ) -> None:
     """Move an encounter from 'reviewed' to 'open' and begin execution."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.open_encounter(Path.cwd(), campaign, name, message)
     except (
@@ -165,11 +193,12 @@ def open_encounter(
 
 @app.command("record-message")
 def record_message(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to record a message on."),
+    campaign: str | None = _campaign_option(),
     message: str = typer.Option(..., "--message", "-m", help="Message to append. Required."),
 ) -> None:
     """Append a message to an encounter without changing its status. Valid while 'reviewed' or 'open'."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.record_message(Path.cwd(), campaign, name, message)
     except (
@@ -185,11 +214,12 @@ def record_message(
 
 @app.command("complete")
 def complete_encounter(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to complete."),
+    campaign: str | None = _campaign_option(),
     message: str | None = typer.Option(None, "--message", "-m", help="Optional closing notes."),
 ) -> None:
     """Move an encounter from 'open' to 'completed' once verification passes."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.complete_encounter(Path.cwd(), campaign, name, message)
     except (
@@ -204,11 +234,12 @@ def complete_encounter(
 
 @app.command("abandon")
 def abandon_encounter(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to abandon."),
+    campaign: str | None = _campaign_option(),
     message: str = typer.Option(..., "--message", "-m", help="Reason for abandoning. Required."),
 ) -> None:
     """Abandon an encounter from 'draft', 'reviewed', or 'open'. Not available once 'completed'."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.abandon_encounter(Path.cwd(), campaign, name, message)
     except (
@@ -224,11 +255,12 @@ def abandon_encounter(
 
 @app.command("assign-region")
 def assign_region(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to assign."),
     region: str = typer.Argument(..., help="Region name to assign the encounter to."),
+    campaign: str | None = _campaign_option(),
 ) -> None:
     """Assign an encounter to a region. An encounter may be assigned to one or more regions."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.assign_region(Path.cwd(), campaign, name, region)
     except (encounter_core.EncounterNotFoundError, region_core.RegionNotFoundError, GitIdentityError) as exc:
@@ -239,11 +271,12 @@ def assign_region(
 
 @app.command("unassign-region")
 def unassign_region(
-    campaign: str = typer.Argument(..., help="Campaign the encounter belongs to."),
     name: str = typer.Argument(..., help="Encounter name to unassign."),
     region: str = typer.Argument(..., help="Region name to unassign the encounter from."),
+    campaign: str | None = _campaign_option(),
 ) -> None:
     """Unassign an encounter from a region."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.unassign_region(Path.cwd(), campaign, name, region)
     except (encounter_core.EncounterNotFoundError, GitIdentityError) as exc:
