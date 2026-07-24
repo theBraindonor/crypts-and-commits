@@ -5,8 +5,16 @@ from typer.testing import CliRunner
 
 from cac.cli import common as cli_common
 from cac.cli.app import app
+from cac.core import git_utils
 
 runner = CliRunner()
+
+
+def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("git user.name is not configured.")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
 
 
 @pytest.fixture(autouse=True)
@@ -82,6 +90,27 @@ def test_create_rejects_invalid_name() -> None:
 
     assert result.exit_code == 1
     assert "invalid" in result.output
+
+
+def test_create_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    _create_campaign()
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+
+    assert result.exit_code == 1
+    assert "git user.name is not configured" in result.output
+
+
+def test_review_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "opening-gambit", "goblin-ambush", "--body", "text"])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["encounter", "review", "opening-gambit", "goblin-ambush", "-m", "Checked lore."])
+
+    assert result.exit_code == 1
+    assert "git user.name is not configured" in result.output
 
 
 def test_create_opens_editor_when_body_omitted(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

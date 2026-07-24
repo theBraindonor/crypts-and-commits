@@ -7,6 +7,7 @@ from cac.cli.common import edit_markdown, fail
 from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
 from cac.core import region as region_core
+from cac.core.git_utils import GitIdentityError
 
 app = typer.Typer(
     help=(
@@ -70,6 +71,7 @@ def create_encounter(
         campaign_core.CampaignNotFoundError,
         encounter_core.InvalidEncounterNameError,
         encounter_core.EncounterAlreadyExistsError,
+        GitIdentityError,
     ) as exc:
         fail(console, str(exc))
 
@@ -98,7 +100,7 @@ def update_encounter(
     content = body if body is not None else edit_markdown(current.body)
     try:
         path = encounter_core.update_encounter(Path.cwd(), campaign, name, content)
-    except encounter_core.EncounterNotDraftError as exc:
+    except (encounter_core.EncounterNotDraftError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Updated [bold green]{path}[/bold green]")
@@ -135,6 +137,7 @@ def review_encounter(
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
         encounter_core.EncounterMessageRequiredError,
+        GitIdentityError,
     ) as exc:
         fail(console, str(exc))
 
@@ -150,7 +153,11 @@ def open_encounter(
     """Move an encounter from 'reviewed' to 'open' and begin execution."""
     try:
         encounter_core.open_encounter(Path.cwd(), campaign, name, message)
-    except (encounter_core.EncounterNotFoundError, encounter_core.InvalidEncounterTransitionError) as exc:
+    except (
+        encounter_core.EncounterNotFoundError,
+        encounter_core.InvalidEncounterTransitionError,
+        GitIdentityError,
+    ) as exc:
         fail(console, str(exc))
 
     console.print(f"Opened [bold]{name}[/bold].")
@@ -169,6 +176,7 @@ def record_message(
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
         encounter_core.EncounterMessageRequiredError,
+        GitIdentityError,
     ) as exc:
         fail(console, str(exc))
 
@@ -184,7 +192,11 @@ def complete_encounter(
     """Move an encounter from 'open' to 'completed' once verification passes."""
     try:
         encounter_core.complete_encounter(Path.cwd(), campaign, name, message)
-    except (encounter_core.EncounterNotFoundError, encounter_core.InvalidEncounterTransitionError) as exc:
+    except (
+        encounter_core.EncounterNotFoundError,
+        encounter_core.InvalidEncounterTransitionError,
+        GitIdentityError,
+    ) as exc:
         fail(console, str(exc))
 
     console.print(f"Completed [bold]{name}[/bold].")
@@ -203,6 +215,7 @@ def abandon_encounter(
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
         encounter_core.EncounterMessageRequiredError,
+        GitIdentityError,
     ) as exc:
         fail(console, str(exc))
 
@@ -218,7 +231,7 @@ def assign_region(
     """Assign an encounter to a region. An encounter may be assigned to one or more regions."""
     try:
         encounter_core.assign_region(Path.cwd(), campaign, name, region)
-    except (encounter_core.EncounterNotFoundError, region_core.RegionNotFoundError) as exc:
+    except (encounter_core.EncounterNotFoundError, region_core.RegionNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Assigned [bold]{name}[/bold] to region [bold]{region}[/bold].")
@@ -233,7 +246,7 @@ def unassign_region(
     """Unassign an encounter from a region."""
     try:
         encounter_core.unassign_region(Path.cwd(), campaign, name, region)
-    except encounter_core.EncounterNotFoundError as exc:
+    except (encounter_core.EncounterNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Unassigned [bold]{name}[/bold] from region [bold]{region}[/bold].")

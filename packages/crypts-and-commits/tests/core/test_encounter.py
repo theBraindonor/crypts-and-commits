@@ -1,8 +1,21 @@
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
-from cac.core import campaign, encounter, region
+from cac.core import campaign, encounter, frontmatter_utils, git_utils, region
+
+_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=timezone.utc)
+
+
+def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
+    monkeypatch.setattr(git_utils, "current_git_user", lambda root: user)
+    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: when)
+
+
+@pytest.fixture(autouse=True)
+def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_identity(monkeypatch)
 
 
 def _make_campaign(tmp_path: Path, name: str = "opening-gambit") -> None:
@@ -493,3 +506,108 @@ def test_unassign_region_leaves_other_regions(tmp_path: Path) -> None:
 def test_unassign_region_missing_encounter_raises(tmp_path: Path) -> None:
     with pytest.raises(encounter.EncounterNotFoundError):
         encounter.unassign_region(tmp_path, "opening-gambit", "missing", "northlands")
+
+
+def test_create_encounter_sets_created_and_updated_fields(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    metadata, _ = encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")
+
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "John Hoff"
+    assert metadata["updated_on"] == "2026-07-23T18:04:12Z"
+
+
+def test_touching_an_encounter_refreshes_updated_but_not_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=timezone.utc)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+
+    metadata, _ = encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
+
+
+def test_assign_region_refreshes_updated_fields(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _make_campaign(tmp_path)
+    region.create_region(tmp_path, "northlands", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=timezone.utc)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+
+    metadata, _ = encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
+
+
+def test_log_entry_includes_timestamp_and_user(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    result = encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+
+    assert "### Review - 2026-07-23T18:04:12Z - John Hoff" in result.body
+
+
+def test_create_encounter_propagates_git_identity_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _make_campaign(tmp_path)
+
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    assert not encounter.exists(tmp_path, "opening-gambit", "goblin-ambush")
+
+
+def test_update_encounter_propagates_git_identity_error_and_leaves_file_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Original.")
+    path = encounter.encounter_dir(tmp_path, "opening-gambit") / "goblin-ambush.md"
+    before = path.read_text(encoding="utf-8")
+
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        encounter.update_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Updated.")
+
+    assert path.read_text(encoding="utf-8") == before
+
+
+def test_review_encounter_propagates_git_identity_error_and_leaves_file_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    path = encounter.encounter_dir(tmp_path, "opening-gambit") / "goblin-ambush.md"
+    before = path.read_text(encoding="utf-8")
+
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+
+    assert path.read_text(encoding="utf-8") == before
+    assert encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush").status == "draft"

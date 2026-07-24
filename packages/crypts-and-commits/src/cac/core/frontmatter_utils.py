@@ -1,7 +1,16 @@
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import frontmatter
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def format_timestamp(ts: datetime) -> str:
+    return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def write_post(path: Path, post: frontmatter.Post) -> None:
@@ -19,11 +28,12 @@ def toggle_list_attribute(
     post[key] = sorted(values)
 
 
-def append_log_entry(post: frontmatter.Post, *, section: str, heading: str, message: str) -> None:
+def append_log_entry(post: frontmatter.Post, *, section: str, heading: str, message: str, user: str) -> None:
     """Append a '### <heading>' entry under a running '## <section>' section at the end of
     `post.content`, creating the section on first use."""
     body = post.content.rstrip()
-    entry = f"### {heading}\n\n{message.strip()}"
+    ts = format_timestamp(utcnow())
+    entry = f"### {heading} - {ts} - {user}\n\n{message.strip()}"
     section_pattern = re.compile(rf"(?m)^## {re.escape(section)}\s*$")
     if section_pattern.search(body):
         post.content = f"{body}\n\n{entry}\n"
