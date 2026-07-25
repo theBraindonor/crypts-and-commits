@@ -5,9 +5,9 @@ created_on: '2026-07-25T01:22:31Z'
 name: 06-mcp-surface
 regions:
 - crypts-and-commits
-status: draft
+status: abandoned
 updated_by: John Hoff
-updated_on: '2026-07-25T01:23:05Z'
+updated_on: '2026-07-25T03:01:01Z'
 ---
 
 # MCP Surface
@@ -36,3 +36,9 @@ _To be finalized in draft._ Outline:
 
 - `pdm run pytest -q` and `ruff check`/`format` clean.
 - The MCP server exposes the intent-based tools, backed by `core`, with budget/truncation applied; no `search` tool yet.
+
+## Log
+
+### Abandoned - 2026-07-25T03:01:01Z - John Hoff
+
+Abandoning for now: too soon to start the MCP server. The skill-side groundwork (05-skill-updates-for-tiered-retrieval) just landed and should settle before committing to the MCP surface; revisit once there's a clearer sense of how the disclosure ladder holds up in practice.
