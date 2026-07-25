@@ -163,3 +163,65 @@ def test_applicable_lore_accepts_explicit_campaign() -> None:
 
     assert result.exit_code == 0
     assert "No applicable enabled lore was found for this encounter." in result.output
+
+
+def test_get_truncates_world_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _bootstrap()
+    runner.invoke(app, ["world", "set-body", "--body", "x" * 200])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+
+    result = runner.invoke(app, ["prime", "get"])
+
+    assert result.exit_code == 0
+    assert "[TRUNCATED" in result.output
+    assert str(tmp_path / ".sourcebook" / "world.md") in result.output
+
+
+def test_get_truncates_campaign_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _bootstrap()
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "x" * 200])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+
+    result = runner.invoke(app, ["prime", "get"])
+
+    assert result.exit_code == 0
+    assert "[TRUNCATED" in result.output
+    assert str(tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md") in result.output
+
+
+def test_applicable_lore_pages_under_budget_and_cursor_resumes(monkeypatch: pytest.MonkeyPatch) -> None:
+    _bootstrap()
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--body", "Body."])
+    runner.invoke(app, ["lore", "create", "alpha-lore", "--body", "Body.", "--summary", "Alpha summary."])
+    runner.invoke(app, ["lore", "assign-world", "alpha-lore"])
+    runner.invoke(app, ["lore", "create", "beta-lore", "--body", "Body.", "--summary", "Beta summary."])
+    runner.invoke(app, ["lore", "assign-world", "beta-lore"])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 40)
+
+    first = runner.invoke(app, ["prime", "applicable-lore", "goblin-ambush"])
+
+    assert first.exit_code == 0
+    assert "alpha-lore" in first.output
+    assert "beta-lore" not in first.output
+    assert "More results - pass --cursor 1 to continue." in first.output
+
+    second = runner.invoke(app, ["prime", "applicable-lore", "goblin-ambush", "--cursor", "1"])
+
+    assert second.exit_code == 0
+    assert "beta-lore" in second.output
+
+
+def test_applicable_lore_rejects_invalid_cursor() -> None:
+    _bootstrap()
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--body", "Body."])
+    runner.invoke(app, ["lore", "create", "alpha-lore", "--body", "Body.", "--summary", "Alpha summary."])
+    runner.invoke(app, ["lore", "assign-world", "alpha-lore"])
+
+    result = runner.invoke(app, ["prime", "applicable-lore", "goblin-ambush", "--cursor", "not-a-number"])
+
+    assert result.exit_code == 1

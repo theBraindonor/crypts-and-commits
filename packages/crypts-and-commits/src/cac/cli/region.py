@@ -4,6 +4,7 @@ import typer
 from rich.console import Console
 
 from cac.cli.common import edit_markdown, fail
+from cac.core import budget as budget_core
 from cac.core import region as region_core
 from cac.core.config import SUMMARY_KEY
 
@@ -37,19 +38,29 @@ def get_region(
     console.print("[bold]summary[/bold]:", end=" ")
     console.print(summary, markup=False)
     console.print()
-    console.print(body, markup=False)
+    body = budget_core.truncate_body(body, region_core.region_path(Path.cwd(), name))
+    console.print(body, markup=False, soft_wrap=True)
 
 
 @app.command("list")
-def list_regions() -> None:
-    """List the region files in .sourcebook/region."""
+def list_regions(
+    cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
+) -> None:
+    """List the region files in .sourcebook/region, paged under the response budget."""
     names = region_core.list_regions(Path.cwd())
     if not names:
         console.print("No region files found.")
         return
 
-    for name in names:
+    try:
+        page = budget_core.paginate(names, cursor)
+    except budget_core.InvalidCursorError as exc:
+        fail(console, str(exc))
+
+    for name in page.items:
         console.print(name)
+    if page.next_cursor is not None:
+        console.print(f"[dim]More results - pass --cursor {page.next_cursor} to continue.[/dim]")
 
 
 @app.command("create")

@@ -144,6 +144,11 @@ def test_delete_campaign_missing_raises(tmp_path: Path) -> None:
         campaign.delete_campaign(tmp_path, "missing")
 
 
+def test_campaign_path_returns_on_disk_path(tmp_path: Path) -> None:
+    expected = tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md"
+    assert campaign.campaign_path(tmp_path, "opening-gambit") == expected
+
+
 def test_create_campaign_sets_created_and_updated_fields(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
 

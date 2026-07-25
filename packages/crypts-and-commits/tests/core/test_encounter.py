@@ -248,6 +248,11 @@ def test_delete_encounter_missing_raises(tmp_path: Path) -> None:
         encounter.delete_encounter(tmp_path, "opening-gambit", "missing")
 
 
+def test_encounter_path_returns_on_disk_path(tmp_path: Path) -> None:
+    expected = tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md"
+    assert encounter.encounter_path(tmp_path, "opening-gambit", "goblin-ambush") == expected
+
+
 def test_review_encounter_transitions_status_and_appends_message(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")

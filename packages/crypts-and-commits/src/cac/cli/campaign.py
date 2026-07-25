@@ -4,6 +4,7 @@ import typer
 from rich.console import Console
 
 from cac.cli.common import edit_markdown, fail
+from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
 from cac.core.git_utils import GitIdentityError
 
@@ -37,19 +38,30 @@ def get_campaign(
     for key, value in metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
     console.print()
-    console.print(body, markup=False)
+    body = budget_core.truncate_body(body, campaign_core.campaign_path(Path.cwd(), name))
+    console.print(body, markup=False, soft_wrap=True)
 
 
 @app.command("list")
-def list_campaigns() -> None:
-    """List the campaign files in .sourcebook/campaigns, with their current status."""
+def list_campaigns(
+    cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
+) -> None:
+    """List the campaign files in .sourcebook/campaigns, with their current status, paged under
+    the response budget."""
     entries = campaign_core.list_campaigns_with_status(Path.cwd())
     if not entries:
         console.print("No campaign files found.")
         return
 
-    for name, status in entries:
+    try:
+        page = budget_core.paginate(entries, cursor, render=lambda entry: f"{entry[0]} ({entry[1]})")
+    except budget_core.InvalidCursorError as exc:
+        fail(console, str(exc))
+
+    for name, status in page.items:
         console.print(f"{name} ({status})")
+    if page.next_cursor is not None:
+        console.print(f"[dim]More results - pass --cursor {page.next_cursor} to continue.[/dim]")
 
 
 @app.command("create")

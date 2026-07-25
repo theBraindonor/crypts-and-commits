@@ -131,6 +131,11 @@ def read_metadata(root: Path, campaign: str, name: str) -> tuple[dict[str, Any],
     return dict(post.metadata), post.content
 
 
+def encounter_path(root: Path, campaign: str, name: str) -> Path:
+    """Return the on-disk path for an encounter, e.g. for use in a truncation fallback notice."""
+    return _encounter_path(root, campaign, name)
+
+
 def create_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
     if not campaign_core.exists(root, campaign):
         raise campaign_core.CampaignNotFoundError(f"Campaign {campaign!r} does not exist.")

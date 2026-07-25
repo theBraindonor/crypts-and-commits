@@ -10,6 +10,7 @@ RESERVED_NAMES = frozenset({".", ".."})
 WORLD_FILE_NAME = "world.md"
 SUMMARY_KEY = "summary"
 SUMMARY_MAX_LENGTH = 500
+RESPONSE_BUDGET = 20_000
 CAMPAIGN_STATUSES = ("draft", "open", "paused", "completed", "abandoned")
 DEFAULT_CAMPAIGN_STATUS = "draft"
 ENCOUNTER_STATUSES = ("draft", "reviewed", "open", "completed", "abandoned")

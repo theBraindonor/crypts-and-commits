@@ -301,3 +301,7 @@ def test_delete_lore_removes_file(tmp_path: Path) -> None:
 def test_delete_lore_missing_raises(tmp_path: Path) -> None:
     with pytest.raises(lore.LoreNotFoundError):
         lore.delete_lore(tmp_path, "missing")
+
+
+def test_lore_path_returns_on_disk_path(tmp_path: Path) -> None:
+    assert lore.lore_path(tmp_path, "conventions") == tmp_path / ".sourcebook" / "lore" / "conventions.md"

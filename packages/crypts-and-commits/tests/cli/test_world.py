@@ -82,3 +82,15 @@ def test_set_body_missing_world_fails() -> None:
     result = runner.invoke(app, ["world", "set-body", "--body", "text"])
 
     assert result.exit_code == 1
+
+
+def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["world", "set-body", "--body", "x" * 200])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+
+    result = runner.invoke(app, ["world", "get"])
+
+    assert result.exit_code == 0
+    assert "[TRUNCATED" in result.output
+    assert str(tmp_path / ".sourcebook" / "world.md") in result.output

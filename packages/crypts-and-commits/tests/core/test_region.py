@@ -237,6 +237,10 @@ def test_delete_region_missing_raises(tmp_path: Path) -> None:
         region.delete_region(tmp_path, "missing")
 
 
+def test_region_path_returns_on_disk_path(tmp_path: Path) -> None:
+    assert region.region_path(tmp_path, "northlands") == tmp_path / ".sourcebook" / "region" / "northlands.md"
+
+
 def test_assign_lore_updates_region_and_lore(tmp_path: Path) -> None:
     region.create_region(tmp_path, "northlands", "Body.", "Summary.")
     lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")

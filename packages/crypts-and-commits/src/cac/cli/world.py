@@ -4,6 +4,7 @@ import typer
 from rich.console import Console
 
 from cac.cli.common import edit_markdown, fail
+from cac.core import budget as budget_core
 from cac.core import world as world_core
 
 app = typer.Typer(
@@ -28,7 +29,8 @@ def get_world() -> None:
     for key, value in world.metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
     console.print()
-    console.print(world.body, markup=False)
+    body = budget_core.truncate_body(world.body, world_core.world_path(Path.cwd()))
+    console.print(body, markup=False, soft_wrap=True)
 
 
 @app.command("set")

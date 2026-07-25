@@ -539,3 +539,25 @@ def test_list_allows_terminal_campaign() -> None:
 
     assert result.exit_code == 0
     assert "goblin-ambush" in result.output
+
+
+def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "x" * 200])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+
+    result = runner.invoke(app, ["encounter", "get", "goblin-ambush", "--campaign", "opening-gambit"])
+
+    assert result.exit_code == 0
+    assert "[TRUNCATED" in result.output
+    expected_path = tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md"
+    assert str(expected_path) in result.output
+
+
+def test_list_rejects_invalid_cursor() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
+
+    result = runner.invoke(app, ["encounter", "list", "--campaign", "opening-gambit", "--cursor", "not-a-number"])
+
+    assert result.exit_code == 1

@@ -172,6 +172,11 @@ def read_metadata(root: Path, name: str) -> tuple[dict[str, Any], str]:
     return dict(post.metadata), post.content
 
 
+def campaign_path(root: Path, name: str) -> Path:
+    """Return the on-disk path for a campaign, e.g. for use in a truncation fallback notice."""
+    return _campaign_path(root, name)
+
+
 def create_campaign(root: Path, name: str, body: str) -> Path:
     path = _campaign_path(root, name)
     if path.exists():

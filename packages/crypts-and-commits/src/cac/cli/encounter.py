@@ -5,6 +5,7 @@ import typer
 from rich.console import Console
 
 from cac.cli.common import edit_markdown, fail
+from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
 from cac.core import region as region_core
@@ -61,22 +62,32 @@ def get_encounter(
     for key, value in metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
     console.print()
-    console.print(body, markup=False)
+    body = budget_core.truncate_body(body, encounter_core.encounter_path(Path.cwd(), campaign, name))
+    console.print(body, markup=False, soft_wrap=True)
 
 
 @app.command("list")
 def list_encounters(
     campaign: str | None = _campaign_option(),
+    cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
 ) -> None:
-    """List the encounter files in a campaign, oldest-updated first."""
+    """List the encounter files in a campaign, oldest-updated first, paged under the response
+    budget."""
     campaign = _resolve_campaign(campaign, require_mutable=False)
     names = encounter_core.list_encounters(Path.cwd(), campaign)
     if not names:
         console.print("No encounter files found.")
         return
 
-    for name in names:
+    try:
+        page = budget_core.paginate(names, cursor)
+    except budget_core.InvalidCursorError as exc:
+        fail(console, str(exc))
+
+    for name in page.items:
         console.print(name)
+    if page.next_cursor is not None:
+        console.print(f"[dim]More results - pass --cursor {page.next_cursor} to continue.[/dim]")
 
 
 @app.command("create")

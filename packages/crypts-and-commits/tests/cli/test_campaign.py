@@ -294,3 +294,41 @@ def test_abandon_missing_campaign_fails() -> None:
     result = runner.invoke(app, ["campaign", "abandon", "missing"])
 
     assert result.exit_code == 1
+
+
+def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "x" * 200])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+
+    result = runner.invoke(app, ["campaign", "get", "opening-gambit"])
+
+    assert result.exit_code == 0
+    assert "[TRUNCATED" in result.output
+    assert str(tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md") in result.output
+
+
+def test_list_pages_under_budget_and_cursor_resumes(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["campaign", "create", "alpha", "--body", "b"])
+    runner.invoke(app, ["campaign", "create", "beta", "--body", "b"])
+    runner.invoke(app, ["campaign", "create", "gamma", "--body", "b"])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 20)
+
+    first = runner.invoke(app, ["campaign", "list"])
+
+    assert first.exit_code == 0
+    assert "alpha (draft)" in first.output
+    assert "beta (draft)" not in first.output
+    assert "More results - pass --cursor 1 to continue." in first.output
+
+    second = runner.invoke(app, ["campaign", "list", "--cursor", "1"])
+
+    assert second.exit_code == 0
+    assert "beta (draft)" in second.output
+
+
+def test_list_rejects_invalid_cursor() -> None:
+    runner.invoke(app, ["campaign", "create", "alpha", "--body", "b"])
+
+    result = runner.invoke(app, ["campaign", "list", "--cursor", "not-a-number"])
+
+    assert result.exit_code == 1

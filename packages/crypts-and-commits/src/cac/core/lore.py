@@ -132,6 +132,11 @@ def read_summary(root: Path, name: str) -> str:
     return summary_or_placeholder(post)
 
 
+def lore_path(root: Path, name: str) -> Path:
+    """Return the on-disk path for a lore entry, e.g. for use in a truncation fallback notice."""
+    return _lore_path(root, name)
+
+
 def set_enabled(root: Path, name: str, enabled: bool) -> Lore:
     return _set_flag(root, name, "enabled", enabled)
 

@@ -5,9 +5,9 @@ created_on: '2026-07-25T01:22:28Z'
 name: 04-response-budget-and-truncation
 regions:
 - crypts-and-commits
-status: draft
+status: completed
 updated_by: John Hoff
-updated_on: '2026-07-25T01:23:02Z'
+updated_on: '2026-07-25T02:37:59Z'
 ---
 
 # Response Budget and Truncation
@@ -35,3 +35,13 @@ Per `docs/context-management-design.md` (Resolved decision #4 and the progressiv
 
 - `pdm run pytest -q` and `ruff check`/`format` clean, with budget/truncation/paging coverage.
 - Manual: a response exceeding 20,000 characters returns with the prepended truncation notice naming the correct on-disk path; a large list pages under the budget.
+
+## Log
+
+### Review - 2026-07-25T02:17:28Z - John Hoff
+
+Reviewed against applicable lore (clean-tests-and-lint, console-best-practices) and the cited docs/context-management-design.md: the Plan correctly implements Resolved Decision #4 (20,000-char budget, cursor-based paging, prepended-notice-plus-on-disk-path as the mandatory signal, structured field optional/non-replacing), honors clean-tests-and-lint via its Verification section, and honors console-best-practices by committing to markup=False for the combined notice+body output since the notice is prepended to stored content rather than sent separately. Two non-blocking notes: Plan step 2's dependency on encounter 03's prime/list/get shape wasn't independently verified (referenced by name, not a cited path), and the optional "structured field" companion to the notice is left unspecified in form. No lore conflicts found; approved to proceed.
+
+### Completed - 2026-07-25T02:37:59Z - John Hoff
+
+Implemented core/budget.py (truncate_body + paginate, budget read from config.RESPONSE_BUDGET=20000 at call time); added public path getters (lore_path/region_path/campaign_path/encounter_path); wired truncate_body into all get commands (lore/region/campaign/encounter/world) plus prime get's world/campaign body sections, and wired paginate + --cursor into all list commands plus prime applicable-lore. Fixed a Rich soft-wrap bug found along the way that was breaking the fallback path across lines. pdm run pytest -q: 465 passed. ruff check/format: clean. Manually verified against a scratch sourcebook: a 25,000-char lore body returns with the notice correctly prepended naming the exact on-disk path; a ~2,000-entry lore list pages correctly with cursor resumption; invalid cursor fails cleanly.

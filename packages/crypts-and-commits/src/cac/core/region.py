@@ -135,6 +135,11 @@ def read_summary(root: Path, name: str) -> str:
     return summary_or_placeholder(post)
 
 
+def region_path(root: Path, name: str) -> Path:
+    """Return the on-disk path for a region entry, e.g. for use in a truncation fallback notice."""
+    return _region_path(root, name)
+
+
 def set_path(root: Path, name: str, path_value: str) -> Region:
     path = _existing_region_path(root, name)
     post = frontmatter.load(path)

@@ -340,3 +340,41 @@ def test_disable_missing_lore_fails() -> None:
     result = runner.invoke(app, ["lore", "disable", "missing"])
 
     assert result.exit_code == 1
+
+
+def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "x" * 200, "--summary", "Summary."])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+
+    result = runner.invoke(app, ["lore", "get", "conventions"])
+
+    assert result.exit_code == 0
+    assert "[TRUNCATED" in result.output
+    assert str(tmp_path / ".sourcebook" / "lore" / "conventions.md") in result.output
+
+
+def test_list_pages_under_budget_and_cursor_resumes(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["lore", "create", "alpha", "--body", "b", "--summary", "s"])
+    runner.invoke(app, ["lore", "create", "beta", "--body", "b", "--summary", "s"])
+    runner.invoke(app, ["lore", "create", "gamma", "--body", "b", "--summary", "s"])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 10)
+
+    first = runner.invoke(app, ["lore", "list"])
+
+    assert first.exit_code == 0
+    assert "alpha" in first.output
+    assert "beta" not in first.output
+    assert "More results - pass --cursor 1 to continue." in first.output
+
+    second = runner.invoke(app, ["lore", "list", "--cursor", "1"])
+
+    assert second.exit_code == 0
+    assert "beta" in second.output
+
+
+def test_list_rejects_invalid_cursor() -> None:
+    runner.invoke(app, ["lore", "create", "alpha", "--body", "b", "--summary", "s"])
+
+    result = runner.invoke(app, ["lore", "list", "--cursor", "not-a-number"])
+
+    assert result.exit_code == 1
