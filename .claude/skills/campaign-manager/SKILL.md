@@ -1,50 +1,50 @@
 ---
 name: campaign-manager
-description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work with Requirements/Rationale/Plan/Verification sections) - through the cac MCP server, falling back to the cac CLI when the server is unavailable. Use when asked to start a new initiative, move a campaign through its draft/open/paused/completed/abandoned lifecycle, plan a new unit of work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
-allowed-tools: Bash(cac *), Task, mcp__cac
+description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work with Requirements/Rationale/Plan/Verification sections) - through the crypts-and-commits MCP server, falling back to the cac CLI when the server is unavailable. Use when asked to start a new initiative, move a campaign through its draft/open/paused/completed/abandoned lifecycle, plan a new unit of work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
+allowed-tools: Bash(cac *), Task, mcp__crypts-and-commits
 ---
 
 # Campaign Manager
 
-Owns the project's active work-tracking loop: campaigns and the encounters within them. Work exclusively through the `cac` MCP server's tools when they are available for this session — never create, read, edit, move, or delete anything under `.sourcebook/` directly, whether with file tools or shell commands. Fall back to the `cac` CLI only when the MCP server is not connected for this session; the CLI covers the exact same operations (see each tool's "CLI fallback" pointer below).
+Owns the project's active work-tracking loop: campaigns and the encounters within them. Work exclusively through the `crypts-and-commits` MCP server's tools when they are available for this session — never create, read, edit, move, or delete anything under `.sourcebook/` directly, whether with file tools or shell commands. Fall back to the `cac` CLI only when the MCP server is not connected for this session; the CLI covers the exact same operations (see each tool's "CLI fallback" pointer below).
 
 If a command reports that the project hasn't been bootstrapped, stop and ask the developer to run `cac bootstrap init` themselves. Never run it on their behalf — this applies regardless of whether you'd otherwise reach for the MCP server or the CLI, since `bootstrap` is intentionally not exposed over MCP at all.
 
 ## Priming
 
-Before starting any work in this loop — planning a new encounter, reviewing one, or resuming an open one — run the disclosure ladder's **Orient** step first: `mcp__cac__prime_get()`. That call (and the rest of the ladder — "Focus a task" / "Review a plan") is owned and documented by `world-manager`; see that skill for the full procedure. Its bundle already includes the active campaign's full body, so no separate campaign read is needed just to orient.
+Before starting any work in this loop — planning a new encounter, reviewing one, or resuming an open one — run the disclosure ladder's **Orient** step first: `mcp__crypts-and-commits__prime_get()`. That call (and the rest of the ladder — "Focus a task" / "Review a plan") is owned and documented by `world-manager`; see that skill for the full procedure. Its bundle already includes the active campaign's full body, so no separate campaign read is needed just to orient.
 
 From there, this skill appends the active-loop context prime doesn't cover:
 
-- `mcp__cac__encounter_list(campaign, cursor)` for the campaign's encounters — a separate, on-demand, paged call, never part of prime, since the encounter list is the one thing in this loop that grows without bound. CLI fallback: `cac encounter list --help`.
+- `mcp__crypts-and-commits__encounter_list(campaign, cursor)` for the campaign's encounters — a separate, on-demand, paged call, never part of prime, since the encounter list is the one thing in this loop that grows without bound. CLI fallback: `cac encounter list --help`.
 
-There is no encounter search yet — that capability is deferred (see `docs/encounter-search-design.md`). Don't reference or imply one exists; until it lands, `mcp__cac__encounter_list` plus reading names is the only way to find an encounter.
+There is no encounter search yet — that capability is deferred (see `docs/encounter-search-design.md`). Don't reference or imply one exists; until it lands, `mcp__crypts-and-commits__encounter_list` plus reading names is the only way to find an encounter.
 
 ## Campaigns
 
 A campaign is a long-running initiative, similar to an "Epic" in Jira-style work tracking (e.g. "Create the MVP", "Add Payment Processing", a version increment). It's expected to require many encounters, completed over time, before it's done.
 
-- `mcp__cac__campaign_list(cursor)` — list all campaigns by name, with their current status. CLI fallback: `cac campaign list --help`.
-- `mcp__cac__campaign_get(name)` — show a campaign's frontmatter (`status`, `created_on`/`created_by`/`updated_on`/`updated_by`) and body. CLI fallback: `cac campaign get --help`.
-- `mcp__cac__campaign_create(name, body)` — create a new campaign, in `draft` status. CLI fallback: `cac campaign create --help`.
-- `mcp__cac__campaign_update(name, body)` — replace a campaign's body. Fails once the campaign is `completed` or `abandoned` — its body is locked once its postmortem is recorded. CLI fallback: `cac campaign update --help`.
-- `mcp__cac__campaign_open(name)` — move `draft` or `paused` → `open` and begin work. Only one campaign may be `open` at a time. CLI fallback: `cac campaign open --help`.
-- `mcp__cac__campaign_pause(name)` — move `open` → `paused`. Fails if the campaign has an encounter that is currently `open`. CLI fallback: `cac campaign pause --help`.
-- `mcp__cac__campaign_complete(name, message)` — move `open` or `paused` → `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required — a postmortem, appended as a dated, attributed log entry on the campaign body. CLI fallback: `cac campaign complete --help`.
-- `mcp__cac__campaign_abandon(name, message)` — move `draft`, `open`, or `paused` → `abandoned`. Not available once `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required, recorded the same way as `complete`'s. CLI fallback: `cac campaign abandon --help`.
-- `mcp__cac__campaign_delete(name)` — remove a campaign, unconditionally. CLI fallback: `cac campaign delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
+- `mcp__crypts-and-commits__campaign_list(cursor)` — list all campaigns by name, with their current status. CLI fallback: `cac campaign list --help`.
+- `mcp__crypts-and-commits__campaign_get(name)` — show a campaign's frontmatter (`status`, `created_on`/`created_by`/`updated_on`/`updated_by`) and body. CLI fallback: `cac campaign get --help`.
+- `mcp__crypts-and-commits__campaign_create(name, body)` — create a new campaign, in `draft` status. CLI fallback: `cac campaign create --help`.
+- `mcp__crypts-and-commits__campaign_update(name, body)` — replace a campaign's body. Fails once the campaign is `completed` or `abandoned` — its body is locked once its postmortem is recorded. CLI fallback: `cac campaign update --help`.
+- `mcp__crypts-and-commits__campaign_open(name)` — move `draft` or `paused` → `open` and begin work. Only one campaign may be `open` at a time. CLI fallback: `cac campaign open --help`.
+- `mcp__crypts-and-commits__campaign_pause(name)` — move `open` → `paused`. Fails if the campaign has an encounter that is currently `open`. CLI fallback: `cac campaign pause --help`.
+- `mcp__crypts-and-commits__campaign_complete(name, message)` — move `open` or `paused` → `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required — a postmortem, appended as a dated, attributed log entry on the campaign body. CLI fallback: `cac campaign complete --help`.
+- `mcp__crypts-and-commits__campaign_abandon(name, message)` — move `draft`, `open`, or `paused` → `abandoned`. Not available once `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required, recorded the same way as `complete`'s. CLI fallback: `cac campaign abandon --help`.
+- `mcp__crypts-and-commits__campaign_delete(name)` — remove a campaign, unconditionally. CLI fallback: `cac campaign delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
 
 ## Campaign Lifecycle
 
 **`draft`** — the campaign was just created and hasn't started yet.
 
-**`draft`/`paused` → `open`** — run `mcp__cac__campaign_open(name)`. Only one campaign may be `open` at a time; if another campaign is already `open`, this fails naming that campaign — pause or complete it first.
+**`draft`/`paused` → `open`** — run `mcp__crypts-and-commits__campaign_open(name)`. Only one campaign may be `open` at a time; if another campaign is already `open`, this fails naming that campaign — pause or complete it first.
 
-**`open` → `paused`** — run `mcp__cac__campaign_pause(name)` to set work aside without completing it. Fails, naming the offending encounter(s), if any encounter under the campaign is currently `open`; complete or abandon those encounters first (or wait for them to finish).
+**`open` → `paused`** — run `mcp__crypts-and-commits__campaign_pause(name)` to set work aside without completing it. Fails, naming the offending encounter(s), if any encounter under the campaign is currently `open`; complete or abandon those encounters first (or wait for them to finish).
 
-**`open`/`paused` → `completed`** — run `mcp__cac__campaign_complete(name, message)` once the initiative is done. Same open-encounter restriction as `pause`. The message is a required postmortem — a closing summary of what happened and what was learned — appended to the campaign body as a dated, attributed log entry. Once `completed`, the campaign's body is locked: `mcp__cac__campaign_update` will fail, since the postmortem is meant to be that campaign's closing record.
+**`open`/`paused` → `completed`** — run `mcp__crypts-and-commits__campaign_complete(name, message)` once the initiative is done. Same open-encounter restriction as `pause`. The message is a required postmortem — a closing summary of what happened and what was learned — appended to the campaign body as a dated, attributed log entry. Once `completed`, the campaign's body is locked: `mcp__crypts-and-commits__campaign_update` will fail, since the postmortem is meant to be that campaign's closing record.
 
-**`draft`/`open`/`paused` → `abandoned`** — run `mcp__cac__campaign_abandon(name, message)` to record why the initiative is being called off. Not available once `completed`. Same open-encounter restriction as `pause`, and the same required-postmortem, body-locking behavior as `complete`.
+**`draft`/`open`/`paused` → `abandoned`** — run `mcp__crypts-and-commits__campaign_abandon(name, message)` to record why the initiative is being called off. Not available once `completed`. Same open-encounter restriction as `pause`, and the same required-postmortem, body-locking behavior as `complete`.
 
 ## Encounters
 
@@ -60,35 +60,35 @@ The campaign is **optional** on every encounter tool: when omitted, it defaults 
 
 In the tool forms below, `campaign` is shown explicitly, but omit it to use the active campaign.
 
-- `mcp__cac__encounter_list(campaign, cursor)` — list encounter names within a campaign, ordered oldest-updated first (ascending by `updated_on`). CLI fallback: `cac encounter list --help`.
-- `mcp__cac__encounter_order(campaign)` — show every campaign encounter in deterministic dependency order, with status and direct dependencies. CLI fallback: `cac encounter order --help`.
-- `mcp__cac__encounter_get(name, campaign)` — show an encounter's frontmatter (`status`, `regions`) and body. CLI fallback: `cac encounter get --help`.
-- `mcp__cac__encounter_create(name, body, campaign)` — create a new encounter. The campaign must already exist and not be completed/abandoned. CLI fallback: `cac encounter create --help`.
-- `mcp__cac__encounter_update(name, body, campaign)` — replace an encounter's body. Only works while status is `draft`. CLI fallback: `cac encounter update --help`.
-- `mcp__cac__encounter_review(name, message, campaign)` — move `draft` → `reviewed` after a lore review. Message is required and permanently locks the content. CLI fallback: `cac encounter review --help`.
-- `mcp__cac__encounter_open(name, campaign, message)` — move `reviewed` → `open` and begin execution. Message is optional. CLI fallback: `cac encounter open --help`.
-- `mcp__cac__encounter_record_message(name, message, campaign)` — append a note without changing status. Works while `reviewed` or `open`. CLI fallback: `cac encounter record-message --help`.
-- `mcp__cac__encounter_complete(name, campaign, message)` — move `open` → `completed` once verification passes. Message is optional. CLI fallback: `cac encounter complete --help`.
-- `mcp__cac__encounter_abandon(name, message, campaign)` — move `draft`, `reviewed`, or `open` → `abandoned`. Not available once `completed`. Message is required. CLI fallback: `cac encounter abandon --help`.
-- `mcp__cac__encounter_assign_region(name, region, campaign)` / `mcp__cac__encounter_unassign_region(name, region, campaign)` — an encounter may be assigned to one or more regions. This link is recorded only on the encounter. CLI fallback: `cac encounter assign-region --help` / `cac encounter unassign-region --help`.
-- `mcp__cac__encounter_assign_dependency(name, dependency, campaign)` / `mcp__cac__encounter_unassign_dependency(name, dependency, campaign)` — change direct prerequisites while the dependent encounter is `draft` or `reviewed`. CLI fallback: `cac encounter assign-dependency --help` / `cac encounter unassign-dependency --help`.
-- `mcp__cac__encounter_delete(name, campaign)` — remove an encounter, unconditionally. Fails while another encounter depends on it. CLI fallback: `cac encounter delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
+- `mcp__crypts-and-commits__encounter_list(campaign, cursor)` — list encounter names within a campaign, ordered oldest-updated first (ascending by `updated_on`). CLI fallback: `cac encounter list --help`.
+- `mcp__crypts-and-commits__encounter_order(campaign)` — show every campaign encounter in deterministic dependency order, with status and direct dependencies. CLI fallback: `cac encounter order --help`.
+- `mcp__crypts-and-commits__encounter_get(name, campaign)` — show an encounter's frontmatter (`status`, `regions`) and body. CLI fallback: `cac encounter get --help`.
+- `mcp__crypts-and-commits__encounter_create(name, body, campaign)` — create a new encounter. The campaign must already exist and not be completed/abandoned. CLI fallback: `cac encounter create --help`.
+- `mcp__crypts-and-commits__encounter_update(name, body, campaign)` — replace an encounter's body. Only works while status is `draft`. CLI fallback: `cac encounter update --help`.
+- `mcp__crypts-and-commits__encounter_review(name, message, campaign)` — move `draft` → `reviewed` after a lore review. Message is required and permanently locks the content. CLI fallback: `cac encounter review --help`.
+- `mcp__crypts-and-commits__encounter_open(name, campaign, message)` — move `reviewed` → `open` and begin execution. Message is optional. CLI fallback: `cac encounter open --help`.
+- `mcp__crypts-and-commits__encounter_record_message(name, message, campaign)` — append a note without changing status. Works while `reviewed` or `open`. CLI fallback: `cac encounter record-message --help`.
+- `mcp__crypts-and-commits__encounter_complete(name, campaign, message)` — move `open` → `completed` once verification passes. Message is optional. CLI fallback: `cac encounter complete --help`.
+- `mcp__crypts-and-commits__encounter_abandon(name, message, campaign)` — move `draft`, `reviewed`, or `open` → `abandoned`. Not available once `completed`. Message is required. CLI fallback: `cac encounter abandon --help`.
+- `mcp__crypts-and-commits__encounter_assign_region(name, region, campaign)` / `mcp__crypts-and-commits__encounter_unassign_region(name, region, campaign)` — an encounter may be assigned to one or more regions. This link is recorded only on the encounter. CLI fallback: `cac encounter assign-region --help` / `cac encounter unassign-region --help`.
+- `mcp__crypts-and-commits__encounter_assign_dependency(name, dependency, campaign)` / `mcp__crypts-and-commits__encounter_unassign_dependency(name, dependency, campaign)` — change direct prerequisites while the dependent encounter is `draft` or `reviewed`. CLI fallback: `cac encounter assign-dependency --help` / `cac encounter unassign-dependency --help`.
+- `mcp__crypts-and-commits__encounter_delete(name, campaign)` — remove an encounter, unconditionally. Fails while another encounter depends on it. CLI fallback: `cac encounter delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
 
 ## Encounter Lifecycle
 
-**`draft`** — the encounter is being documented and planned. Write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. This is the only status in which `mcp__cac__encounter_update` can replace the body.
+**`draft`** — the encounter is being documented and planned. Write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. This is the only status in which `mcp__crypts-and-commits__encounter_update` can replace the body.
 
 Dependencies may be assigned or unassigned while an encounter is `draft` or `reviewed`, but not after it opens. Assignments must reference a non-abandoned encounter in the same campaign and cannot introduce a self-dependency or cycle. An abandoned existing prerequisite remains an unsatisfied blocker until it is removed or replaced.
 
 **`draft` → `reviewed`** — this gate is performed by an **independent, fresh reviewer subagent**, never inline by the agent that authored the plan. An agent reviewing its own plan just re-checks it against the priors that produced it — a rubber stamp — so **do not review the Plan yourself**.
 
-1. **Get the user's explicit approval before spawning.** Do not launch the reviewer subagent just because an encounter reached `draft` — drafting is not itself approval to review. Stop and ask the user directly whether to proceed with the independent review, and wait for an explicit yes. This is a separate approval from the later `reviewed` → `open` approval, and it applies every time this step is reached, including a re-review after a **REJECT**/**NOT-REVIEWABLE** verdict and a follow-up `mcp__cac__encounter_update` — not just the first pass over a fresh draft.
+1. **Get the user's explicit approval before spawning.** Do not launch the reviewer subagent just because an encounter reached `draft` — drafting is not itself approval to review. Stop and ask the user directly whether to proceed with the independent review, and wait for an explicit yes. This is a separate approval from the later `reviewed` → `open` approval, and it applies every time this step is reached, including a re-review after a **REJECT**/**NOT-REVIEWABLE** verdict and a follow-up `mcp__crypts-and-commits__encounter_update` — not just the first pass over a fresh draft.
 2. **Spawn a fresh reviewer.** Use the `Task` tool with `subagent_type: "general-purpose"` — a fresh agent, **never a fork** (a fork inherits the authoring conversation and reproduces its bias). Hand it the [reviewer prompt template](#reviewer-subagent-prompt-template) below, filling in only the encounter and campaign names. Pass nothing else — no lore, no analysis of your own — so the review stays independent and also tests whether the encounter is self-contained enough to survive a context reset.
 3. **Let it review within bounds.** The subagent primes the world/lore itself, checks the Plan against applicable lore within a bounded reading surface, and returns findings, a verdict (**PASS-WITH-NOTES** / **REJECT** / **NOT-REVIEWABLE**), and a *proposed* review message. It does **not** run any mutating `cac` operation — the transition is scripted by this skill, per the verdict, as described next.
-4. **Auto-transition on PASS-WITH-NOTES — no separate approval pause.** As soon as the reviewer returns a **PASS-WITH-NOTES** verdict, run `mcp__cac__encounter_review(name, message)` yourself, from the main thread, immediately, with `message` set to the reviewer's proposed message — the message content is the reviewer's independent findings (its proposed message, verbatim or faithfully transcribed), never a self-summary. This permanently locks the Requirements, Rationale, Plan, and Verification sections — they can no longer be replaced with `encounter_update`, only appended to. Then relay the reviewer's findings, verdict, and the fact that the encounter is now `reviewed` to the user. This step's auto-transition has no separate approval pause of its own — the approval this gate requires already happened at step 1, before the reviewer was spawned.
-5. **Feedback after the fact is a logged message, not a re-draft.** If the user has feedback or requested changes in response to a PASS-WITH-NOTES review, capture it with `mcp__cac__encounter_record_message(name, message)` — do not attempt to reopen or re-draft the Plan; the content is already locked, and `encounter_update` no longer applies once status has moved past `draft`.
+4. **Auto-transition on PASS-WITH-NOTES — no separate approval pause.** As soon as the reviewer returns a **PASS-WITH-NOTES** verdict, run `mcp__crypts-and-commits__encounter_review(name, message)` yourself, from the main thread, immediately, with `message` set to the reviewer's proposed message — the message content is the reviewer's independent findings (its proposed message, verbatim or faithfully transcribed), never a self-summary. This permanently locks the Requirements, Rationale, Plan, and Verification sections — they can no longer be replaced with `encounter_update`, only appended to. Then relay the reviewer's findings, verdict, and the fact that the encounter is now `reviewed` to the user. This step's auto-transition has no separate approval pause of its own — the approval this gate requires already happened at step 1, before the reviewer was spawned.
+5. **Feedback after the fact is a logged message, not a re-draft.** If the user has feedback or requested changes in response to a PASS-WITH-NOTES review, capture it with `mcp__crypts-and-commits__encounter_record_message(name, message)` — do not attempt to reopen or re-draft the Plan; the content is already locked, and `encounter_update` no longer applies once status has moved past `draft`.
 
-On **REJECT** or **NOT-REVIEWABLE**, the auto-transition does not apply: do not run `mcp__cac__encounter_review`, relay the reviewer's reasons to the user, revise the draft with `mcp__cac__encounter_update` (still allowed while `draft`), and return to step 1 — get the user's explicit approval again — before spawning a fresh reviewer.
+On **REJECT** or **NOT-REVIEWABLE**, the auto-transition does not apply: do not run `mcp__crypts-and-commits__encounter_review`, relay the reviewer's reasons to the user, revise the draft with `mcp__crypts-and-commits__encounter_update` (still allowed while `draft`), and return to step 1 — get the user's explicit approval again — before spawning a fresh reviewer.
 
 #### Reviewer subagent prompt template
 
@@ -107,16 +107,16 @@ Prime the context yourself — do not accept any summary of it. Use the
 `world-manager` skill if it is available, or call these directly — MCP tools
 first, falling back to the equivalent `cac` CLI command only if the MCP
 server isn't available in your session:
-- `mcp__cac__world_get()` / `cac world get` — read the world summary.
-- `mcp__cac__encounter_get(name="<ENCOUNTER>", campaign="<CAMPAIGN>")` /
+- `mcp__crypts-and-commits__world_get()` / `cac world get` — read the world summary.
+- `mcp__crypts-and-commits__encounter_get(name="<ENCOUNTER>", campaign="<CAMPAIGN>")` /
   `cac encounter get <ENCOUNTER> -c <CAMPAIGN>` — read the encounter and note
-  its `regions`. For each region, `mcp__cac__region_get(name=<region>)` /
+  its `regions`. For each region, `mcp__crypts-and-commits__region_get(name=<region>)` /
   `cac region get <region>` for its documented `path`.
-- `mcp__cac__prime_applicable_lore(encounter="<ENCOUNTER>", campaign="<CAMPAIGN>")`
+- `mcp__crypts-and-commits__prime_applicable_lore(encounter="<ENCOUNTER>", campaign="<CAMPAIGN>")`
   / `cac prime applicable-lore <ENCOUNTER> -c <CAMPAIGN>` — resolve the exact
   enabled lore set that applies (world-assigned union every region this
   encounter is assigned to), returned as `name` + `summary` + `ref`. Then, for
-  each `ref` returned, `mcp__cac__lore_get(name=ref)` / `cac lore get <ref>`
+  each `ref` returned, `mcp__crypts-and-commits__lore_get(name=ref)` / `cac lore get <ref>`
   to hydrate its full body — the summary is only a routing signal; the body
   is what you check the Plan against.
 
@@ -148,10 +148,10 @@ other mutating `cac` operation (via MCP tool or CLI), and do not edit any
 files. You are reviewing only.
 ```
 
-**`reviewed` → `open`** — get explicit approval from the user, then run `mcp__cac__encounter_open(name, message)`. A message is optional here. Opening fails until every direct dependency is `completed`, reporting all unsatisfied prerequisites and their statuses.
+**`reviewed` → `open`** — get explicit approval from the user, then run `mcp__crypts-and-commits__encounter_open(name, message)`. A message is optional here. Opening fails until every direct dependency is `completed`, reporting all unsatisfied prerequisites and their statuses.
 
-**`open`** — execute the Plan. If the Plan or Verification needs to change based on what's found during implementation, do not attempt to edit them directly — use `mcp__cac__encounter_record_message(name, message)` to record the deviation and why (also usable between `review` and `open`, i.e. while `reviewed`).
+**`open`** — execute the Plan. If the Plan or Verification needs to change based on what's found during implementation, do not attempt to edit them directly — use `mcp__crypts-and-commits__encounter_record_message(name, message)` to record the deviation and why (also usable between `review` and `open`, i.e. while `reviewed`).
 
-**`open` → `completed`** — once all work is finished, run the steps described in Verification. Once verification passes, confirm with the user before marking it complete — do not do this unilaterally — then run `mcp__cac__encounter_complete(name, message)`. A message is optional.
+**`open` → `completed`** — once all work is finished, run the steps described in Verification. Once verification passes, confirm with the user before marking it complete — do not do this unilaterally — then run `mcp__crypts-and-commits__encounter_complete(name, message)`. A message is optional.
 
-**`draft`/`reviewed`/`open` → `abandoned`** — on request from the user, run `mcp__cac__encounter_abandon(name, message)` (message required). Not available once an encounter is `completed`.
+**`draft`/`reviewed`/`open` → `abandoned`** — on request from the user, run `mcp__crypts-and-commits__encounter_abandon(name, message)` (message required). Not available once an encounter is `completed`.

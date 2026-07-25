@@ -1,3 +1,3 @@
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("cac")
+mcp = FastMCP("crypts-and-commits")

@@ -1,17 +1,17 @@
 ---
 name: campaign-manager
-description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work with Requirements/Rationale/Plan/Verification sections) - through the cac MCP server, falling back to the cac CLI when the server is unavailable. Use when asked to start a new initiative, move a campaign through its draft/open/paused/completed/abandoned lifecycle, plan a new unit of work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
+description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work with Requirements/Rationale/Plan/Verification sections) - through the crypts-and-commits MCP server, falling back to the cac CLI when the server is unavailable. Use when asked to start a new initiative, move a campaign through its draft/open/paused/completed/abandoned lifecycle, plan a new unit of work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
 ---
 
 # Campaign Manager
 
-Owns the project's active work-tracking loop: campaigns and the encounters within them. Work exclusively through the `cac` MCP server's tools when they are available for this session — never create, read, edit, move, or delete anything under `.sourcebook/` directly, whether with file tools or shell commands. Fall back to the `cac` CLI only when the MCP server is not connected for this session; the CLI covers the exact same operations (see each tool's "CLI fallback" pointer below).
+Owns the project's active work-tracking loop: campaigns and the encounters within them. Work exclusively through the `crypts-and-commits` MCP server's tools when they are available for this session — never create, read, edit, move, or delete anything under `.sourcebook/` directly, whether with file tools or shell commands. Fall back to the `cac` CLI only when the MCP server is not connected for this session; the CLI covers the exact same operations (see each tool's "CLI fallback" pointer below).
 
 If a command reports that the project hasn't been bootstrapped, stop and ask the developer to run `cac bootstrap init` themselves. Never run it on their behalf — this applies regardless of whether you'd otherwise reach for the MCP server or the CLI, since `bootstrap` is intentionally not exposed over MCP at all.
 
 ## Command execution
 
-The `cac` MCP server (registered as `cac` and configured in `.mcp.json`) is the primary interface below; tool names are its bare registered names (e.g. `campaign_get`), not the `mcp__cac__`-prefixed form Claude Code uses. CLI fallback examples use `cac ...` — invoke them through the installation available in the current project. In the Crypts and Commits development repository, run them as `pdm run cac ...`.
+The `crypts-and-commits` MCP server (registered as `crypts-and-commits` and configured in `.mcp.json`) is the primary interface below; tool names are its bare registered names (e.g. `campaign_get`), not the `mcp__crypts-and-commits__`-prefixed form Claude Code uses. CLI fallback examples use `cac ...` — invoke them through the installation available in the current project. In the Crypts and Commits development repository, run them as `pdm run cac ...`.
 
 ## Priming
 

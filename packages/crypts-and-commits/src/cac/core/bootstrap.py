@@ -32,10 +32,11 @@ def resolve_cac_mcp_executable() -> Path:
 
 
 def initialize_mcp_config(root: Path) -> tuple[Path, bool]:
-    """Write, or merge into, .mcp.json at the project root, registering the cac MCP server
-    at its actual installed path. Existing entries for other servers are preserved.
+    """Write, or merge into, .mcp.json at the project root, registering the
+    crypts-and-commits MCP server at its actual installed path. Existing entries for
+    other servers are preserved.
 
-    Returns the config path and whether the cac entry was newly added or changed.
+    Returns the config path and whether the crypts-and-commits entry was newly added or changed.
     """
     path = mcp_config_path(root)
     config: dict[str, Any] = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}

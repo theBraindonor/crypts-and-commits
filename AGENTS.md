@@ -20,8 +20,9 @@ for Codex.
   either workflow, use the corresponding skill:
   - `.agents/skills/world-manager/SKILL.md`
   - `.agents/skills/campaign-manager/SKILL.md`
-- Prefer the `cac` MCP server's tools (registered as `cac` per `.mcp.json`) as
-  the primary interface for `.sourcebook` work; shell out to the `cac` CLI only
+- Prefer the `crypts-and-commits` MCP server's tools (registered as
+  `crypts-and-commits` per `.mcp.json`) as the primary interface for
+  `.sourcebook` work; shell out to the `cac` CLI only
   when the MCP server isn't connected for the session. Skill examples show both
   forms — MCP tool first, `cac ...` CLI fallback second. In this development
   repository, run CLI fallback commands as `pdm run cac ...`.

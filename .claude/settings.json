@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "mcp__cac"
+      "mcp__crypts-and-commits"
     ],
     "deny": [
       "Edit(.sourcebook/**)"

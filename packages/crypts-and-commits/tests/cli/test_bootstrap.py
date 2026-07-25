@@ -52,7 +52,7 @@ def test_init_creates_mcp_config(tmp_path: Path) -> None:
     mcp_config = tmp_path / ".mcp.json"
     assert mcp_config.is_file()
     config = json.loads(mcp_config.read_text(encoding="utf-8"))
-    assert "cac" in config["mcpServers"]
+    assert "crypts-and-commits" in config["mcpServers"]
 
 
 def test_init_preserves_other_mcp_servers(tmp_path: Path) -> None:
@@ -67,4 +67,4 @@ def test_init_preserves_other_mcp_servers(tmp_path: Path) -> None:
     assert result.exit_code == 0
     config = json.loads(mcp_config.read_text(encoding="utf-8"))
     assert "some-other-server" in config["mcpServers"]
-    assert "cac" in config["mcpServers"]
+    assert "crypts-and-commits" in config["mcpServers"]

@@ -40,9 +40,9 @@ def _report(path: Path, created: bool) -> None:
 
 def _report_mcp_config(path: Path, changed: bool) -> None:
     if changed:
-        console.print(f"Registered the cac MCP server in [bold green]{path}[/bold green]")
+        console.print(f"Registered the crypts-and-commits MCP server in [bold green]{path}[/bold green]")
     else:
-        console.print(f"[bold yellow]{path}[/bold yellow] already registers the cac MCP server")
+        console.print(f"[bold yellow]{path}[/bold yellow] already registers the crypts-and-commits MCP server")
 
 
 def _show_splash() -> None:

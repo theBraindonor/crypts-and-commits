@@ -35,8 +35,8 @@ def test_initialize_mcp_config_creates_file(tmp_path: Path) -> None:
     assert changed is True
     assert path == tmp_path / ".mcp.json"
     config = json.loads(path.read_text(encoding="utf-8"))
-    assert config["mcpServers"]["cac"]["command"] == str(bootstrap.resolve_cac_mcp_executable())
-    assert config["mcpServers"]["cac"]["args"] == []
+    assert config["mcpServers"]["crypts-and-commits"]["command"] == str(bootstrap.resolve_cac_mcp_executable())
+    assert config["mcpServers"]["crypts-and-commits"]["args"] == []
 
 
 def test_initialize_mcp_config_is_idempotent(tmp_path: Path) -> None:
@@ -59,4 +59,4 @@ def test_initialize_mcp_config_preserves_other_servers(tmp_path: Path) -> None:
 
     config = json.loads(config_path.read_text(encoding="utf-8"))
     assert config["mcpServers"]["some-other-server"] == {"command": "/usr/bin/other", "args": ["--flag"]}
-    assert "cac" in config["mcpServers"]
+    assert "crypts-and-commits" in config["mcpServers"]
