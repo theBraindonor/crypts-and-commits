@@ -1,11 +1,10 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from cac.core import campaign, encounter, frontmatter_utils, git_utils, lore, prime, region, world
 
-_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=timezone.utc)
+_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
 
 
 def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:

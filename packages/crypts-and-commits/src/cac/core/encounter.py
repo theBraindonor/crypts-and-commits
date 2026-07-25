@@ -1,15 +1,13 @@
-from dataclasses import dataclass
 import heapq
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import frontmatter
 
 from cac.core import campaign as campaign_core
-from cac.core import frontmatter_utils
-from cac.core import git_utils
+from cac.core import frontmatter_utils, git_utils, templates
 from cac.core import region as region_core
-from cac.core import templates
 from cac.core.config import (
     DEFAULT_ENCOUNTER_STATUS,
     ENCOUNTER_DIR_NAME,

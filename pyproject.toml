@@ -21,6 +21,7 @@ dev = [
 ]
 test = [
     "pytest",
+    "pytest-cov",
 ]
 lint = [
     "ruff",
@@ -34,3 +35,6 @@ testpaths = ["packages"]
 
 [tool.ruff]
 line-length = 120
+
+[tool.coverage.run]
+source = ["cac"]

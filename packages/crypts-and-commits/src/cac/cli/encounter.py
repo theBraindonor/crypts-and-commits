@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -35,7 +35,7 @@ def _campaign_option() -> Any:
     return typer.Option(None, "--campaign", "-c", help=_CAMPAIGN_HELP)
 
 
-def _resolve_campaign(campaign: str | None, *, require_mutable: bool) -> str | NoReturn:
+def _resolve_campaign(campaign: str | None, *, require_mutable: bool) -> str:
     """Resolve the campaign to act on, failing with a clear message if none is active, the named
     campaign does not exist, or (when mutating) it is completed/abandoned."""
     try:

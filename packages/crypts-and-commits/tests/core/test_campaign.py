@@ -1,11 +1,10 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
 from cac.core import campaign, encounter, frontmatter_utils, git_utils
 
-_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=timezone.utc)
+_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
 
 
 def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
@@ -163,7 +162,7 @@ def test_create_campaign_sets_created_and_updated_fields(tmp_path: Path) -> None
 def test_update_campaign_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Original.")
 
-    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=timezone.utc)
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
     _set_identity(monkeypatch, user="Jane Doe", when=later)
     campaign.update_campaign(tmp_path, "opening-gambit", "Updated.")
 

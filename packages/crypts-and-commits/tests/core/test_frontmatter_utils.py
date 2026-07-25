@@ -1,9 +1,8 @@
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import frontmatter
 import pytest
-
 from cac.core import frontmatter_utils
 from cac.core.config import SUMMARY_MAX_LENGTH
 from cac.core.frontmatter_utils import (
@@ -99,7 +98,7 @@ def test_summary_or_placeholder_returns_message_when_empty() -> None:
     assert summary_or_placeholder(post) == SUMMARY_ABSENT_MESSAGE
 
 
-_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=timezone.utc)
+_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
 
 
 def _freeze_time(monkeypatch: pytest.MonkeyPatch, when: datetime = _FIXED_TIME) -> None:
@@ -152,5 +151,5 @@ def test_append_log_entry_uses_real_utc_timestamp_by_default() -> None:
 
     match = re.search(r"### Review - (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) - John Hoff", post.content)
     assert match is not None
-    parsed = datetime.strptime(match.group(1), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    assert abs((datetime.now(timezone.utc) - parsed).total_seconds()) < 60
+    parsed = datetime.strptime(match.group(1), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+    assert abs((datetime.now(UTC) - parsed).total_seconds()) < 60

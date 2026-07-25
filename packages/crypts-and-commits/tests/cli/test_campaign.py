@@ -1,11 +1,10 @@
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
-
 from cac.cli import common as cli_common
 from cac.cli.app import app
 from cac.core import git_utils
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

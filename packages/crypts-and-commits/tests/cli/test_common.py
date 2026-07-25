@@ -2,7 +2,6 @@ import io
 import sys
 
 import pytest
-
 from cac.cli.common import configure_output_encoding
 
 
@@ -24,7 +23,7 @@ def test_configure_output_encoding_switches_cp1252_stream_to_utf8(monkeypatch: p
     # The arrow that crashed `cac ... get` on Windows now round-trips.
     sys.stdout.write("→")
     sys.stdout.flush()
-    assert "→".encode("utf-8") in raw.getvalue()
+    assert "→".encode() in raw.getvalue()
 
 
 def test_configure_output_encoding_ignores_streams_without_reconfigure(monkeypatch: pytest.MonkeyPatch) -> None:

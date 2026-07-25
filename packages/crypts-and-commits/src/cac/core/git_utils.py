@@ -13,6 +13,8 @@ def current_git_user(root: Path) -> str:
             cwd=root,
             capture_output=True,
             text=True,
+            check=False,
+            stdin=subprocess.DEVNULL,
         )
     except FileNotFoundError as exc:
         raise GitIdentityError("git is not installed or not on PATH; cannot resolve the current git user.") from exc

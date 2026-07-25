@@ -1,6 +1,7 @@
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Generic, Sequence, TypeVar
+from typing import Generic, TypeVar
 
 from cac.core import config
 

@@ -1,8 +1,8 @@
 import typer
 
-from cac.cli.common import configure_output_encoding
 from cac.cli.bootstrap import app as bootstrap_app
 from cac.cli.campaign import app as campaign_app
+from cac.cli.common import configure_output_encoding
 from cac.cli.encounter import app as encounter_app
 from cac.cli.lore import app as lore_app
 from cac.cli.prime import app as prime_app

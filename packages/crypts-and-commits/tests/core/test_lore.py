@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from cac.core import frontmatter_utils, lore
 
 
