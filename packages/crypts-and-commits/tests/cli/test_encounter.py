@@ -394,7 +394,7 @@ def test_abandon_requires_message() -> None:
 
 def test_assign_region_sets_region(tmp_path: Path) -> None:
     _create_campaign()
-    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(
@@ -411,8 +411,8 @@ def test_assign_region_sets_region(tmp_path: Path) -> None:
 
 def test_assign_region_allows_multiple_regions(tmp_path: Path) -> None:
     _create_campaign()
-    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
-    runner.invoke(app, ["region", "create", "southlands", "--body", "text"])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
+    runner.invoke(app, ["region", "create", "southlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     runner.invoke(app, ["encounter", "assign-region", "goblin-ambush", "northlands", "--campaign", "opening-gambit"])
@@ -439,7 +439,7 @@ def test_assign_region_missing_region_fails() -> None:
 
 def test_unassign_region_clears_region(tmp_path: Path) -> None:
     _create_campaign()
-    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["encounter", "assign-region", "goblin-ambush", "northlands", "--campaign", "opening-gambit"])
 

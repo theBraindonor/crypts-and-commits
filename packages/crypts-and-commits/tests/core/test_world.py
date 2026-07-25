@@ -78,7 +78,7 @@ def test_update_body_missing_world_raises(tmp_path: Path) -> None:
 
 def test_assign_lore_updates_world_and_lore(tmp_path: Path) -> None:
     world.initialize_world(tmp_path)
-    lore.create_lore(tmp_path, "conventions", "Body.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     result = world.assign_lore(tmp_path, "conventions")
 
@@ -90,7 +90,7 @@ def test_assign_lore_updates_world_and_lore(tmp_path: Path) -> None:
 
 def test_assign_lore_is_idempotent(tmp_path: Path) -> None:
     world.initialize_world(tmp_path)
-    lore.create_lore(tmp_path, "conventions", "Body.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     world.assign_lore(tmp_path, "conventions")
     result = world.assign_lore(tmp_path, "conventions")
@@ -112,7 +112,7 @@ def test_assign_lore_missing_lore_raises(tmp_path: Path) -> None:
 
 def test_unassign_lore_updates_world_and_lore(tmp_path: Path) -> None:
     world.initialize_world(tmp_path)
-    lore.create_lore(tmp_path, "conventions", "Body.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
     world.assign_lore(tmp_path, "conventions")
 
     result = world.unassign_lore(tmp_path, "conventions")

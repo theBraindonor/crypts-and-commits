@@ -78,7 +78,12 @@ def read_metadata(root: Path, name: str) -> tuple[dict[str, Any], str]:
     return dict(post.metadata), post.content
 
 
-def create_lore(root: Path, name: str, body: str) -> Path:
+def create_lore(root: Path, name: str, body: str, summary: str) -> Path:
+    """Create a lore file, writing the body and its summary together.
+
+    The summary is a required companion of the body write (enforced within the
+    length cap) so a body can never be stored without a current summary.
+    """
     path = _lore_path(root, name)
     if path.exists():
         raise LoreAlreadyExistsError(f"Lore {name!r} already exists.")
@@ -86,14 +91,22 @@ def create_lore(root: Path, name: str, body: str) -> Path:
     post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
     post["name"] = name
     post.content = body
+    set_summary_attribute(post, summary)
     write_post(path, post)
     return path
 
 
-def update_lore(root: Path, name: str, body: str) -> Path:
+def update_lore(root: Path, name: str, body: str, summary: str) -> Path:
+    """Replace a lore file's body, regenerating its summary in the same write.
+
+    The summary is required so an edited body cannot commit without an
+    accompanying current summary; an over-cap summary aborts the write before
+    anything is persisted.
+    """
     path = _existing_lore_path(root, name)
     post = frontmatter.load(path)
     post.content = body
+    set_summary_attribute(post, summary)
     write_post(path, post)
     return path
 

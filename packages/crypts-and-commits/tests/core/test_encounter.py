@@ -174,7 +174,7 @@ def test_read_encounter_missing_raises(tmp_path: Path) -> None:
 
 def test_read_metadata_returns_full_frontmatter_and_body(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body text.")
     encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
 
@@ -459,7 +459,7 @@ def test_record_message_multiple_calls_append_multiple_entries_under_one_log_sec
 
 def test_assign_region_sets_region_on_encounter_only(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
     result = encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
@@ -471,7 +471,7 @@ def test_assign_region_sets_region_on_encounter_only(tmp_path: Path) -> None:
 
 def test_assign_region_is_idempotent(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
     encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
@@ -482,8 +482,8 @@ def test_assign_region_is_idempotent(tmp_path: Path) -> None:
 
 def test_encounter_can_be_assigned_to_multiple_regions(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
-    region.create_region(tmp_path, "northlands", "Body.")
-    region.create_region(tmp_path, "southlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    region.create_region(tmp_path, "southlands", "Body.", "Summary.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
     encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
@@ -502,7 +502,7 @@ def test_assign_region_missing_region_raises(tmp_path: Path) -> None:
 
 def test_assign_region_missing_encounter_raises(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     with pytest.raises(encounter.EncounterNotFoundError):
         encounter.assign_region(tmp_path, "opening-gambit", "missing", "northlands")
@@ -510,7 +510,7 @@ def test_assign_region_missing_encounter_raises(tmp_path: Path) -> None:
 
 def test_unassign_region_clears_region(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
     encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
 
@@ -521,8 +521,8 @@ def test_unassign_region_clears_region(tmp_path: Path) -> None:
 
 def test_unassign_region_leaves_other_regions(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
-    region.create_region(tmp_path, "northlands", "Body.")
-    region.create_region(tmp_path, "southlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    region.create_region(tmp_path, "southlands", "Body.", "Summary.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
     encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
     encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "southlands")
@@ -568,7 +568,7 @@ def test_touching_an_encounter_refreshes_updated_but_not_created(
 
 def test_assign_region_refreshes_updated_fields(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _make_campaign(tmp_path)
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=timezone.utc)

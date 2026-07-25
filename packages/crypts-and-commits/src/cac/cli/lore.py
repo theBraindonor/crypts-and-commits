@@ -58,13 +58,19 @@ def list_lore() -> None:
 def create_lore(
     name: str = typer.Argument(..., help="Lore name (letters, numbers, underscores, hyphens, periods)."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    summary: str | None = typer.Option(
+        None, "--summary", "-s", help="Short routing summary (max 500 characters). Required alongside the body."
+    ),
 ) -> None:
     """Create a new lore file."""
+    if summary is None:
+        fail(console, "A summary is required: pass --summary/-s so the new body is stored with a current summary.")
+
     content = body if body is not None else edit_markdown(lore_core.template_body())
 
     try:
-        path = lore_core.create_lore(Path.cwd(), name, content)
-    except (lore_core.InvalidLoreNameError, lore_core.LoreAlreadyExistsError) as exc:
+        path = lore_core.create_lore(Path.cwd(), name, content, summary)
+    except (lore_core.InvalidLoreNameError, lore_core.LoreAlreadyExistsError, lore_core.SummaryTooLongError) as exc:
         fail(console, str(exc))
 
     console.print(f"Created [bold green]{path}[/bold green]")
@@ -74,15 +80,26 @@ def create_lore(
 def update_lore(
     name: str = typer.Argument(..., help="Lore name to update."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    summary: str | None = typer.Option(
+        None, "--summary", "-s", help="Short routing summary (max 500 characters). Required alongside the body."
+    ),
 ) -> None:
     """Update an existing lore file's body."""
+    if summary is None:
+        fail(console, "A summary is required: pass --summary/-s so the edited body is stored with a current summary.")
+
     try:
         current = lore_core.read_lore(Path.cwd(), name)
     except lore_core.LoreNotFoundError as exc:
         fail(console, str(exc))
 
     content = body if body is not None else edit_markdown(current.body)
-    path = lore_core.update_lore(Path.cwd(), name, content)
+
+    try:
+        path = lore_core.update_lore(Path.cwd(), name, content, summary)
+    except lore_core.SummaryTooLongError as exc:
+        fail(console, str(exc))
+
     console.print(f"Updated [bold green]{path}[/bold green]")
 
 

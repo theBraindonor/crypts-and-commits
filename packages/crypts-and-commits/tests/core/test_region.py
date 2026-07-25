@@ -10,7 +10,7 @@ def test_list_regions_returns_empty_when_no_directory(tmp_path: Path) -> None:
 
 
 def test_create_region_writes_frontmatter_and_body(tmp_path: Path) -> None:
-    path = region.create_region(tmp_path, "northlands", "# Northlands\n\nCold and mountainous.")
+    path = region.create_region(tmp_path, "northlands", "# Northlands\n\nCold and mountainous.", "Summary.")
 
     assert path == tmp_path / ".sourcebook" / "region" / "northlands.md"
     text = path.read_text(encoding="utf-8")
@@ -21,11 +21,11 @@ def test_create_region_writes_frontmatter_and_body(tmp_path: Path) -> None:
 
 def test_create_region_rejects_invalid_name(tmp_path: Path) -> None:
     with pytest.raises(region.InvalidRegionNameError):
-        region.create_region(tmp_path, "bad name!", "body")
+        region.create_region(tmp_path, "bad name!", "body", "Summary.")
 
 
 def test_create_region_allows_periods(tmp_path: Path) -> None:
-    path = region.create_region(tmp_path, "v0.1.0-region", "body")
+    path = region.create_region(tmp_path, "v0.1.0-region", "body", "Summary.")
 
     assert path == tmp_path / ".sourcebook" / "region" / "v0.1.0-region.md"
 
@@ -33,19 +33,19 @@ def test_create_region_allows_periods(tmp_path: Path) -> None:
 @pytest.mark.parametrize("name", [".", ".."])
 def test_create_region_rejects_reserved_names(tmp_path: Path, name: str) -> None:
     with pytest.raises(region.InvalidRegionNameError):
-        region.create_region(tmp_path, name, "body")
+        region.create_region(tmp_path, name, "body", "Summary.")
 
 
 def test_create_region_rejects_duplicate_name(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "duplicate", "first")
+    region.create_region(tmp_path, "duplicate", "first", "Summary.")
 
     with pytest.raises(region.RegionAlreadyExistsError):
-        region.create_region(tmp_path, "duplicate", "second")
+        region.create_region(tmp_path, "duplicate", "second", "Summary.")
 
 
 def test_list_regions_returns_sorted_names(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "zeta", "z")
-    region.create_region(tmp_path, "alpha", "a")
+    region.create_region(tmp_path, "zeta", "z", "Summary.")
+    region.create_region(tmp_path, "alpha", "a", "Summary.")
 
     assert region.list_regions(tmp_path) == ["alpha", "zeta"]
 
@@ -57,7 +57,7 @@ def test_template_body_returns_placeholder_text() -> None:
 def test_exists_reflects_created_region(tmp_path: Path) -> None:
     assert region.exists(tmp_path, "northlands") is False
 
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     assert region.exists(tmp_path, "northlands") is True
 
@@ -68,7 +68,7 @@ def test_exists_rejects_invalid_name(tmp_path: Path) -> None:
 
 
 def test_read_region_returns_name_and_body(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body text.")
+    region.create_region(tmp_path, "northlands", "Body text.", "Summary.")
 
     result = region.read_region(tmp_path, "northlands")
 
@@ -78,7 +78,7 @@ def test_read_region_returns_name_and_body(tmp_path: Path) -> None:
 
 
 def test_read_metadata_returns_full_frontmatter_and_body(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "frontend", "Body text.", "src/frontend")
+    region.create_region(tmp_path, "frontend", "Body text.", "Summary.", "src/frontend")
 
     metadata, body = region.read_metadata(tmp_path, "frontend")
 
@@ -93,15 +93,28 @@ def test_read_metadata_missing_raises(tmp_path: Path) -> None:
 
 
 def test_create_region_accepts_path(tmp_path: Path) -> None:
-    path = region.create_region(tmp_path, "frontend", "Body.", "src/frontend")
+    path = region.create_region(tmp_path, "frontend", "Body.", "Summary.", "src/frontend")
 
     text = path.read_text(encoding="utf-8")
     assert "path: src/frontend" in text
     assert region.read_region(tmp_path, "frontend").path == "src/frontend"
 
 
+def test_create_region_stores_summary(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "northlands", "Body.", "A routing signal.")
+
+    assert region.read_summary(tmp_path, "northlands") == "A routing signal."
+
+
+def test_create_region_rejects_over_cap_summary_without_writing(tmp_path: Path) -> None:
+    with pytest.raises(region.SummaryTooLongError):
+        region.create_region(tmp_path, "northlands", "Body.", "x" * 501)
+
+    assert not region.exists(tmp_path, "northlands")
+
+
 def test_set_path_updates_path(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     result = region.set_path(tmp_path, "northlands", "src/backend")
 
@@ -110,7 +123,7 @@ def test_set_path_updates_path(tmp_path: Path) -> None:
 
 
 def test_set_summary_round_trips(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     region.set_summary(tmp_path, "northlands", "A brief routing signal.")
 
@@ -118,7 +131,7 @@ def test_set_summary_round_trips(tmp_path: Path) -> None:
 
 
 def test_set_summary_accepts_value_at_cap(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     region.set_summary(tmp_path, "northlands", "x" * 500)
 
@@ -126,7 +139,7 @@ def test_set_summary_accepts_value_at_cap(tmp_path: Path) -> None:
 
 
 def test_set_summary_rejects_value_over_cap(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     with pytest.raises(region.SummaryTooLongError):
         region.set_summary(tmp_path, "northlands", "x" * 501)
@@ -138,7 +151,11 @@ def test_set_summary_missing_raises(tmp_path: Path) -> None:
 
 
 def test_read_summary_returns_placeholder_when_absent(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
+    # A body written directly without the write-path setter has no summary; the
+    # read path must still return the explicit placeholder.
+    region_dir = tmp_path / ".sourcebook" / "region"
+    region_dir.mkdir(parents=True)
+    (region_dir / "northlands.md").write_text("---\nname: northlands\npath: ''\n---\n\nBody.\n", encoding="utf-8")
 
     assert region.read_summary(tmp_path, "northlands") == frontmatter_utils.SUMMARY_ABSENT_MESSAGE
 
@@ -149,7 +166,7 @@ def test_read_summary_missing_raises(tmp_path: Path) -> None:
 
 
 def test_set_summary_preserves_path(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "frontend", "Body.", "src/frontend")
+    region.create_region(tmp_path, "frontend", "Body.", "Summary.", "src/frontend")
 
     region.set_summary(tmp_path, "frontend", "A brief routing signal.")
 
@@ -167,20 +184,48 @@ def test_read_region_missing_raises(tmp_path: Path) -> None:
 
 
 def test_update_region_replaces_body(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Original.")
+    region.create_region(tmp_path, "northlands", "Original.", "Summary.")
 
-    region.update_region(tmp_path, "northlands", "Updated.")
+    region.update_region(tmp_path, "northlands", "Updated.", "Summary.")
 
     assert region.read_region(tmp_path, "northlands").body.strip() == "Updated."
 
 
+def test_update_region_regenerates_summary(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "northlands", "Original.", "Original summary.")
+
+    region.update_region(tmp_path, "northlands", "Updated.", "Updated summary.")
+
+    assert region.read_region(tmp_path, "northlands").body.strip() == "Updated."
+    assert region.read_summary(tmp_path, "northlands") == "Updated summary."
+
+
+def test_update_region_rejects_over_cap_summary_without_writing(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "northlands", "Original.", "Original summary.")
+
+    with pytest.raises(region.SummaryTooLongError):
+        region.update_region(tmp_path, "northlands", "Updated.", "x" * 501)
+
+    # Never-stale: the rejected write left the original body and summary intact.
+    assert region.read_region(tmp_path, "northlands").body.strip() == "Original."
+    assert region.read_summary(tmp_path, "northlands") == "Original summary."
+
+
+def test_update_region_preserves_path(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "frontend", "Original.", "Summary.", "src/frontend")
+
+    region.update_region(tmp_path, "frontend", "Updated.", "Summary.")
+
+    assert region.read_region(tmp_path, "frontend").path == "src/frontend"
+
+
 def test_update_region_missing_raises(tmp_path: Path) -> None:
     with pytest.raises(region.RegionNotFoundError):
-        region.update_region(tmp_path, "missing", "body")
+        region.update_region(tmp_path, "missing", "body", "Summary.")
 
 
 def test_delete_region_removes_file(tmp_path: Path) -> None:
-    path = region.create_region(tmp_path, "northlands", "Body.")
+    path = region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     region.delete_region(tmp_path, "northlands")
 
@@ -193,8 +238,8 @@ def test_delete_region_missing_raises(tmp_path: Path) -> None:
 
 
 def test_assign_lore_updates_region_and_lore(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
-    lore.create_lore(tmp_path, "conventions", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     region.assign_lore(tmp_path, "northlands", "conventions")
 
@@ -206,8 +251,8 @@ def test_assign_lore_updates_region_and_lore(tmp_path: Path) -> None:
 
 
 def test_assign_lore_is_idempotent(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
-    lore.create_lore(tmp_path, "conventions", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     region.assign_lore(tmp_path, "northlands", "conventions")
     region.assign_lore(tmp_path, "northlands", "conventions")
@@ -217,23 +262,23 @@ def test_assign_lore_is_idempotent(tmp_path: Path) -> None:
 
 
 def test_assign_lore_missing_region_raises(tmp_path: Path) -> None:
-    lore.create_lore(tmp_path, "conventions", "Body.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     with pytest.raises(region.RegionNotFoundError):
         region.assign_lore(tmp_path, "missing", "conventions")
 
 
 def test_assign_lore_missing_lore_raises(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     with pytest.raises(lore.LoreNotFoundError):
         region.assign_lore(tmp_path, "northlands", "missing")
 
 
 def test_lore_can_be_assigned_to_multiple_regions(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
-    region.create_region(tmp_path, "southlands", "Body.")
-    lore.create_lore(tmp_path, "conventions", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    region.create_region(tmp_path, "southlands", "Body.", "Summary.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     region.assign_lore(tmp_path, "northlands", "conventions")
     region.assign_lore(tmp_path, "southlands", "conventions")
@@ -244,8 +289,8 @@ def test_lore_can_be_assigned_to_multiple_regions(tmp_path: Path) -> None:
 
 
 def test_unassign_lore_updates_region_and_lore(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
-    lore.create_lore(tmp_path, "conventions", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
     region.assign_lore(tmp_path, "northlands", "conventions")
 
     region.unassign_lore(tmp_path, "northlands", "conventions")
@@ -257,14 +302,14 @@ def test_unassign_lore_updates_region_and_lore(tmp_path: Path) -> None:
 
 
 def test_unassign_lore_missing_region_raises(tmp_path: Path) -> None:
-    lore.create_lore(tmp_path, "conventions", "Body.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     with pytest.raises(region.RegionNotFoundError):
         region.unassign_lore(tmp_path, "missing", "conventions")
 
 
 def test_unassign_lore_missing_lore_raises(tmp_path: Path) -> None:
-    region.create_region(tmp_path, "northlands", "Body.")
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     with pytest.raises(lore.LoreNotFoundError):
         region.unassign_lore(tmp_path, "northlands", "missing")

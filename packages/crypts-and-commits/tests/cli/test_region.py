@@ -21,7 +21,10 @@ def test_get_missing_region_fails() -> None:
 
 
 def test_get_shows_metadata_and_body() -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--path", "src/frontend", "--body", "Body text."])
+    runner.invoke(
+        app,
+        ["region", "create", "northlands", "--path", "src/frontend", "--body", "Body text.", "--summary", "Summary."],
+    )
 
     result = runner.invoke(app, ["region", "get", "northlands"])
 
@@ -32,7 +35,10 @@ def test_get_shows_metadata_and_body() -> None:
 
 
 def test_get_preserves_bracketed_body_text() -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "See [tool.pdm.workspace] for details."])
+    runner.invoke(
+        app,
+        ["region", "create", "northlands", "--body", "See [tool.pdm.workspace] for details.", "--summary", "Summary."],
+    )
 
     result = runner.invoke(app, ["region", "get", "northlands"])
 
@@ -40,8 +46,12 @@ def test_get_preserves_bracketed_body_text() -> None:
     assert "[tool.pdm.workspace]" in result.output
 
 
-def test_get_shows_placeholder_when_summary_absent() -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "Body text."])
+def test_get_shows_placeholder_when_summary_absent(tmp_path: Path) -> None:
+    # Summary is mandatory on create, so a summary-less entry can only exist as a
+    # legacy/hand-written file; seed one directly to exercise the placeholder path.
+    region_dir = tmp_path / ".sourcebook" / "region"
+    region_dir.mkdir(parents=True)
+    (region_dir / "northlands.md").write_text("---\nname: northlands\npath: ''\n---\n\nBody text.\n", encoding="utf-8")
 
     result = runner.invoke(app, ["region", "get", "northlands"])
 
@@ -49,8 +59,17 @@ def test_get_shows_placeholder_when_summary_absent() -> None:
     assert "No summary has been set" in result.output
 
 
+def test_create_stores_summary_shown_in_get() -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Body text.", "--summary", "A routing signal."])
+
+    result = runner.invoke(app, ["region", "get", "northlands"])
+
+    assert result.exit_code == 0
+    assert "A routing signal." in result.output
+
+
 def test_set_summary_then_get_shows_it() -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "Body text."])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Body text.", "--summary", "Summary."])
 
     set_result = runner.invoke(app, ["region", "set-summary", "northlands", "A brief routing signal."])
     get_result = runner.invoke(app, ["region", "get", "northlands"])
@@ -61,7 +80,7 @@ def test_set_summary_then_get_shows_it() -> None:
 
 
 def test_get_preserves_bracketed_summary_text() -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "Body text."])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Body text.", "--summary", "Summary."])
     runner.invoke(app, ["region", "set-summary", "northlands", "Covers [tool.pdm.workspace] config."])
 
     result = runner.invoke(app, ["region", "get", "northlands"])
@@ -71,7 +90,7 @@ def test_get_preserves_bracketed_summary_text() -> None:
 
 
 def test_set_summary_rejects_value_over_cap() -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
 
     result = runner.invoke(app, ["region", "set-summary", "northlands", "x" * 501])
 
@@ -93,14 +112,30 @@ def test_list_reports_no_region_files() -> None:
 
 
 def test_create_with_body_option(tmp_path: Path) -> None:
-    result = runner.invoke(app, ["region", "create", "northlands", "--body", "# Northlands"])
+    result = runner.invoke(app, ["region", "create", "northlands", "--body", "# Northlands", "--summary", "Summary."])
 
     assert result.exit_code == 0
     assert (tmp_path / ".sourcebook" / "region" / "northlands.md").exists()
 
 
+def test_create_requires_summary(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+
+    assert result.exit_code == 1
+    assert "summary is required" in result.output
+    assert not (tmp_path / ".sourcebook" / "region" / "northlands.md").exists()
+
+
+def test_create_rejects_over_cap_summary(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "x" * 501])
+
+    assert result.exit_code == 1
+    assert "maximum of 500" in result.output
+    assert not (tmp_path / ".sourcebook" / "region" / "northlands.md").exists()
+
+
 def test_create_rejects_invalid_name() -> None:
-    result = runner.invoke(app, ["region", "create", "bad name", "--body", "text"])
+    result = runner.invoke(app, ["region", "create", "bad name", "--body", "text", "--summary", "Summary."])
 
     assert result.exit_code == 1
     assert "invalid" in result.output
@@ -109,7 +144,7 @@ def test_create_rejects_invalid_name() -> None:
 def test_create_opens_editor_when_body_omitted(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli_common.click, "edit", lambda *_args, **_kwargs: "# Edited body")
 
-    result = runner.invoke(app, ["region", "create", "northlands"])
+    result = runner.invoke(app, ["region", "create", "northlands", "--summary", "Summary."])
 
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "region" / "northlands.md").read_text(encoding="utf-8")
@@ -117,7 +152,7 @@ def test_create_opens_editor_when_body_omitted(monkeypatch: pytest.MonkeyPatch, 
 
 
 def test_list_shows_created_region() -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
 
     result = runner.invoke(app, ["region", "list"])
 
@@ -125,9 +160,9 @@ def test_list_shows_created_region() -> None:
 
 
 def test_update_replaces_body(tmp_path: Path) -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "Original"])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Original", "--summary", "Summary."])
 
-    result = runner.invoke(app, ["region", "update", "northlands", "--body", "Updated"])
+    result = runner.invoke(app, ["region", "update", "northlands", "--body", "Updated", "--summary", "Summary."])
 
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "region" / "northlands.md").read_text(encoding="utf-8")
@@ -135,14 +170,40 @@ def test_update_replaces_body(tmp_path: Path) -> None:
     assert "Original" not in text
 
 
+def test_update_regenerates_summary() -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Original", "--summary", "Old summary."])
+
+    update_result = runner.invoke(
+        app, ["region", "update", "northlands", "--body", "Updated", "--summary", "New summary."]
+    )
+    get_result = runner.invoke(app, ["region", "get", "northlands"])
+
+    assert update_result.exit_code == 0
+    assert "New summary." in get_result.output
+    assert "Updated" in get_result.output
+
+
+def test_update_requires_summary(tmp_path: Path) -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Original", "--summary", "Summary."])
+
+    result = runner.invoke(app, ["region", "update", "northlands", "--body", "Updated"])
+
+    assert result.exit_code == 1
+    assert "summary is required" in result.output
+    # The rejected update must not have touched the stored body.
+    text = (tmp_path / ".sourcebook" / "region" / "northlands.md").read_text(encoding="utf-8")
+    assert "Original" in text
+    assert "Updated" not in text
+
+
 def test_update_missing_region_fails() -> None:
-    result = runner.invoke(app, ["region", "update", "missing", "--body", "text"])
+    result = runner.invoke(app, ["region", "update", "missing", "--body", "text", "--summary", "Summary."])
 
     assert result.exit_code == 1
 
 
 def test_delete_with_yes_flag(tmp_path: Path) -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
 
     result = runner.invoke(app, ["region", "delete", "northlands", "--yes"])
 
@@ -151,7 +212,7 @@ def test_delete_with_yes_flag(tmp_path: Path) -> None:
 
 
 def test_delete_prompts_without_yes_flag(tmp_path: Path) -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
 
     result = runner.invoke(app, ["region", "delete", "northlands"], input="n\n")
 
@@ -160,13 +221,15 @@ def test_delete_prompts_without_yes_flag(tmp_path: Path) -> None:
 
 
 def test_delete_missing_region_fails() -> None:
-    result = runner.invoke(app, ["region", "delete", "missing", "--yes"])
+    result = runner.invoke(app, ["region", "delete", "missing"])
 
     assert result.exit_code == 1
 
 
 def test_create_with_path_option(tmp_path: Path) -> None:
-    result = runner.invoke(app, ["region", "create", "frontend", "--path", "src/frontend", "--body", "text"])
+    result = runner.invoke(
+        app, ["region", "create", "frontend", "--path", "src/frontend", "--body", "text", "--summary", "Summary."]
+    )
 
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "region" / "frontend.md").read_text(encoding="utf-8")
@@ -174,7 +237,7 @@ def test_create_with_path_option(tmp_path: Path) -> None:
 
 
 def test_set_path_updates_path(tmp_path: Path) -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
 
     result = runner.invoke(app, ["region", "set-path", "northlands", "src/backend"])
 

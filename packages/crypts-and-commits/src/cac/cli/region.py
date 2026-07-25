@@ -57,13 +57,23 @@ def create_region(
     name: str = typer.Argument(..., help="Region name (letters, numbers, underscores, hyphens, periods)."),
     path_value: str = typer.Option("", "--path", "-p", help="Path within the repository this region covers."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    summary: str | None = typer.Option(
+        None, "--summary", "-s", help="Short routing summary (max 500 characters). Required alongside the body."
+    ),
 ) -> None:
     """Create a new region file."""
+    if summary is None:
+        fail(console, "A summary is required: pass --summary/-s so the new body is stored with a current summary.")
+
     content = body if body is not None else edit_markdown(region_core.template_body())
 
     try:
-        path = region_core.create_region(Path.cwd(), name, content, path_value)
-    except (region_core.InvalidRegionNameError, region_core.RegionAlreadyExistsError) as exc:
+        path = region_core.create_region(Path.cwd(), name, content, summary, path_value)
+    except (
+        region_core.InvalidRegionNameError,
+        region_core.RegionAlreadyExistsError,
+        region_core.SummaryTooLongError,
+    ) as exc:
         fail(console, str(exc))
 
     console.print(f"Created [bold green]{path}[/bold green]")
@@ -73,15 +83,26 @@ def create_region(
 def update_region(
     name: str = typer.Argument(..., help="Region name to update."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    summary: str | None = typer.Option(
+        None, "--summary", "-s", help="Short routing summary (max 500 characters). Required alongside the body."
+    ),
 ) -> None:
     """Update an existing region file's body."""
+    if summary is None:
+        fail(console, "A summary is required: pass --summary/-s so the edited body is stored with a current summary.")
+
     try:
         current = region_core.read_region(Path.cwd(), name)
     except region_core.RegionNotFoundError as exc:
         fail(console, str(exc))
 
     content = body if body is not None else edit_markdown(current.body)
-    path = region_core.update_region(Path.cwd(), name, content)
+
+    try:
+        path = region_core.update_region(Path.cwd(), name, content, summary)
+    except region_core.SummaryTooLongError as exc:
+        fail(console, str(exc))
+
     console.print(f"Updated [bold green]{path}[/bold green]")
 
 
