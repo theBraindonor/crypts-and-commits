@@ -30,6 +30,9 @@ def init() -> None:
     mcp_config_path, mcp_config_changed = bootstrap_core.initialize_mcp_config(root)
     _report_mcp_config(mcp_config_path, mcp_config_changed)
 
+    claude_settings_path, claude_settings_changed = bootstrap_core.initialize_claude_settings(root)
+    _report_claude_settings(claude_settings_path, claude_settings_changed)
+
 
 def _report(path: Path, created: bool) -> None:
     if created:
@@ -43,6 +46,13 @@ def _report_mcp_config(path: Path, changed: bool) -> None:
         console.print(f"Registered the crypts-and-commits MCP server in [bold green]{path}[/bold green]")
     else:
         console.print(f"[bold yellow]{path}[/bold yellow] already registers the crypts-and-commits MCP server")
+
+
+def _report_claude_settings(path: Path, changed: bool) -> None:
+    if changed:
+        console.print(f"Updated permissions in [bold green]{path}[/bold green]")
+    else:
+        console.print(f"[bold yellow]{path}[/bold yellow] already has the required permissions")
 
 
 def _show_splash() -> None:

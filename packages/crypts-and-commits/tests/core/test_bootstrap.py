@@ -60,3 +60,52 @@ def test_initialize_mcp_config_preserves_other_servers(tmp_path: Path) -> None:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     assert config["mcpServers"]["some-other-server"] == {"command": "/usr/bin/other", "args": ["--flag"]}
     assert "crypts-and-commits" in config["mcpServers"]
+
+
+def test_initialize_claude_settings_creates_file(tmp_path: Path) -> None:
+    path, changed = bootstrap.initialize_claude_settings(tmp_path)
+
+    assert changed is True
+    assert path == tmp_path / ".claude" / "settings.json"
+    settings = json.loads(path.read_text(encoding="utf-8"))
+    assert settings["permissions"]["allow"] == ["mcp__crypts-and-commits"]
+    assert settings["permissions"]["deny"] == ["Edit(.sourcebook/**)"]
+    assert settings["enabledMcpjsonServers"] == ["crypts-and-commits"]
+
+
+def test_initialize_claude_settings_is_idempotent(tmp_path: Path) -> None:
+    bootstrap.initialize_claude_settings(tmp_path)
+
+    path, changed = bootstrap.initialize_claude_settings(tmp_path)
+
+    assert changed is False
+    settings = json.loads(path.read_text(encoding="utf-8"))
+    assert settings["permissions"]["allow"] == ["mcp__crypts-and-commits"]
+    assert settings["permissions"]["deny"] == ["Edit(.sourcebook/**)"]
+    assert settings["enabledMcpjsonServers"] == ["crypts-and-commits"]
+
+
+def test_initialize_claude_settings_merges_and_preserves_existing(tmp_path: Path) -> None:
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(
+        json.dumps(
+            {
+                "permissions": {
+                    "allow": ["Bash(git status)"],
+                    "deny": ["Edit(.sourcebook/**)"],
+                },
+                "model": "some-model",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    path, changed = bootstrap.initialize_claude_settings(tmp_path)
+
+    assert changed is True
+    settings = json.loads(path.read_text(encoding="utf-8"))
+    assert settings["model"] == "some-model"
+    assert settings["permissions"]["allow"] == ["Bash(git status)", "mcp__crypts-and-commits"]
+    assert settings["permissions"]["deny"] == ["Edit(.sourcebook/**)"]
+    assert settings["enabledMcpjsonServers"] == ["crypts-and-commits"]

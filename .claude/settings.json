@@ -6,5 +6,8 @@
     "deny": [
       "Edit(.sourcebook/**)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "crypts-and-commits"
+  ]
 }

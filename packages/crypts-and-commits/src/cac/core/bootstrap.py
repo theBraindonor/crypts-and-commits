@@ -4,8 +4,8 @@ import sysconfig
 from pathlib import Path
 from typing import Any
 
-from cac.core.config import CAC_MCP_SCRIPT_NAME, MCP_SERVER_NAME
-from cac.core.paths import mcp_config_path, sourcebook_dir
+from cac.core.config import CAC_MCP_SCRIPT_NAME, MCP_SERVER_NAME, SOURCEBOOK_DIR_NAME
+from cac.core.paths import claude_settings_path, mcp_config_path, sourcebook_dir
 
 
 def initialize(root: Path) -> tuple[Path, bool]:
@@ -47,4 +47,37 @@ def initialize_mcp_config(root: Path) -> tuple[Path, bool]:
     servers[MCP_SERVER_NAME] = entry
 
     path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+    return path, changed
+
+
+def initialize_claude_settings(root: Path) -> tuple[Path, bool]:
+    """Write, or merge into, .claude/settings.json at the project root: allow the
+    crypts-and-commits MCP server's tools, deny direct Edit access to
+    .sourcebook, and trust the .mcp.json crypts-and-commits entry. Existing keys and
+    list entries are preserved.
+
+    Returns the settings path and whether anything was newly added.
+    """
+    path = claude_settings_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    settings: dict[str, Any] = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+    permissions = settings.setdefault("permissions", {})
+    allow = permissions.setdefault("allow", [])
+    deny = permissions.setdefault("deny", [])
+    enabled_servers = settings.setdefault("enabledMcpjsonServers", [])
+
+    changed = False
+    for entry, entries in (
+        (f"mcp__{MCP_SERVER_NAME}", allow),
+        (f"Edit({SOURCEBOOK_DIR_NAME}/**)", deny),
+    ):
+        if entry not in entries:
+            entries.append(entry)
+            changed = True
+    if MCP_SERVER_NAME not in enabled_servers:
+        enabled_servers.append(MCP_SERVER_NAME)
+        changed = True
+
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
     return path, changed

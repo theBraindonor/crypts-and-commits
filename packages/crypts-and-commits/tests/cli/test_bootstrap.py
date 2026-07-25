@@ -68,3 +68,28 @@ def test_init_preserves_other_mcp_servers(tmp_path: Path) -> None:
     config = json.loads(mcp_config.read_text(encoding="utf-8"))
     assert "some-other-server" in config["mcpServers"]
     assert "crypts-and-commits" in config["mcpServers"]
+
+
+def test_init_creates_claude_settings(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    settings_path = tmp_path / ".claude" / "settings.json"
+    assert settings_path.is_file()
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert settings["permissions"]["allow"] == ["mcp__crypts-and-commits"]
+    assert settings["permissions"]["deny"] == ["Edit(.sourcebook/**)"]
+    assert settings["enabledMcpjsonServers"] == ["crypts-and-commits"]
+
+
+def test_init_preserves_other_claude_settings(tmp_path: Path) -> None:
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(json.dumps({"model": "some-model"}), encoding="utf-8")
+
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert settings["model"] == "some-model"
+    assert "mcp__crypts-and-commits" in settings["permissions"]["allow"]
