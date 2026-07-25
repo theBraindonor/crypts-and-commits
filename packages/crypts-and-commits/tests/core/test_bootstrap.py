@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from cac.core import bootstrap
+from tomlkit import parse
 
 
 def test_initialize_creates_sourcebook_directory(tmp_path: Path) -> None:
@@ -109,3 +110,48 @@ def test_initialize_claude_settings_merges_and_preserves_existing(tmp_path: Path
     assert settings["permissions"]["allow"] == ["Bash(git status)", "mcp__crypts-and-commits"]
     assert settings["permissions"]["deny"] == ["Edit(.sourcebook/**)"]
     assert settings["enabledMcpjsonServers"] == ["crypts-and-commits"]
+
+
+def test_initialize_codex_config_creates_file(tmp_path: Path) -> None:
+    path, changed = bootstrap.initialize_codex_config(tmp_path)
+
+    assert changed is True
+    assert path == tmp_path / ".codex" / "config.toml"
+    config = parse(path.read_text(encoding="utf-8"))
+    server = config["mcp_servers"]["crypts-and-commits"]
+    assert server["command"] == str(bootstrap.resolve_cac_mcp_executable())
+    assert server["args"] == []
+    assert server["default_tools_approval_mode"] == "approve"
+
+
+def test_initialize_codex_config_is_idempotent(tmp_path: Path) -> None:
+    bootstrap.initialize_codex_config(tmp_path)
+
+    path, changed = bootstrap.initialize_codex_config(tmp_path)
+
+    assert changed is False
+    assert path.is_file()
+
+
+def test_initialize_codex_config_merges_and_preserves_existing(tmp_path: Path) -> None:
+    config_path = tmp_path / ".codex" / "config.toml"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        '# Keep this comment.\nmodel = "some-model"\n\n[mcp_servers.other]\ncommand = "other-mcp"\n\n'
+        '[mcp_servers.crypts-and-commits]\ncustom_setting = "keep-me"\ncommand = "stale"\n',
+        encoding="utf-8",
+    )
+
+    path, changed = bootstrap.initialize_codex_config(tmp_path)
+
+    assert changed is True
+    content = path.read_text(encoding="utf-8")
+    assert "# Keep this comment." in content
+    config = parse(content)
+    assert config["model"] == "some-model"
+    assert config["mcp_servers"]["other"]["command"] == "other-mcp"
+    server = config["mcp_servers"]["crypts-and-commits"]
+    assert server["custom_setting"] == "keep-me"
+    assert server["command"] == str(bootstrap.resolve_cac_mcp_executable())
+    assert server["args"] == []
+    assert server["default_tools_approval_mode"] == "approve"

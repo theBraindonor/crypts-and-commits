@@ -5,7 +5,7 @@ description = "A Coding Assistant Continuity Framework. Crypts and Commits uses 
 authors = [
     {name = "John Hoff",email = "john.hoff@braindonor.net"},
 ]
-dependencies = ["typer", "rich", "click", "python-frontmatter", "mcp"]
+dependencies = ["typer", "rich", "click", "python-frontmatter", "mcp", "tomlkit>=0.15.1"]
 requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "Apache-2.0"}

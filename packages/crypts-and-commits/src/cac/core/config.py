@@ -10,6 +10,7 @@ RESERVED_NAMES = frozenset({".", ".."})
 WORLD_FILE_NAME = "world.md"
 MCP_CONFIG_FILE_NAME = ".mcp.json"
 CLAUDE_SETTINGS_FILE_NAME = ".claude/settings.json"
+CODEX_CONFIG_FILE_NAME = ".codex/config.toml"
 MCP_SERVER_NAME = "crypts-and-commits"
 CAC_MCP_SCRIPT_NAME = "cac-mcp"
 SUMMARY_KEY = "summary"

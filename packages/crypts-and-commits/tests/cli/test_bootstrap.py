@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 from cac.cli.app import app
+from cac.core import bootstrap as bootstrap_core
+from tomlkit import parse
 from typer.testing import CliRunner
 
 runner = CliRunner()
@@ -93,3 +95,32 @@ def test_init_preserves_other_claude_settings(tmp_path: Path) -> None:
     settings = json.loads(settings_path.read_text(encoding="utf-8"))
     assert settings["model"] == "some-model"
     assert "mcp__crypts-and-commits" in settings["permissions"]["allow"]
+
+
+def test_init_creates_codex_config(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    config_path = tmp_path / ".codex" / "config.toml"
+    assert config_path.is_file()
+    server = parse(config_path.read_text(encoding="utf-8"))["mcp_servers"]["crypts-and-commits"]
+    assert server["command"] == str(bootstrap_core.resolve_cac_mcp_executable())
+    assert server["args"] == []
+    assert server["default_tools_approval_mode"] == "approve"
+
+
+def test_init_merges_existing_codex_config(tmp_path: Path) -> None:
+    config_path = tmp_path / ".codex" / "config.toml"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        'model = "some-model"\n\n[mcp_servers.other]\ncommand = "other-mcp"\n',
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    config = parse(config_path.read_text(encoding="utf-8"))
+    assert config["model"] == "some-model"
+    assert config["mcp_servers"]["other"]["command"] == "other-mcp"
+    assert config["mcp_servers"]["crypts-and-commits"]["default_tools_approval_mode"] == "approve"

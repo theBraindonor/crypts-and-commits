@@ -4,8 +4,10 @@ import sysconfig
 from pathlib import Path
 from typing import Any
 
+from tomlkit import document, parse, table
+
 from cac.core.config import CAC_MCP_SCRIPT_NAME, MCP_SERVER_NAME, SOURCEBOOK_DIR_NAME
-from cac.core.paths import claude_settings_path, mcp_config_path, sourcebook_dir
+from cac.core.paths import claude_settings_path, codex_config_path, mcp_config_path, sourcebook_dir
 
 
 def initialize(root: Path) -> tuple[Path, bool]:
@@ -80,4 +82,43 @@ def initialize_claude_settings(root: Path) -> tuple[Path, bool]:
         changed = True
 
     path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    return path, changed
+
+
+def initialize_codex_config(root: Path) -> tuple[Path, bool]:
+    """Write, or merge into, .codex/config.toml at the project root.
+
+    Registers the crypts-and-commits MCP server while preserving unrelated
+    Codex configuration and TOML document formatting where possible. Returns
+    the config path and whether the document was changed.
+    """
+    path = codex_config_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    config = parse(path.read_text(encoding="utf-8")) if path.exists() else document()
+
+    changed = False
+    servers = config.get("mcp_servers")
+    if servers is None:
+        servers = table()
+        config["mcp_servers"] = servers
+        changed = True
+
+    server = servers.get(MCP_SERVER_NAME)
+    if server is None:
+        server = table()
+        servers[MCP_SERVER_NAME] = server
+        changed = True
+
+    required_settings = {
+        "command": str(resolve_cac_mcp_executable()),
+        "args": [],
+        "default_tools_approval_mode": "approve",
+    }
+    for key, value in required_settings.items():
+        if server.get(key) != value:
+            server[key] = value
+            changed = True
+
+    if changed:
+        path.write_text(config.as_string(), encoding="utf-8")
     return path, changed
