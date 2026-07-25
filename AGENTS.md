@@ -20,10 +20,14 @@ for Codex.
   either workflow, use the corresponding skill:
   - `.agents/skills/world-manager/SKILL.md`
   - `.agents/skills/campaign-manager/SKILL.md`
-- Skill examples use `cac ...` portably. In this development repository, run
-  those commands as `pdm run cac ...`.
-- Preserve the `.sourcebook/` CLI-only guardrail. Never inspect or mutate its
-  contents directly, and never run `cac bootstrap init`.
+- Prefer the `cac` MCP server's tools (registered as `cac` per `.mcp.json`) as
+  the primary interface for `.sourcebook` work; shell out to the `cac` CLI only
+  when the MCP server isn't connected for the session. Skill examples show both
+  forms — MCP tool first, `cac ...` CLI fallback second. In this development
+  repository, run CLI fallback commands as `pdm run cac ...`.
+- Preserve the `.sourcebook/` MCP/CLI-only guardrail. Never inspect or mutate
+  its contents directly, and never run `cac bootstrap init` — `bootstrap` is
+  also never exposed over MCP, by design.
 - Use `apply_patch` for manual file edits. Preserve unrelated user changes in a
   dirty worktree.
 - Verify changes with the narrowest relevant tests first, then run broader

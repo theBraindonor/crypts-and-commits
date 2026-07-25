@@ -1,5 +1,6 @@
 ---
 assigned_lore:
+- cli-mcp-parity
 - console-best-practices
 name: crypts-and-commits
 path: packages/crypts-and-commits
