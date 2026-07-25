@@ -5,9 +5,9 @@ created_on: '2026-07-25T01:22:26Z'
 name: 03-tiered-context-prime
 regions:
 - crypts-and-commits
-status: draft
+status: completed
 updated_by: John Hoff
-updated_on: '2026-07-25T01:23:00Z'
+updated_on: '2026-07-25T02:13:30Z'
 ---
 
 # Tiered Context Prime
@@ -37,3 +37,13 @@ Per `docs/context-management-design.md` (deterministic aggregation + tiered read
 
 - `pdm run pytest -q` and `ruff check`/`format` clean, with coverage for the prime bundle shape and applicable-lore resolution.
 - Manual (on this repo's live sourcebook): the prime command returns world full + world-lore summaries + region map (edges) + active campaign body in one call; applicable-lore for an encounter returns the correct resolved set.
+
+## Log
+
+### Review - 2026-07-25T02:06:13Z - John Hoff
+
+Reviewed against both applicable lore items: clean-tests-and-lint (world-assigned) is honored via an explicit Verification-stage gate (pytest + ruff, no shortcuts), and console-best-practices (region-assigned to crypts-and-commits) is honored via an explicit markup=False commitment for the new CLI command(s) printing stored/aggregated content. The Plan's global-prime and applicable-lore design tracks the cited docs/context-management-design.md accurately (full world, lore summaries only, edges-only region map, campaign body without encounters, live selection vs. precomputed summary vs. on-demand body), and the named campaign.active_campaign reuse point exists in core/campaign.py. Unverified and flagged rather than checked: the encounter-01 summary-field dependency this work relies on, and the feasibility of the traversal against core/lore.py/core/region.py/core/world.py internals, both outside this review's bounded surface. No lore conflicts found.
+
+### Completed - 2026-07-25T02:13:30Z - John Hoff
+
+Implemented core/prime.py (assemble_prime, applicable_lore) and cli/prime.py (cac prime get, cac prime applicable-lore), wired into app.py. Added 32 tests across core/cli mirroring source structure. pdm run pytest -q: 428 passed. ruff check/format: clean. Manually verified cac prime get and cac prime applicable-lore 03-tiered-context-prime against this repo's live sourcebook - shapes match the design doc's global prime bundle and applicable-lore contracts.
