@@ -10,6 +10,16 @@ Owns the project's active work-tracking loop: campaigns and the encounters withi
 
 If a command reports that the project hasn't been bootstrapped, stop and ask the developer to run `cac bootstrap init` themselves. Never run it on their behalf.
 
+## Priming
+
+Before starting any work in this loop — planning a new encounter, reviewing one, or resuming an open one — run the disclosure ladder's **Orient** step first: `cac prime get`. That call (and the rest of the ladder — "Focus a task" / "Review a plan") is owned and documented by `world-manager`; see that skill for the full procedure. Its bundle already includes the active campaign's full body, so no separate campaign read is needed just to orient.
+
+From there, this skill appends the active-loop context prime doesn't cover:
+
+- `cac encounter list [--campaign <campaign>]` for the campaign's encounters — a separate, on-demand, paged call, never part of prime, since the encounter list is the one thing in this loop that grows without bound.
+
+There is no encounter search yet — that capability is deferred (see `docs/encounter-search-design.md`). Don't reference or imply one exists; until it lands, `cac encounter list` plus reading names is the only way to find an encounter.
+
 ## Campaigns
 
 A campaign is a long-running initiative, similar to an "Epic" in Jira-style work tracking (e.g. "Create the MVP", "Add Payment Processing", a version increment). It's expected to require many encounters, completed over time, before it's done.
@@ -69,10 +79,11 @@ In the command forms below, `[--campaign <campaign>]` is shown explicitly, but o
 **`draft` → `reviewed`** — this gate is performed by an **independent, fresh reviewer subagent**, never inline by the agent that authored the plan. An agent reviewing its own plan just re-checks it against the priors that produced it — a rubber stamp — so **do not review the Plan yourself**.
 
 1. **Spawn a fresh reviewer.** Use the `Task` tool with `subagent_type: "general-purpose"` — a fresh agent, **never a fork** (a fork inherits the authoring conversation and reproduces its bias). Hand it the [reviewer prompt template](#reviewer-subagent-prompt-template) below, filling in only the encounter and campaign names. Pass nothing else — no lore, no analysis of your own — so the review stays independent and also tests whether the encounter is self-contained enough to survive a context reset.
-2. **Let it review within bounds.** The subagent primes the world/lore itself, checks the Plan against applicable lore within a bounded reading surface, and returns findings, a verdict (**PASS-WITH-NOTES** / **REJECT** / **NOT-REVIEWABLE**), and a *proposed* review message. It does **not** run any `cac encounter` command — the transition is the human's to authorize.
-3. **Relay, then transition from the main thread.** Relay the reviewer's findings and verdict to the user. Only on the user's approval does the **main thread** run `cac encounter review <name> --message "<the reviewer's findings>"`; the message content is the reviewer's independent findings, not a self-summary. This permanently locks the Requirements, Rationale, Plan, and Verification sections — they can no longer be replaced with `update`, only appended to.
+2. **Let it review within bounds.** The subagent primes the world/lore itself, checks the Plan against applicable lore within a bounded reading surface, and returns findings, a verdict (**PASS-WITH-NOTES** / **REJECT** / **NOT-REVIEWABLE**), and a *proposed* review message. It does **not** run any `cac encounter` command — the transition is scripted by this skill, per the verdict, as described next.
+3. **Auto-transition on PASS-WITH-NOTES — no separate approval pause.** As soon as the reviewer returns a **PASS-WITH-NOTES** verdict, run `cac encounter review <name> --message "<the reviewer's proposed message>"` yourself, from the main thread, immediately — the message content is the reviewer's independent findings (its proposed message, verbatim or faithfully transcribed), never a self-summary. This permanently locks the Requirements, Rationale, Plan, and Verification sections — they can no longer be replaced with `update`, only appended to. Then relay the reviewer's findings, verdict, and the fact that the encounter is now `reviewed` to the user.
+4. **Feedback after the fact is a logged message, not a re-draft.** If the user has feedback or requested changes in response to a PASS-WITH-NOTES review, capture it with `cac encounter record-message <name> --message "..."` — do not attempt to reopen or re-draft the Plan; the content is already locked, and `update` no longer applies once status has moved past `draft`.
 
-If the verdict is **REJECT** or **NOT-REVIEWABLE**, do not transition: relay the reviewer's reasons, revise the draft with `cac encounter update` (still allowed while `draft`), and spawn a fresh reviewer again.
+On **REJECT** or **NOT-REVIEWABLE**, the auto-transition does not apply: do not run `cac encounter review`, relay the reviewer's reasons to the user, revise the draft with `cac encounter update` (still allowed while `draft`), and spawn a fresh reviewer again.
 
 #### Reviewer subagent prompt template
 
@@ -90,12 +101,14 @@ Campaign:  <CAMPAIGN>
 Prime the context yourself — do not accept any summary of it. Use the
 `world-manager` skill if it is available, or run these reads directly:
 - `cac world get` — read the world summary.
-- `cac lore list`, then `cac lore get <name>` for each entry. Applicable lore is
-  every `enabled` entry with `assigned_to_world: true`, PLUS every `enabled`
-  entry assigned to a region this encounter is assigned to.
 - `cac encounter get <ENCOUNTER> -c <CAMPAIGN>` — read the encounter and note its
-  `regions`. For each region, `cac region get <region>` for its documented
-  `path` and assigned lore.
+  `regions`. For each region, `cac region get <region>` for its documented `path`.
+- `cac prime applicable-lore <ENCOUNTER> -c <CAMPAIGN>` — resolve the exact
+  enabled lore set that applies (world-assigned union every region this
+  encounter is assigned to), returned as `name` + `summary` + `ref`. Then, for
+  each `ref` returned, `cac lore get <ref>` to hydrate its full body — the
+  summary is only a routing signal; the body is what you check the Plan
+  against.
 
 Check the Plan against each applicable lore item.
 
