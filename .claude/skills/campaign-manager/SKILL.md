@@ -27,11 +27,11 @@ A campaign is a long-running initiative, similar to an "Epic" in Jira-style work
 - `cac campaign list` — list all campaigns by name, with their current status.
 - `cac campaign get <name>` — show a campaign's frontmatter (`status`, `created_on`/`created_by`/`updated_on`/`updated_by`) and body.
 - `cac campaign create <name> [--body "..."]` — create a new campaign, in `draft` status.
-- `cac campaign update <name> [--body "..."]` — replace a campaign's body.
+- `cac campaign update <name> [--body "..."]` — replace a campaign's body. Fails once the campaign is `completed` or `abandoned` — its body is locked once its postmortem is recorded.
 - `cac campaign open <name>` — move `draft` or `paused` → `open` and begin work. Only one campaign may be `open` at a time.
 - `cac campaign pause <name>` — move `open` → `paused`. Fails if the campaign has an encounter that is currently `open`.
-- `cac campaign complete <name>` — move `open` or `paused` → `completed`. Fails if the campaign has an encounter that is currently `open`.
-- `cac campaign abandon <name>` — move `draft`, `open`, or `paused` → `abandoned`. Not available once `completed`. Fails if the campaign has an encounter that is currently `open`.
+- `cac campaign complete <name> --message "..."` — move `open` or `paused` → `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required — a postmortem, appended as a dated, attributed log entry on the campaign body.
+- `cac campaign abandon <name> --message "..."` — move `draft`, `open`, or `paused` → `abandoned`. Not available once `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required, recorded the same way as `complete`'s.
 - `cac campaign delete <name>` — remove a campaign.
 
 ## Campaign Lifecycle
@@ -42,9 +42,9 @@ A campaign is a long-running initiative, similar to an "Epic" in Jira-style work
 
 **`open` → `paused`** — run `cac campaign pause <name>` to set work aside without completing it. Fails, naming the offending encounter(s), if any encounter under the campaign is currently `open`; complete or abandon those encounters first (or wait for them to finish).
 
-**`open`/`paused` → `completed`** — run `cac campaign complete <name>` once the initiative is done. Same open-encounter restriction as `pause`.
+**`open`/`paused` → `completed`** — run `cac campaign complete <name> --message "..."` once the initiative is done. Same open-encounter restriction as `pause`. The message is a required postmortem — a closing summary of what happened and what was learned — appended to the campaign body as a dated, attributed log entry. Once `completed`, the campaign's body is locked: `cac campaign update` will fail, since the postmortem is meant to be that campaign's closing record.
 
-**`draft`/`open`/`paused` → `abandoned`** — run `cac campaign abandon <name>`. Not available once `completed`. Same open-encounter restriction as `pause`.
+**`draft`/`open`/`paused` → `abandoned`** — run `cac campaign abandon <name> --message "..."` to record why the initiative is being called off. Not available once `completed`. Same open-encounter restriction as `pause`, and the same required-postmortem, body-locking behavior as `complete`.
 
 ## Encounters
 

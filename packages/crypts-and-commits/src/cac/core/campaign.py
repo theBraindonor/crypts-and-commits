@@ -18,6 +18,7 @@ from cac.core.paths import sourcebook_dir
 
 _TEMPLATE_PACKAGE = "sourcebook"
 _TEMPLATE_FILENAME = "campaign.md"
+_LOG_SECTION = "Log"
 CREATED_BY_KEY = "created_by"
 CREATED_ON_KEY = "created_on"
 UPDATED_BY_KEY = "updated_by"
@@ -54,8 +55,12 @@ class NoActiveCampaignError(ValueError):
 
 
 class CampaignNotMutableError(ValueError):
-    """Raised when an operation that mutates a campaign's encounters targets a campaign whose status
-    is terminal (completed or abandoned)."""
+    """Raised when an operation that mutates a campaign's encounters, or a campaign's own body,
+    targets a campaign whose status is terminal (completed or abandoned)."""
+
+
+class CampaignMessageRequiredError(ValueError):
+    """Raised when a required postmortem message is missing or blank."""
 
 
 class CampaignNotFoundError(FileNotFoundError):
@@ -193,6 +198,12 @@ def create_campaign(root: Path, name: str, body: str) -> Path:
 def update_campaign(root: Path, name: str, body: str) -> Path:
     path = _existing_campaign_path(root, name)
     post = frontmatter.load(path)
+    status = post.get("status", DEFAULT_CAMPAIGN_STATUS)
+    if status in _TERMINAL_STATUSES:
+        raise CampaignNotMutableError(
+            f"Campaign {name!r} is {status!r}; its body is locked once a campaign is completed or abandoned. "
+            "The postmortem recorded at that transition is the closing record and cannot be rewritten."
+        )
     post.content = body
     _stamp_updated(post, root)
     write_post(path, post)
@@ -222,22 +233,30 @@ def open_campaign(root: Path, name: str) -> Campaign:
 
 def pause_campaign(root: Path, name: str) -> Campaign:
     """Move a campaign from 'open' to 'paused'. Fails if the campaign has an open encounter."""
-    return _guarded_transition(root, name, to_status="paused", action="pause")
+    return _guarded_transition(root, name, to_status="paused", action="pause", log_heading=None, message=None)
 
 
-def complete_campaign(root: Path, name: str) -> Campaign:
+def complete_campaign(root: Path, name: str, message: str) -> Campaign:
     """Move a campaign from 'open' or 'paused' to 'completed'. Fails if the campaign has an open
-    encounter."""
-    return _guarded_transition(root, name, to_status="completed", action="complete")
+    encounter. A postmortem message is required and is appended as a dated, attributed log entry
+    on the campaign body."""
+    return _guarded_transition(
+        root, name, to_status="completed", action="complete", log_heading="Completed", message=message
+    )
 
 
-def abandon_campaign(root: Path, name: str) -> Campaign:
+def abandon_campaign(root: Path, name: str, message: str) -> Campaign:
     """Move a campaign from 'draft', 'open', or 'paused' to 'abandoned'. Fails if the campaign has
-    an open encounter."""
-    return _guarded_transition(root, name, to_status="abandoned", action="abandon")
+    an open encounter. A postmortem message is required and is appended as a dated, attributed log
+    entry on the campaign body."""
+    return _guarded_transition(
+        root, name, to_status="abandoned", action="abandon", log_heading="Abandoned", message=message
+    )
 
 
-def _guarded_transition(root: Path, name: str, *, to_status: str, action: str) -> Campaign:
+def _guarded_transition(
+    root: Path, name: str, *, to_status: str, action: str, log_heading: str | None, message: str | None
+) -> Campaign:
     path = _existing_campaign_path(root, name)
     post = frontmatter.load(path)
     _check_transition(post, name, to_status=to_status)
@@ -247,7 +266,12 @@ def _guarded_transition(root: Path, name: str, *, to_status: str, action: str) -
             f"Cannot {action} campaign {name!r}: it has open encounter(s) {', '.join(open_encounters)}. "
             "Complete or abandon them first."
         )
-    return _apply_status(post, path, name, to_status, root)
+    if to_status in _TERMINAL_STATUSES and not (message and message.strip()):
+        raise CampaignMessageRequiredError(
+            f"A --message is required to move campaign {name!r} to {to_status!r}; it is recorded as this "
+            "campaign's postmortem."
+        )
+    return _apply_status(post, path, name, to_status, root, log_heading=log_heading, message=message)
 
 
 def _check_transition(post: frontmatter.Post, name: str, *, to_status: str) -> None:
@@ -260,8 +284,19 @@ def _check_transition(post: frontmatter.Post, name: str, *, to_status: str) -> N
         )
 
 
-def _apply_status(post: frontmatter.Post, path: Path, name: str, to_status: str, root: Path) -> Campaign:
-    _stamp_updated(post, root)
+def _apply_status(
+    post: frontmatter.Post,
+    path: Path,
+    name: str,
+    to_status: str,
+    root: Path,
+    *,
+    log_heading: str | None = None,
+    message: str | None = None,
+) -> Campaign:
+    user = _stamp_updated(post, root)
+    if message:
+        frontmatter_utils.append_log_entry(post, section=_LOG_SECTION, heading=log_heading, message=message, user=user)
     post["status"] = to_status
     write_post(path, post)
     return _to_campaign(post, name)

@@ -198,7 +198,7 @@ def test_open_campaign_missing_campaign_raises(tmp_path: Path) -> None:
 def test_open_campaign_rejects_invalid_transition_from_completed(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
     campaign.open_campaign(tmp_path, "opening-gambit")
-    campaign.complete_campaign(tmp_path, "opening-gambit")
+    campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
 
     with pytest.raises(campaign.InvalidCampaignTransitionError):
         campaign.open_campaign(tmp_path, "opening-gambit")
@@ -267,7 +267,7 @@ def test_complete_campaign_from_open(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
     campaign.open_campaign(tmp_path, "opening-gambit")
 
-    result = campaign.complete_campaign(tmp_path, "opening-gambit")
+    result = campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
 
     assert result.status == "completed"
 
@@ -277,7 +277,7 @@ def test_complete_campaign_from_paused(tmp_path: Path) -> None:
     campaign.open_campaign(tmp_path, "opening-gambit")
     campaign.pause_campaign(tmp_path, "opening-gambit")
 
-    result = campaign.complete_campaign(tmp_path, "opening-gambit")
+    result = campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
 
     assert result.status == "completed"
 
@@ -288,20 +288,86 @@ def test_complete_campaign_blocked_by_open_encounter(tmp_path: Path) -> None:
     _open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
 
     with pytest.raises(campaign.CampaignHasOpenEncountersError, match="goblin-ambush"):
-        campaign.complete_campaign(tmp_path, "opening-gambit")
+        campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
 
 
 def test_complete_campaign_rejects_invalid_transition_from_draft(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
 
     with pytest.raises(campaign.InvalidCampaignTransitionError):
-        campaign.complete_campaign(tmp_path, "opening-gambit")
+        campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
+
+
+@pytest.mark.parametrize("message", [None, "", "   "])
+def test_complete_campaign_rejects_missing_or_blank_message(tmp_path: Path, message: str | None) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+
+    with pytest.raises(campaign.CampaignMessageRequiredError):
+        campaign.complete_campaign(tmp_path, "opening-gambit", message)
+
+    assert campaign.read_campaign(tmp_path, "opening-gambit").status == "open"
+
+
+@pytest.mark.parametrize("message", [None, "", "   "])
+def test_abandon_campaign_rejects_missing_or_blank_message(tmp_path: Path, message: str | None) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+
+    with pytest.raises(campaign.CampaignMessageRequiredError):
+        campaign.abandon_campaign(tmp_path, "opening-gambit", message)
+
+    assert campaign.read_campaign(tmp_path, "opening-gambit").status == "draft"
+
+
+def test_complete_campaign_appends_log_entry_with_attribution(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+
+    result = campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped the MVP.")
+
+    assert "## Log" in result.body
+    assert "### Completed - 2026-07-23T18:04:12Z - John Hoff" in result.body
+    assert "Shipped the MVP." in result.body
+
+
+def test_abandon_campaign_appends_log_entry_with_attribution(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+
+    result = campaign.abandon_campaign(tmp_path, "opening-gambit", "Scope changed, no longer needed.")
+
+    assert "## Log" in result.body
+    assert "### Abandoned - 2026-07-23T18:04:12Z - John Hoff" in result.body
+    assert "Scope changed, no longer needed." in result.body
+
+
+def test_pause_campaign_does_not_touch_log_section(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+
+    result = campaign.pause_campaign(tmp_path, "opening-gambit")
+
+    assert "## Log" not in result.body
+
+
+@pytest.mark.parametrize("terminal", ["completed", "abandoned"])
+def test_update_campaign_rejects_terminal_status(tmp_path: Path, terminal: str) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Original.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    if terminal == "completed":
+        campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
+    else:
+        campaign.abandon_campaign(tmp_path, "opening-gambit", "Called off.")
+
+    with pytest.raises(campaign.CampaignNotMutableError):
+        campaign.update_campaign(tmp_path, "opening-gambit", "Rewritten.")
+
+    assert "Rewritten." not in campaign.read_campaign(tmp_path, "opening-gambit").body
 
 
 def test_abandon_campaign_from_draft(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
 
-    result = campaign.abandon_campaign(tmp_path, "opening-gambit")
+    result = campaign.abandon_campaign(tmp_path, "opening-gambit", "Called off.")
 
     assert result.status == "abandoned"
 
@@ -310,7 +376,7 @@ def test_abandon_campaign_from_open(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
     campaign.open_campaign(tmp_path, "opening-gambit")
 
-    result = campaign.abandon_campaign(tmp_path, "opening-gambit")
+    result = campaign.abandon_campaign(tmp_path, "opening-gambit", "Called off.")
 
     assert result.status == "abandoned"
 
@@ -320,7 +386,7 @@ def test_abandon_campaign_from_paused(tmp_path: Path) -> None:
     campaign.open_campaign(tmp_path, "opening-gambit")
     campaign.pause_campaign(tmp_path, "opening-gambit")
 
-    result = campaign.abandon_campaign(tmp_path, "opening-gambit")
+    result = campaign.abandon_campaign(tmp_path, "opening-gambit", "Called off.")
 
     assert result.status == "abandoned"
 
@@ -331,16 +397,16 @@ def test_abandon_campaign_blocked_by_open_encounter(tmp_path: Path) -> None:
     _open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
 
     with pytest.raises(campaign.CampaignHasOpenEncountersError, match="goblin-ambush"):
-        campaign.abandon_campaign(tmp_path, "opening-gambit")
+        campaign.abandon_campaign(tmp_path, "opening-gambit", "Called off.")
 
 
 def test_abandon_campaign_rejects_invalid_transition_from_completed(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
     campaign.open_campaign(tmp_path, "opening-gambit")
-    campaign.complete_campaign(tmp_path, "opening-gambit")
+    campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
 
     with pytest.raises(campaign.InvalidCampaignTransitionError):
-        campaign.abandon_campaign(tmp_path, "opening-gambit")
+        campaign.abandon_campaign(tmp_path, "opening-gambit", "Called off.")
 
 
 def test_pause_campaign_missing_campaign_raises(tmp_path: Path) -> None:
@@ -439,9 +505,9 @@ def test_resolve_campaign_rejects_terminal_when_mutable_required(tmp_path: Path,
     campaign.create_campaign(tmp_path, "closed", "Body.")
     campaign.open_campaign(tmp_path, "closed")
     if terminal == "completed":
-        campaign.complete_campaign(tmp_path, "closed")
+        campaign.complete_campaign(tmp_path, "closed", "Shipped.")
     else:
-        campaign.abandon_campaign(tmp_path, "closed")
+        campaign.abandon_campaign(tmp_path, "closed", "Called off.")
 
     with pytest.raises(campaign.CampaignNotMutableError):
         campaign.resolve_campaign(tmp_path, "closed", require_mutable=True)
@@ -452,8 +518,8 @@ def test_resolve_campaign_allows_terminal_when_mutable_not_required(tmp_path: Pa
     campaign.create_campaign(tmp_path, "closed", "Body.")
     campaign.open_campaign(tmp_path, "closed")
     if terminal == "completed":
-        campaign.complete_campaign(tmp_path, "closed")
+        campaign.complete_campaign(tmp_path, "closed", "Shipped.")
     else:
-        campaign.abandon_campaign(tmp_path, "closed")
+        campaign.abandon_campaign(tmp_path, "closed", "Called off.")
 
     assert campaign.resolve_campaign(tmp_path, "closed", require_mutable=False) == "closed"

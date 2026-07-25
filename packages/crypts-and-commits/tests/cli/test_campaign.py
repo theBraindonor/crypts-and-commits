@@ -173,7 +173,7 @@ def test_open_missing_campaign_fails() -> None:
 def test_open_rejects_invalid_transition() -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["campaign", "open", "opening-gambit"])
-    runner.invoke(app, ["campaign", "complete", "opening-gambit"])
+    runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "Shipped."])
 
     result = runner.invoke(app, ["campaign", "open", "opening-gambit"])
 
@@ -236,7 +236,7 @@ def test_complete_updates_status(tmp_path: Path) -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["campaign", "open", "opening-gambit"])
 
-    result = runner.invoke(app, ["campaign", "complete", "opening-gambit"])
+    result = runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "Shipped."])
 
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").read_text(encoding="utf-8")
@@ -250,7 +250,7 @@ def test_complete_fails_with_open_encounter() -> None:
     runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "ok"])
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
 
-    result = runner.invoke(app, ["campaign", "complete", "opening-gambit"])
+    result = runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "Shipped."])
 
     assert result.exit_code == 1
     assert "goblin-ambush" in result.output
@@ -259,7 +259,7 @@ def test_complete_fails_with_open_encounter() -> None:
 def test_abandon_updates_status(tmp_path: Path) -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
 
-    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit"])
+    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit", "--message", "Called off."])
 
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").read_text(encoding="utf-8")
@@ -269,9 +269,9 @@ def test_abandon_updates_status(tmp_path: Path) -> None:
 def test_abandon_rejects_invalid_transition_from_completed() -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["campaign", "open", "opening-gambit"])
-    runner.invoke(app, ["campaign", "complete", "opening-gambit"])
+    runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "Shipped."])
 
-    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit"])
+    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit", "--message", "Called off."])
 
     assert result.exit_code == 1
 
@@ -283,16 +283,76 @@ def test_abandon_fails_with_open_encounter() -> None:
     runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "ok"])
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
 
-    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit"])
+    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit", "--message", "Called off."])
 
     assert result.exit_code == 1
     assert "goblin-ambush" in result.output
 
 
 def test_abandon_missing_campaign_fails() -> None:
-    result = runner.invoke(app, ["campaign", "abandon", "missing"])
+    result = runner.invoke(app, ["campaign", "abandon", "missing", "--message", "Called off."])
 
     assert result.exit_code == 1
+
+
+def test_complete_requires_message() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+
+    result = runner.invoke(app, ["campaign", "complete", "opening-gambit"])
+
+    assert result.exit_code != 0
+
+
+def test_complete_rejects_blank_message() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+
+    result = runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "   "])
+
+    assert result.exit_code == 1
+
+
+def test_abandon_requires_message() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+
+    result = runner.invoke(app, ["campaign", "abandon", "opening-gambit"])
+
+    assert result.exit_code != 0
+
+
+def test_complete_appends_postmortem_to_body(tmp_path: Path) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+
+    runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "Shipped the MVP."])
+
+    text = (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").read_text(encoding="utf-8")
+    assert "## Log" in text
+    assert "Shipped the MVP." in text
+
+
+def test_abandon_appends_postmortem_to_body(tmp_path: Path) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+
+    runner.invoke(app, ["campaign", "abandon", "opening-gambit", "--message", "Scope changed."])
+
+    text = (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").read_text(encoding="utf-8")
+    assert "## Log" in text
+    assert "Scope changed." in text
+
+
+@pytest.mark.parametrize("terminal_command", [["complete"], ["abandon"]])
+def test_update_fails_once_campaign_is_terminal(tmp_path: Path, terminal_command: list[str]) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Original"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["campaign", *terminal_command, "opening-gambit", "--message", "Done."])
+
+    result = runner.invoke(app, ["campaign", "update", "opening-gambit", "--body", "Rewritten"])
+
+    assert result.exit_code == 1
+    text = (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").read_text(encoding="utf-8")
+    assert "Rewritten" not in text
 
 
 def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

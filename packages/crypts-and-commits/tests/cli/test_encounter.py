@@ -508,7 +508,7 @@ def test_list_without_campaign_and_none_active_fails() -> None:
 def test_create_rejects_terminal_campaign(terminal_action: str) -> None:
     _create_campaign("closed")
     _open_campaign("closed")
-    runner.invoke(app, ["campaign", terminal_action, "closed"])
+    runner.invoke(app, ["campaign", terminal_action, "closed", "--message", "Postmortem."])
 
     result = runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "closed", "--body", "text"])
 
@@ -520,7 +520,7 @@ def test_get_allows_terminal_campaign() -> None:
     _create_campaign("closed")
     _open_campaign("closed")
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "closed", "--body", "Body text."])
-    runner.invoke(app, ["campaign", "complete", "closed"])
+    runner.invoke(app, ["campaign", "complete", "closed", "--message", "Postmortem."])
 
     result = runner.invoke(app, ["encounter", "get", "goblin-ambush", "--campaign", "closed"])
 
@@ -532,7 +532,7 @@ def test_list_allows_terminal_campaign() -> None:
     _create_campaign("closed")
     _open_campaign("closed")
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "closed", "--body", "text"])
-    runner.invoke(app, ["campaign", "abandon", "closed"])
+    runner.invoke(app, ["campaign", "abandon", "closed", "--message", "Postmortem."])
 
     result = runner.invoke(app, ["encounter", "list", "--campaign", "closed"])
 
@@ -627,7 +627,7 @@ def test_order_defaults_to_active_campaign_and_allows_terminal_campaign() -> Non
     runner.invoke(app, ["encounter", "create", "feature", "--body", "text"])
 
     active_result = runner.invoke(app, ["encounter", "order"])
-    runner.invoke(app, ["campaign", "complete", "live"])
+    runner.invoke(app, ["campaign", "complete", "live", "--message", "Postmortem."])
     terminal_result = runner.invoke(app, ["encounter", "order", "--campaign", "live"])
 
     assert active_result.exit_code == 0

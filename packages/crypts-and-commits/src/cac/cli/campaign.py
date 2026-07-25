@@ -19,7 +19,10 @@ app = typer.Typer(
         "to 'open' again -> 'completed' (via 'complete', from 'open' or 'paused'). It may "
         "instead be 'abandoned' (via 'abandon') from 'draft', 'open', or 'paused' - but not "
         "once 'completed'. 'pause', 'complete', and 'abandon' all fail while the campaign "
-        "still has an open encounter."
+        "still has an open encounter. 'complete' and 'abandon' each require a --message - a "
+        "postmortem recorded as a dated, attributed log entry on the campaign body. Once "
+        "'completed' or 'abandoned', the campaign's body is locked: 'update' fails, since the "
+        "postmortem is meant to be that campaign's closing record."
     )
 )
 console = Console()
@@ -85,7 +88,8 @@ def update_campaign(
     name: str = typer.Argument(..., help="Campaign name to update."),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
 ) -> None:
-    """Update an existing campaign file's body."""
+    """Update an existing campaign file's body. Fails once the campaign is 'completed' or
+    'abandoned' - its body is locked once its postmortem is recorded."""
     try:
         current = campaign_core.read_campaign(Path.cwd(), name)
     except campaign_core.CampaignNotFoundError as exc:
@@ -94,7 +98,7 @@ def update_campaign(
     content = body if body is not None else edit_markdown(current.body)
     try:
         path = campaign_core.update_campaign(Path.cwd(), name, content)
-    except GitIdentityError as exc:
+    except (campaign_core.CampaignNotMutableError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Updated [bold green]{path}[/bold green]")
@@ -157,15 +161,18 @@ def pause_campaign(
 @app.command("complete")
 def complete_campaign(
     name: str = typer.Argument(..., help="Campaign name to complete."),
+    message: str = typer.Option(..., "--message", "-m", help="Postmortem for this campaign. Required."),
 ) -> None:
-    """Move a campaign from 'open' or 'paused' to 'completed'. Fails if it has an open
-    encounter."""
+    """Move a campaign from 'open' or 'paused' to 'completed'. Fails if it has an open encounter.
+    The required message is recorded as the campaign's postmortem and its body is locked
+    thereafter."""
     try:
-        campaign_core.complete_campaign(Path.cwd(), name)
+        campaign_core.complete_campaign(Path.cwd(), name, message)
     except (
         campaign_core.CampaignNotFoundError,
         campaign_core.InvalidCampaignTransitionError,
         campaign_core.CampaignHasOpenEncountersError,
+        campaign_core.CampaignMessageRequiredError,
         GitIdentityError,
     ) as exc:
         fail(console, str(exc))
@@ -176,15 +183,18 @@ def complete_campaign(
 @app.command("abandon")
 def abandon_campaign(
     name: str = typer.Argument(..., help="Campaign name to abandon."),
+    message: str = typer.Option(..., "--message", "-m", help="Postmortem for this campaign. Required."),
 ) -> None:
     """Move a campaign from 'draft', 'open', or 'paused' to 'abandoned'. Fails if it has an open
-    encounter."""
+    encounter. The required message is recorded as the campaign's postmortem and its body is
+    locked thereafter."""
     try:
-        campaign_core.abandon_campaign(Path.cwd(), name)
+        campaign_core.abandon_campaign(Path.cwd(), name, message)
     except (
         campaign_core.CampaignNotFoundError,
         campaign_core.InvalidCampaignTransitionError,
         campaign_core.CampaignHasOpenEncountersError,
+        campaign_core.CampaignMessageRequiredError,
         GitIdentityError,
     ) as exc:
         fail(console, str(exc))
