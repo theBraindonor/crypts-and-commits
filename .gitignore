@@ -8,3 +8,4 @@ dist/
 htmlcov/
 .coverage
 .mcp.json
+.codex/config.toml
