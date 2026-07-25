@@ -561,3 +561,102 @@ def test_list_rejects_invalid_cursor() -> None:
     result = runner.invoke(app, ["encounter", "list", "--campaign", "opening-gambit", "--cursor", "not-a-number"])
 
     assert result.exit_code == 1
+
+
+def test_assign_and_unassign_dependency_commands() -> None:
+    _create_campaign()
+    for name in ("foundation", "feature"):
+        runner.invoke(app, ["encounter", "create", name, "--campaign", "opening-gambit", "--body", "text"])
+
+    assigned = runner.invoke(
+        app, ["encounter", "assign-dependency", "feature", "foundation", "--campaign", "opening-gambit"]
+    )
+    get_assigned = runner.invoke(app, ["encounter", "get", "feature", "--campaign", "opening-gambit"])
+    unassigned = runner.invoke(
+        app, ["encounter", "unassign-dependency", "feature", "foundation", "--campaign", "opening-gambit"]
+    )
+    get_unassigned = runner.invoke(app, ["encounter", "get", "feature", "--campaign", "opening-gambit"])
+
+    assert assigned.exit_code == 0
+    assert "foundation" in get_assigned.output
+    assert unassigned.exit_code == 0
+    assert "depends_on: []" in get_unassigned.output
+
+
+def test_assign_dependency_reports_validation_failure() -> None:
+    _create_campaign()
+    runner.invoke(app, ["encounter", "create", "feature", "--campaign", "opening-gambit", "--body", "text"])
+
+    result = runner.invoke(
+        app, ["encounter", "assign-dependency", "feature", "missing", "--campaign", "opening-gambit"]
+    )
+
+    assert result.exit_code == 1
+    assert "does not exist" in result.output
+
+
+def test_dependency_commands_default_to_active_campaign() -> None:
+    _create_campaign("live")
+    _open_campaign("live")
+    for name in ("foundation", "feature"):
+        runner.invoke(app, ["encounter", "create", name, "--body", "text"])
+
+    result = runner.invoke(app, ["encounter", "assign-dependency", "feature", "foundation"])
+
+    assert result.exit_code == 0
+    assert "foundation" in runner.invoke(app, ["encounter", "get", "feature"]).output
+
+
+def test_order_prints_status_and_dependencies_without_stripping_brackets() -> None:
+    _create_campaign()
+    for name in ("foundation", "feature"):
+        runner.invoke(app, ["encounter", "create", name, "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["encounter", "assign-dependency", "feature", "foundation", "--campaign", "opening-gambit"])
+
+    result = runner.invoke(app, ["encounter", "order", "--campaign", "opening-gambit"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "foundation [draft] depends_on: (none)",
+        "feature [draft] depends_on: foundation",
+    ]
+
+
+def test_order_defaults_to_active_campaign_and_allows_terminal_campaign() -> None:
+    _create_campaign("live")
+    _open_campaign("live")
+    runner.invoke(app, ["encounter", "create", "feature", "--body", "text"])
+
+    active_result = runner.invoke(app, ["encounter", "order"])
+    runner.invoke(app, ["campaign", "complete", "live"])
+    terminal_result = runner.invoke(app, ["encounter", "order", "--campaign", "live"])
+
+    assert active_result.exit_code == 0
+    assert "feature [draft]" in active_result.output
+    assert terminal_result.exit_code == 0
+    assert "feature [draft]" in terminal_result.output
+
+
+def test_open_reports_all_incomplete_dependency_statuses() -> None:
+    _create_campaign()
+    for name in ("foundation", "feature"):
+        runner.invoke(app, ["encounter", "create", name, "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["encounter", "assign-dependency", "feature", "foundation", "--campaign", "opening-gambit"])
+    runner.invoke(app, ["encounter", "review", "feature", "--campaign", "opening-gambit", "--message", "Reviewed."])
+
+    result = runner.invoke(app, ["encounter", "open", "feature", "--campaign", "opening-gambit"])
+
+    assert result.exit_code == 1
+    assert "foundation (draft)" in result.output
+
+
+def test_delete_reports_dependent_encounters() -> None:
+    _create_campaign()
+    for name in ("foundation", "feature"):
+        runner.invoke(app, ["encounter", "create", name, "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["encounter", "assign-dependency", "feature", "foundation", "--campaign", "opening-gambit"])
+
+    result = runner.invoke(app, ["encounter", "delete", "foundation", "--campaign", "opening-gambit", "--yes"])
+
+    assert result.exit_code == 1
+    assert "required by: feature" in result.output

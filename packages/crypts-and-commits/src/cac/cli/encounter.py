@@ -21,8 +21,9 @@ app = typer.Typer(
         "verification passes). It may instead be marked 'abandoned' (via 'abandon') from "
         "'draft', 'reviewed', or 'open' - but not once 'completed'. Once past 'draft', content "
         "can no longer be replaced, only appended to via the 'review'/'abandon'/'open'/"
-        "'complete' messages or 'record-message'. The campaign defaults to the active (open) "
-        "campaign; use --campaign to target another one."
+        "'complete' messages or 'record-message'. Dependencies may be changed while an "
+        "encounter is 'draft' or 'reviewed'; all must be completed before it can open. "
+        "The campaign defaults to the active (open) campaign; use --campaign to target another one."
     )
 )
 console = Console()
@@ -90,6 +91,25 @@ def list_encounters(
         console.print(f"[dim]More results - pass --cursor {page.next_cursor} to continue.[/dim]")
 
 
+@app.command("order")
+def order_encounters(
+    campaign: str | None = _campaign_option(),
+) -> None:
+    """Show every campaign encounter in deterministic dependency order."""
+    campaign = _resolve_campaign(campaign, require_mutable=False)
+    try:
+        ordered = encounter_core.order_encounters(Path.cwd(), campaign)
+    except encounter_core.EncounterDependencyError as exc:
+        fail(console, str(exc))
+    if not ordered:
+        console.print("No encounter files found.")
+        return
+
+    for item in ordered:
+        dependencies = ", ".join(item.depends_on) or "(none)"
+        console.print(f"{item.name} [{item.status}] depends_on: {dependencies}", markup=False)
+
+
 @app.command("create")
 def create_encounter(
     name: str = typer.Argument(..., help="Encounter name (letters, numbers, underscores, hyphens, periods)."),
@@ -155,7 +175,7 @@ def delete_encounter(
 
     try:
         path = encounter_core.delete_encounter(Path.cwd(), campaign, name)
-    except encounter_core.EncounterNotFoundError as exc:
+    except (encounter_core.EncounterNotFoundError, encounter_core.EncounterDependencyError) as exc:
         fail(console, str(exc))
 
     console.print(f"Deleted [bold green]{path}[/bold green]")
@@ -195,6 +215,7 @@ def open_encounter(
     except (
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
+        encounter_core.EncounterDependenciesIncompleteError,
         GitIdentityError,
     ) as exc:
         fail(console, str(exc))
@@ -294,3 +315,45 @@ def unassign_region(
         fail(console, str(exc))
 
     console.print(f"Unassigned [bold]{name}[/bold] from region [bold]{region}[/bold].")
+
+
+@app.command("assign-dependency")
+def assign_dependency(
+    name: str = typer.Argument(..., help="Encounter that depends on the prerequisite."),
+    dependency: str = typer.Argument(..., help="Direct prerequisite encounter name."),
+    campaign: str | None = _campaign_option(),
+) -> None:
+    """Assign a direct prerequisite while the dependent encounter is draft or reviewed."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
+    try:
+        encounter_core.assign_dependency(Path.cwd(), campaign, name, dependency)
+    except (
+        encounter_core.EncounterNotFoundError,
+        encounter_core.InvalidEncounterNameError,
+        encounter_core.EncounterDependencyError,
+        GitIdentityError,
+    ) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Assigned dependency [bold]{dependency}[/bold] to encounter [bold]{name}[/bold].")
+
+
+@app.command("unassign-dependency")
+def unassign_dependency(
+    name: str = typer.Argument(..., help="Encounter whose dependency should be removed."),
+    dependency: str = typer.Argument(..., help="Direct prerequisite encounter name."),
+    campaign: str | None = _campaign_option(),
+) -> None:
+    """Unassign a direct prerequisite while the dependent encounter is draft or reviewed."""
+    campaign = _resolve_campaign(campaign, require_mutable=True)
+    try:
+        encounter_core.unassign_dependency(Path.cwd(), campaign, name, dependency)
+    except (
+        encounter_core.EncounterNotFoundError,
+        encounter_core.InvalidEncounterNameError,
+        encounter_core.EncounterDependencyError,
+        GitIdentityError,
+    ) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Unassigned dependency [bold]{dependency}[/bold] from encounter [bold]{name}[/bold].")

@@ -3,6 +3,7 @@ name: ""
 campaign: ""
 status: "draft"
 regions: []
+depends_on: []
 ---
 
 # Encounter

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import heapq
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,7 @@ from cac.core.paths import sourcebook_dir
 _TEMPLATE_PACKAGE = "sourcebook"
 _TEMPLATE_FILENAME = "encounter.md"
 REGIONS_KEY = "regions"
+DEPENDS_ON_KEY = "depends_on"
 _LOG_SECTION = "Log"
 CREATED_BY_KEY = "created_by"
 CREATED_ON_KEY = "created_on"
@@ -35,6 +37,7 @@ _ENCOUNTER_TRANSITIONS: dict[str, frozenset[str]] = {
     "abandoned": frozenset(),
 }
 _RECORD_MESSAGE_STATUSES = frozenset({"reviewed", "open"})
+_DEPENDENCY_MUTATION_STATUSES = frozenset({"draft", "reviewed"})
 
 
 class InvalidEncounterNameError(ValueError):
@@ -62,12 +65,49 @@ class EncounterAlreadyExistsError(FileExistsError):
     """Raised when a named encounter file already exists."""
 
 
+class EncounterDependencyError(ValueError):
+    """Base class for encounter dependency failures."""
+
+
+class EncounterDependencyMutationError(EncounterDependencyError):
+    """Raised when dependencies are changed after an encounter has opened."""
+
+
+class EncounterDependencyNotFoundError(EncounterDependencyError):
+    """Raised when a dependency does not exist in the encounter's campaign."""
+
+
+class EncounterSelfDependencyError(EncounterDependencyError):
+    """Raised when an encounter is assigned as its own dependency."""
+
+
+class EncounterAbandonedDependencyError(EncounterDependencyError):
+    """Raised when an abandoned encounter is assigned as a dependency."""
+
+
+class EncounterDependencyCycleError(EncounterDependencyError):
+    """Raised when an encounter dependency graph contains a cycle."""
+
+
+class EncounterDependenciesIncompleteError(EncounterDependencyError):
+    """Raised when an encounter is opened before all of its dependencies are completed."""
+
+
+class EncounterHasDependentsError(EncounterDependencyError):
+    """Raised when deleting an encounter that other encounters depend on."""
+
+
+class InvalidEncounterDependencyGraphError(EncounterDependencyError):
+    """Raised when stored dependency metadata is malformed or references a missing encounter."""
+
+
 @dataclass(frozen=True)
 class Encounter:
     name: str
     campaign: str
     status: str
     regions: list[str]
+    depends_on: list[str]
     body: str
 
 
@@ -169,6 +209,15 @@ def update_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
 
 def delete_encounter(root: Path, campaign: str, name: str) -> Path:
     path = _existing_encounter_path(root, campaign, name)
+    dependents = sorted(
+        other_name
+        for other_name, post in _load_campaign_posts(root, campaign).items()
+        if other_name != name and name in _dependencies(post, other_name)
+    )
+    if dependents:
+        raise EncounterHasDependentsError(
+            f"Cannot delete encounter {name!r}: it is required by: {', '.join(dependents)}."
+        )
     path.unlink()
     return path
 
@@ -191,6 +240,23 @@ def abandon_encounter(root: Path, campaign: str, name: str, message: str) -> Enc
 
 def open_encounter(root: Path, campaign: str, name: str, message: str | None = None) -> Encounter:
     """Move an encounter from 'reviewed' to 'open'. Message is optional."""
+    path = _existing_encounter_path(root, campaign, name)
+    post = frontmatter.load(path)
+    if post.get("status", DEFAULT_ENCOUNTER_STATUS) == "reviewed":
+        posts = _load_campaign_posts(root, campaign)
+        blockers: list[tuple[str, str]] = []
+        for dependency in _dependencies(post, name):
+            dependency_post = posts.get(dependency)
+            dependency_status = (
+                dependency_post.get("status", DEFAULT_ENCOUNTER_STATUS) if dependency_post is not None else "missing"
+            )
+            if dependency_status != "completed":
+                blockers.append((dependency, dependency_status))
+        if blockers:
+            details = ", ".join(f"{dependency} ({status})" for dependency, status in blockers)
+            raise EncounterDependenciesIncompleteError(
+                f"Cannot open encounter {name!r}: incomplete dependencies: {details}."
+            )
     return _transition(
         root, campaign, name, to_status="open", log_heading="Opened", message=message, message_required=False
     )
@@ -264,6 +330,57 @@ def unassign_region(root: Path, campaign: str, name: str, region: str) -> Encoun
     return _update_regions(root, campaign, name, remove=region)
 
 
+def assign_dependency(root: Path, campaign: str, name: str, dependency: str) -> Encounter:
+    """Add a direct prerequisite to an encounter while it is draft or reviewed."""
+    validate_name(dependency)
+    path = _existing_encounter_path(root, campaign, name)
+    post = frontmatter.load(path)
+    _require_dependency_mutable(post, name)
+    current = _dependencies(post, name)
+    if dependency in current:
+        _stamp_updated(post, root)
+        write_post(path, post)
+        return _to_encounter(post, campaign, name)
+    if dependency == name:
+        raise EncounterSelfDependencyError(f"Encounter {name!r} cannot depend on itself.")
+    dependency_path = _encounter_path(root, campaign, dependency)
+    if not dependency_path.exists():
+        raise EncounterDependencyNotFoundError(f"Dependency {dependency!r} does not exist in campaign {campaign!r}.")
+    dependency_post = frontmatter.load(dependency_path)
+    if dependency_post.get("status", DEFAULT_ENCOUNTER_STATUS) == "abandoned":
+        raise EncounterAbandonedDependencyError(
+            f"Encounter {name!r} cannot depend on abandoned encounter {dependency!r}."
+        )
+
+    posts = _load_campaign_posts(root, campaign)
+    post[DEPENDS_ON_KEY] = [*current, dependency]
+    posts[name] = post
+    _validate_and_order(posts)
+    _stamp_updated(post, root)
+    write_post(path, post)
+    return _to_encounter(post, campaign, name)
+
+
+def unassign_dependency(root: Path, campaign: str, name: str, dependency: str) -> Encounter:
+    """Remove a direct prerequisite while the dependent encounter is draft or reviewed."""
+    validate_name(dependency)
+    path = _existing_encounter_path(root, campaign, name)
+    post = frontmatter.load(path)
+    _require_dependency_mutable(post, name)
+    current = _dependencies(post, name)
+    post[DEPENDS_ON_KEY] = [item for item in current if item != dependency]
+    _stamp_updated(post, root)
+    write_post(path, post)
+    return _to_encounter(post, campaign, name)
+
+
+def order_encounters(root: Path, campaign: str) -> list[Encounter]:
+    """Return all campaign encounters in deterministic topological order."""
+    posts = _load_campaign_posts(root, campaign)
+    names = _validate_and_order(posts)
+    return [_to_encounter(posts[name], campaign, name) for name in names]
+
+
 def _update_regions(
     root: Path, campaign: str, name: str, *, add: str | None = None, remove: str | None = None
 ) -> Encounter:
@@ -281,8 +398,100 @@ def _to_encounter(post: frontmatter.Post, campaign: str, name: str) -> Encounter
         campaign=post.get("campaign", campaign),
         status=post.get("status", DEFAULT_ENCOUNTER_STATUS),
         regions=post.get("regions", []),
+        depends_on=post.get(DEPENDS_ON_KEY, []),
         body=post.content,
     )
+
+
+def _require_dependency_mutable(post: frontmatter.Post, name: str) -> None:
+    status = post.get("status", DEFAULT_ENCOUNTER_STATUS)
+    if status not in _DEPENDENCY_MUTATION_STATUSES:
+        allowed = ", ".join(sorted(_DEPENDENCY_MUTATION_STATUSES))
+        raise EncounterDependencyMutationError(
+            f"Cannot change dependencies for encounter {name!r}: status is {status!r}, but dependency changes "
+            f"require status to be one of: {allowed}."
+        )
+
+
+def _dependencies(post: frontmatter.Post, name: str) -> list[str]:
+    value = post.get(DEPENDS_ON_KEY, [])
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise InvalidEncounterDependencyGraphError(
+            f"Encounter {name!r} has invalid {DEPENDS_ON_KEY!r} metadata; expected a list of encounter names."
+        )
+    return value
+
+
+def _load_campaign_posts(root: Path, campaign: str) -> dict[str, frontmatter.Post]:
+    directory = encounter_dir(root, campaign)
+    if not directory.is_dir():
+        return {}
+    return {path.stem: frontmatter.load(path) for path in directory.glob("*.md")}
+
+
+def _validate_and_order(posts: dict[str, frontmatter.Post]) -> list[str]:
+    dependencies: dict[str, list[str]] = {}
+    missing: list[tuple[str, str]] = []
+    for name, post in posts.items():
+        dependencies[name] = _dependencies(post, name)
+        missing.extend((name, dependency) for dependency in dependencies[name] if dependency not in posts)
+    if missing:
+        details = ", ".join(f"{name} -> {dependency}" for name, dependency in sorted(missing))
+        raise InvalidEncounterDependencyGraphError(f"Encounter dependency graph has missing references: {details}.")
+
+    indegree = {name: len(set(items)) for name, items in dependencies.items()}
+    dependents: dict[str, set[str]] = {name: set() for name in posts}
+    for name, items in dependencies.items():
+        for dependency in set(items):
+            dependents[dependency].add(name)
+
+    def sort_key(name: str) -> tuple[str, str]:
+        return str(posts[name].get(CREATED_ON_KEY, "")), name
+
+    ready = [(sort_key(name), name) for name, degree in indegree.items() if degree == 0]
+    heapq.heapify(ready)
+    ordered: list[str] = []
+    while ready:
+        _, name = heapq.heappop(ready)
+        ordered.append(name)
+        for dependent in dependents[name]:
+            indegree[dependent] -= 1
+            if indegree[dependent] == 0:
+                heapq.heappush(ready, (sort_key(dependent), dependent))
+
+    if len(ordered) != len(posts):
+        cycle = _find_dependency_cycle(dependencies)
+        raise EncounterDependencyCycleError(f"Encounter dependency cycle detected: {' -> '.join(cycle)}.")
+    return ordered
+
+
+def _find_dependency_cycle(dependencies: dict[str, list[str]]) -> list[str]:
+    visited: set[str] = set()
+    active: list[str] = []
+    active_set: set[str] = set()
+
+    def visit(name: str) -> list[str] | None:
+        if name in active_set:
+            start = active.index(name)
+            return [*active[start:], name]
+        if name in visited:
+            return None
+        active.append(name)
+        active_set.add(name)
+        for dependency in dependencies[name]:
+            cycle = visit(dependency)
+            if cycle is not None:
+                return cycle
+        active.pop()
+        active_set.remove(name)
+        visited.add(name)
+        return None
+
+    for name in sorted(dependencies):
+        cycle = visit(name)
+        if cycle is not None:
+            return cycle
+    return []
 
 
 def _encounter_path(root: Path, campaign: str, name: str) -> Path:

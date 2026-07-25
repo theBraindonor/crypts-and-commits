@@ -55,12 +55,13 @@ An encounter is a concrete unit of work within a campaign: a plan the agent is e
 The campaign is **optional** on every encounter command: when omitted, it defaults to the currently **active** (the single `open`) campaign. Since normal work happens inside the open campaign, you usually don't pass a campaign at all. Pass `--campaign <campaign>` (`-c`) only to act on a *different* campaign.
 
 - If no campaign is open and you don't pass `--campaign`, the command fails asking you to open a campaign or pass one explicitly.
-- The **mutating** commands (`create`, `update`, `delete`, `review`, `open`, `record-message`, `complete`, `abandon`, `assign-region`, `unassign-region`) refuse a `--campaign` that is `completed` or `abandoned` — you cannot change encounters in a closed campaign.
-- The **read** commands (`get`, `list`) accept any existing campaign, including `completed`/`abandoned` ones, so past work stays inspectable.
+- The **mutating** commands (`create`, `update`, `delete`, `review`, `open`, `record-message`, `complete`, `abandon`, `assign-region`, `unassign-region`, `assign-dependency`, `unassign-dependency`) refuse a `--campaign` that is `completed` or `abandoned` — you cannot change encounters in a closed campaign.
+- The **read** commands (`get`, `list`, `order`) accept any existing campaign, including `completed`/`abandoned` ones, so past work stays inspectable.
 
 In the command forms below, `[--campaign <campaign>]` is shown explicitly, but omit it to use the active campaign.
 
 - `cac encounter list [--campaign <campaign>]` — list encounter names within a campaign, ordered oldest-updated first (ascending by `updated_on`).
+- `cac encounter order [--campaign <campaign>]` — show every campaign encounter in deterministic dependency order, with status and direct dependencies.
 - `cac encounter get <name> [--campaign <campaign>]` — show an encounter's frontmatter (`status`, `regions`) and body.
 - `cac encounter create <name> [--campaign <campaign>] [--body "..."]` — create a new encounter. The campaign must already exist and not be completed/abandoned.
 - `cac encounter update <name> [--campaign <campaign>] [--body "..."]` — replace an encounter's body. Only works while status is `draft`.
@@ -70,11 +71,14 @@ In the command forms below, `[--campaign <campaign>]` is shown explicitly, but o
 - `cac encounter complete <name> [--campaign <campaign>] [--message "..."]` — move `open` → `completed` once verification passes. Message is optional.
 - `cac encounter abandon <name> [--campaign <campaign>] --message "..."` — move `draft`, `reviewed`, or `open` → `abandoned`. Not available once `completed`. Message is required.
 - `cac encounter assign-region <name> <region> [--campaign <campaign>]` / `cac encounter unassign-region <name> <region> [--campaign <campaign>]` — an encounter may be assigned to one or more regions. This link is recorded only on the encounter.
-- `cac encounter delete <name> [--campaign <campaign>]` — remove an encounter.
+- `cac encounter assign-dependency <name> <prerequisite> [--campaign <campaign>]` / `cac encounter unassign-dependency <name> <prerequisite> [--campaign <campaign>]` — change direct prerequisites while the dependent encounter is `draft` or `reviewed`.
+- `cac encounter delete <name> [--campaign <campaign>]` — remove an encounter. Fails while another encounter depends on it.
 
 ## Encounter Lifecycle
 
 **`draft`** — the encounter is being documented and planned. Write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. This is the only status in which `cac encounter update` can replace the body.
+
+Dependencies may be assigned or unassigned while an encounter is `draft` or `reviewed`, but not after it opens. Assignments must reference a non-abandoned encounter in the same campaign and cannot introduce a self-dependency or cycle. An abandoned existing prerequisite remains an unsatisfied blocker until it is removed or replaced.
 
 **`draft` → `reviewed`** — this gate is performed by an **independent, fresh reviewer subagent**, never inline by the agent that authored the plan. An agent reviewing its own plan just re-checks it against the priors that produced it — a rubber stamp — so **do not review the Plan yourself**.
 
@@ -137,7 +141,7 @@ Do NOT run `cac encounter review`, `open`, `update`, or any other mutating `cac`
 command, and do not edit any files. You are reviewing only.
 ```
 
-**`reviewed` → `open`** — get explicit approval from the user, then run `cac encounter open <name> [--message "<any extra instructions/feedback>"]`. A message is optional here.
+**`reviewed` → `open`** — get explicit approval from the user, then run `cac encounter open <name> [--message "<any extra instructions/feedback>"]`. A message is optional here. Opening fails until every direct dependency is `completed`, reporting all unsatisfied prerequisites and their statuses.
 
 **`open`** — execute the Plan. If the Plan or Verification needs to change based on what's found during implementation, do not attempt to edit them directly — use `cac encounter record-message <name> --message "..."` to record the deviation and why (also usable between `review` and `open`, i.e. while `reviewed`).
 

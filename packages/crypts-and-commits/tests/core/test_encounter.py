@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
+import frontmatter
 import pytest
 
 from cac.core import campaign, encounter, frontmatter_utils, git_utils, region
@@ -42,6 +43,7 @@ def test_create_encounter_writes_frontmatter_and_body(tmp_path: Path) -> None:
     assert "name: goblin-ambush" in text
     assert "campaign: opening-gambit" in text
     assert "status: draft" in text
+    assert "depends_on: []" in text
     assert "Stop them." in text
 
 
@@ -164,7 +166,18 @@ def test_read_encounter_returns_metadata_and_body(tmp_path: Path) -> None:
     assert result.campaign == "opening-gambit"
     assert result.status == "draft"
     assert result.regions == []
+    assert result.depends_on == []
     assert result.body.strip() == "Body text."
+
+
+def test_read_legacy_encounter_without_depends_on_defaults_to_empty_list(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    path = encounter.create_encounter(tmp_path, "opening-gambit", "legacy", "Body.")
+    post = frontmatter.load(path)
+    del post["depends_on"]
+    frontmatter_utils.write_post(path, post)
+
+    assert encounter.read_encounter(tmp_path, "opening-gambit", "legacy").depends_on == []
 
 
 def test_read_encounter_missing_raises(tmp_path: Path) -> None:
@@ -645,3 +658,182 @@ def test_review_encounter_propagates_git_identity_error_and_leaves_file_unchange
 
     assert path.read_text(encoding="utf-8") == before
     assert encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush").status == "draft"
+
+
+def test_assign_and_unassign_dependency_are_idempotent(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
+
+    encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
+    assigned = encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
+    assert assigned.depends_on == ["foundation"]
+
+    encounter.unassign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
+    unassigned = encounter.unassign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
+    assert unassigned.depends_on == []
+
+
+def test_dependency_changes_are_allowed_while_reviewed(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "feature", "Reviewed.")
+
+    assigned = encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
+    assert assigned.depends_on == ["foundation"]
+    assert encounter.unassign_dependency(tmp_path, "opening-gambit", "feature", "foundation").depends_on == []
+
+
+@pytest.mark.parametrize("terminal_status", ["open", "completed", "abandoned"])
+def test_dependency_changes_are_rejected_after_reviewed(tmp_path: Path, terminal_status: str) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "feature", "Reviewed.")
+    if terminal_status == "abandoned":
+        encounter.abandon_encounter(tmp_path, "opening-gambit", "feature", "Stopped.")
+    else:
+        encounter.open_encounter(tmp_path, "opening-gambit", "feature")
+        if terminal_status == "completed":
+            encounter.complete_encounter(tmp_path, "opening-gambit", "feature")
+
+    with pytest.raises(encounter.EncounterDependencyMutationError):
+        encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
+    with pytest.raises(encounter.EncounterDependencyMutationError):
+        encounter.unassign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
+
+
+def test_assign_dependency_rejects_missing_self_and_abandoned_targets(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "abandoned", "Body.")
+    encounter.abandon_encounter(tmp_path, "opening-gambit", "abandoned", "Stopped.")
+
+    with pytest.raises(encounter.EncounterDependencyNotFoundError):
+        encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "missing")
+    with pytest.raises(encounter.EncounterSelfDependencyError):
+        encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "feature")
+    with pytest.raises(encounter.EncounterAbandonedDependencyError):
+        encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "abandoned")
+    assert encounter.read_encounter(tmp_path, "opening-gambit", "feature").depends_on == []
+
+
+def test_assign_dependency_rejects_transitive_cycle_without_modifying_encounter(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    for name in ("one", "two", "three"):
+        encounter.create_encounter(tmp_path, "opening-gambit", name, "Body.")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "two", "one")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "three", "two")
+
+    with pytest.raises(encounter.EncounterDependencyCycleError):
+        encounter.assign_dependency(tmp_path, "opening-gambit", "one", "three")
+
+    assert encounter.read_encounter(tmp_path, "opening-gambit", "one").depends_on == []
+
+
+def test_open_reports_all_incomplete_dependencies_and_statuses(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    for name in ("draft-dependency", "abandoned-dependency", "feature"):
+        encounter.create_encounter(tmp_path, "opening-gambit", name, "Body.")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "draft-dependency")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "abandoned-dependency")
+    encounter.abandon_encounter(tmp_path, "opening-gambit", "abandoned-dependency", "Stopped.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "feature", "Reviewed.")
+
+    with pytest.raises(encounter.EncounterDependenciesIncompleteError) as exc_info:
+        encounter.open_encounter(tmp_path, "opening-gambit", "feature")
+
+    message = str(exc_info.value)
+    assert "draft-dependency (draft)" in message
+    assert "abandoned-dependency (abandoned)" in message
+    assert encounter.read_encounter(tmp_path, "opening-gambit", "feature").status == "reviewed"
+
+
+def test_open_succeeds_when_all_dependencies_are_completed(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "foundation", "Reviewed.")
+    encounter.open_encounter(tmp_path, "opening-gambit", "foundation")
+    encounter.complete_encounter(tmp_path, "opening-gambit", "foundation")
+    encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
+    encounter.review_encounter(tmp_path, "opening-gambit", "feature", "Reviewed.")
+
+    assert encounter.open_encounter(tmp_path, "opening-gambit", "feature").status == "open"
+
+
+def test_delete_rejects_encounter_with_dependents(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    foundation = encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "feature-b", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "feature-a", "Body.")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "feature-b", "foundation")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "feature-a", "foundation")
+
+    with pytest.raises(encounter.EncounterHasDependentsError) as exc_info:
+        encounter.delete_encounter(tmp_path, "opening-gambit", "foundation")
+
+    assert "feature-a, feature-b" in str(exc_info.value)
+    assert foundation.exists()
+
+
+def test_order_encounters_is_topological_and_uses_created_on_then_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _make_campaign(tmp_path)
+    _set_identity(monkeypatch, when=datetime(2026, 7, 1, tzinfo=timezone.utc))
+    encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
+    _set_identity(monkeypatch, when=datetime(2026, 7, 2, tzinfo=timezone.utc))
+    encounter.create_encounter(tmp_path, "opening-gambit", "docs", "Body.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "api", "Body.")
+    _set_identity(monkeypatch, when=datetime(2026, 7, 3, tzinfo=timezone.utc))
+    encounter.create_encounter(tmp_path, "opening-gambit", "release", "Body.")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "api", "foundation")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "docs", "foundation")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "release", "api")
+    encounter.assign_dependency(tmp_path, "opening-gambit", "release", "docs")
+
+    assert [item.name for item in encounter.order_encounters(tmp_path, "opening-gambit")] == [
+        "foundation",
+        "api",
+        "docs",
+        "release",
+    ]
+
+    _set_identity(monkeypatch, when=datetime(2026, 8, 1, tzinfo=timezone.utc))
+    encounter.update_encounter(tmp_path, "opening-gambit", "api", "Updated.")
+    assert [item.name for item in encounter.order_encounters(tmp_path, "opening-gambit")] == [
+        "foundation",
+        "api",
+        "docs",
+        "release",
+    ]
+
+
+def test_order_encounters_reports_missing_reference_in_stored_graph(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    path = encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
+    post = frontmatter.load(path)
+    post["depends_on"] = ["missing"]
+    frontmatter_utils.write_post(path, post)
+
+    with pytest.raises(encounter.InvalidEncounterDependencyGraphError, match="feature -> missing"):
+        encounter.order_encounters(tmp_path, "opening-gambit")
+
+
+def test_order_encounters_reports_cycle_participants_in_stored_graph(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    paths = {
+        name: encounter.create_encounter(tmp_path, "opening-gambit", name, "Body.") for name in ("one", "two", "three")
+    }
+    for name, dependency in (("one", "two"), ("two", "one")):
+        post = frontmatter.load(paths[name])
+        post["depends_on"] = [dependency]
+        frontmatter_utils.write_post(paths[name], post)
+
+    with pytest.raises(encounter.EncounterDependencyCycleError) as exc_info:
+        encounter.order_encounters(tmp_path, "opening-gambit")
+
+    assert "one -> two -> one" in str(exc_info.value)
+    assert "three" not in str(exc_info.value)
