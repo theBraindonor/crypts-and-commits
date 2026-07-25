@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -42,3 +43,28 @@ def test_init_shows_splash() -> None:
 
     assert "Crypts And Commits" in result.output
     assert "A Code Assistant Continuity Framework" in result.output
+
+
+def test_init_creates_mcp_config(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    mcp_config = tmp_path / ".mcp.json"
+    assert mcp_config.is_file()
+    config = json.loads(mcp_config.read_text(encoding="utf-8"))
+    assert "cac" in config["mcpServers"]
+
+
+def test_init_preserves_other_mcp_servers(tmp_path: Path) -> None:
+    mcp_config = tmp_path / ".mcp.json"
+    mcp_config.write_text(
+        json.dumps({"mcpServers": {"some-other-server": {"command": "/usr/bin/other", "args": []}}}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    config = json.loads(mcp_config.read_text(encoding="utf-8"))
+    assert "some-other-server" in config["mcpServers"]
+    assert "cac" in config["mcpServers"]

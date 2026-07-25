@@ -27,12 +27,22 @@ def init() -> None:
     world_path, world_created = world_core.initialize_world(root)
     _report(world_path, world_created)
 
+    mcp_config_path, mcp_config_changed = bootstrap_core.initialize_mcp_config(root)
+    _report_mcp_config(mcp_config_path, mcp_config_changed)
+
 
 def _report(path: Path, created: bool) -> None:
     if created:
         console.print(f"Created [bold green]{path}[/bold green]")
     else:
         console.print(f"[bold yellow]{path}[/bold yellow] already exists")
+
+
+def _report_mcp_config(path: Path, changed: bool) -> None:
+    if changed:
+        console.print(f"Registered the cac MCP server in [bold green]{path}[/bold green]")
+    else:
+        console.print(f"[bold yellow]{path}[/bold yellow] already registers the cac MCP server")
 
 
 def _show_splash() -> None:
