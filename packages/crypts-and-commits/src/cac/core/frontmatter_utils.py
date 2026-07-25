@@ -4,6 +4,32 @@ from pathlib import Path
 
 import frontmatter
 
+from cac.core.config import SUMMARY_KEY, SUMMARY_MAX_LENGTH
+
+SUMMARY_ABSENT_MESSAGE = "No summary has been set for this entry; read the full body instead."
+
+
+class SummaryTooLongError(ValueError):
+    """Raised when a summary exceeds the maximum allowed length."""
+
+
+def set_summary_attribute(post: frontmatter.Post, summary: str) -> None:
+    """Set the summary field on a post, rejecting a value over the length cap."""
+    if len(summary) > SUMMARY_MAX_LENGTH:
+        raise SummaryTooLongError(
+            f"Summary is {len(summary)} characters, which exceeds the maximum of {SUMMARY_MAX_LENGTH}. "
+            "Shorten it to a brief routing signal - it is not a substitute for the body."
+        )
+    post[SUMMARY_KEY] = summary
+
+
+def summary_or_placeholder(post: frontmatter.Post) -> str:
+    """Return the stored summary, or an explicit placeholder message when none is set."""
+    value = post.get(SUMMARY_KEY)
+    if not value:
+        return SUMMARY_ABSENT_MESSAGE
+    return value
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)

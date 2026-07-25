@@ -3,6 +3,12 @@ assigned_lore:
 - console-best-practices
 name: crypts-and-commits
 path: packages/crypts-and-commits
+summary: 'Core `cac` Python package and console script - the project''s deliverable
+  at `packages/crypts-and-commits`. Python >=3.11 in a PDM workspace (run commands
+  from the repo root). Typer CLI, python-frontmatter, importlib.resources for packaged
+  templates, pytest+CliRunner, ruff (line-length 120, configured at the workspace
+  root). Architecture rule: `cli/` modules are thin wrappers and all domain logic
+  lives in `core/` (one module per concept). Tests mirror `src/cac/`.'
 ---
 
 # Crypts and Commits (core library)

@@ -7,8 +7,16 @@ import frontmatter
 from cac.core import lore as lore_core
 from cac.core import templates
 from cac.core.config import NAME_PATTERN, REGION_DIR_NAME, RESERVED_NAMES
-from cac.core.frontmatter_utils import toggle_list_attribute, write_post
+from cac.core.frontmatter_utils import (
+    SummaryTooLongError,
+    set_summary_attribute,
+    summary_or_placeholder,
+    toggle_list_attribute,
+    write_post,
+)
 from cac.core.paths import sourcebook_dir
+
+__all__ = ["SummaryTooLongError"]  # re-exported so the CLI can catch it alongside region errors
 
 _TEMPLATE_PACKAGE = "sourcebook"
 _TEMPLATE_FILENAME = "region.md"
@@ -97,6 +105,21 @@ def delete_region(root: Path, name: str) -> Path:
     path = _existing_region_path(root, name)
     path.unlink()
     return path
+
+
+def set_summary(root: Path, name: str, summary: str) -> Region:
+    """Set this region's summary, rejecting a value over the length cap."""
+    path = _existing_region_path(root, name)
+    post = frontmatter.load(path)
+    set_summary_attribute(post, summary)
+    write_post(path, post)
+    return _to_region(post, name)
+
+
+def read_summary(root: Path, name: str) -> str:
+    """Return this region's stored summary, or a placeholder message when none is set."""
+    post = frontmatter.load(_existing_region_path(root, name))
+    return summary_or_placeholder(post)
 
 
 def set_path(root: Path, name: str, path_value: str) -> Region:

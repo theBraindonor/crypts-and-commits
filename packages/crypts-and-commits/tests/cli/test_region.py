@@ -40,6 +40,51 @@ def test_get_preserves_bracketed_body_text() -> None:
     assert "[tool.pdm.workspace]" in result.output
 
 
+def test_get_shows_placeholder_when_summary_absent() -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Body text."])
+
+    result = runner.invoke(app, ["region", "get", "northlands"])
+
+    assert result.exit_code == 0
+    assert "No summary has been set" in result.output
+
+
+def test_set_summary_then_get_shows_it() -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Body text."])
+
+    set_result = runner.invoke(app, ["region", "set-summary", "northlands", "A brief routing signal."])
+    get_result = runner.invoke(app, ["region", "get", "northlands"])
+
+    assert set_result.exit_code == 0
+    assert get_result.exit_code == 0
+    assert "A brief routing signal." in get_result.output
+
+
+def test_get_preserves_bracketed_summary_text() -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Body text."])
+    runner.invoke(app, ["region", "set-summary", "northlands", "Covers [tool.pdm.workspace] config."])
+
+    result = runner.invoke(app, ["region", "get", "northlands"])
+
+    assert result.exit_code == 0
+    assert "[tool.pdm.workspace]" in result.output
+
+
+def test_set_summary_rejects_value_over_cap() -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text"])
+
+    result = runner.invoke(app, ["region", "set-summary", "northlands", "x" * 501])
+
+    assert result.exit_code == 1
+    assert "maximum of 500" in result.output
+
+
+def test_set_summary_missing_region_fails() -> None:
+    result = runner.invoke(app, ["region", "set-summary", "missing", "text"])
+
+    assert result.exit_code == 1
+
+
 def test_list_reports_no_region_files() -> None:
     result = runner.invoke(app, ["region", "list"])
 

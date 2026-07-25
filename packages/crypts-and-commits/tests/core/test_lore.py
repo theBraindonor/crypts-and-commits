@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from cac.core import lore
+from cac.core import frontmatter_utils, lore
 
 
 def test_list_lore_returns_empty_when_no_directory(tmp_path: Path) -> None:
@@ -133,6 +133,56 @@ def test_update_lore_preserves_other_frontmatter_attributes(tmp_path: Path) -> N
     text = (tmp_path / ".sourcebook" / "lore" / "conventions.md").read_text(encoding="utf-8")
     assert "enabled: false" in text
     assert "assigned_to_world: true" in text
+
+
+def test_set_summary_round_trips(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.")
+
+    lore.set_summary(tmp_path, "conventions", "A brief routing signal.")
+
+    assert lore.read_summary(tmp_path, "conventions") == "A brief routing signal."
+
+
+def test_set_summary_accepts_value_at_cap(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.")
+
+    lore.set_summary(tmp_path, "conventions", "x" * 500)
+
+    assert lore.read_summary(tmp_path, "conventions") == "x" * 500
+
+
+def test_set_summary_rejects_value_over_cap(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.")
+
+    with pytest.raises(lore.SummaryTooLongError):
+        lore.set_summary(tmp_path, "conventions", "x" * 501)
+
+
+def test_set_summary_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(lore.LoreNotFoundError):
+        lore.set_summary(tmp_path, "missing", "text")
+
+
+def test_read_summary_returns_placeholder_when_absent(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.")
+
+    assert lore.read_summary(tmp_path, "conventions") == frontmatter_utils.SUMMARY_ABSENT_MESSAGE
+
+
+def test_read_summary_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(lore.LoreNotFoundError):
+        lore.read_summary(tmp_path, "missing")
+
+
+def test_set_summary_preserves_other_frontmatter_attributes(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.")
+    lore.set_assigned_to_world(tmp_path, "conventions", True)
+
+    lore.set_summary(tmp_path, "conventions", "A brief routing signal.")
+
+    metadata, body = lore.read_metadata(tmp_path, "conventions")
+    assert metadata["assigned_to_world"] is True
+    assert body.strip() == "Body."
 
 
 def test_set_enabled_toggles_flag(tmp_path: Path) -> None:

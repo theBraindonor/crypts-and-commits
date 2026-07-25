@@ -5,6 +5,7 @@ from rich.console import Console
 
 from cac.cli.common import edit_markdown, fail
 from cac.core import region as region_core
+from cac.core.config import SUMMARY_KEY
 
 app = typer.Typer(
     help=(
@@ -24,11 +25,17 @@ def get_region(
     """Show a region file's frontmatter and body."""
     try:
         metadata, body = region_core.read_metadata(Path.cwd(), name)
+        summary = region_core.read_summary(Path.cwd(), name)
     except region_core.RegionNotFoundError as exc:
         fail(console, str(exc))
 
+    # Keep the summary out of the markup=True loop below; it is stored content and must be
+    # rendered with markup=False so bracketed text is not silently stripped.
+    metadata.pop(SUMMARY_KEY, None)
     for key, value in metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
+    console.print("[bold]summary[/bold]:", end=" ")
+    console.print(summary, markup=False)
     console.print()
     console.print(body, markup=False)
 
@@ -93,6 +100,22 @@ def delete_region(
         fail(console, str(exc))
 
     console.print(f"Deleted [bold green]{path}[/bold green]")
+
+
+@app.command("set-summary")
+def set_summary(
+    name: str = typer.Argument(..., help="Region name to update."),
+    summary: str = typer.Argument(..., help="Short routing summary (max 500 characters)."),
+) -> None:
+    """Set a region's summary."""
+    try:
+        region_core.set_summary(Path.cwd(), name, summary)
+    except region_core.RegionNotFoundError as exc:
+        fail(console, str(exc))
+    except region_core.SummaryTooLongError as exc:
+        fail(console, str(exc))
+
+    console.print(f"Set summary on [bold]{name}[/bold].")
 
 
 @app.command("set-path")

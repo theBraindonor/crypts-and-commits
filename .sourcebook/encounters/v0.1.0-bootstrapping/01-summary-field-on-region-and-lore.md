@@ -5,9 +5,9 @@ created_on: '2026-07-25T01:22:23Z'
 name: 01-summary-field-on-region-and-lore
 regions:
 - crypts-and-commits
-status: draft
+status: completed
 updated_by: John Hoff
-updated_on: '2026-07-25T01:22:57Z'
+updated_on: '2026-07-25T01:40:07Z'
 ---
 
 # Summary Field on Region and Lore
@@ -39,3 +39,13 @@ Per `docs/context-management-design.md`, summaries are the bounded projection th
 - `pdm run pytest -q` passes with new coverage for the summary field (cap enforcement, placeholder-when-absent, round-trip) on both region and lore.
 - `pdm run ruff check .` / `pdm run ruff format .` clean.
 - Manual: set a summary on a region and a lore; `cac ... get` shows it; an object without a summary shows the explicit placeholder rather than a blank.
+
+## Log
+
+### Review - 2026-07-25T01:28:45Z - John Hoff
+
+Reviewed against the two applicable lore items. clean-tests-and-lint is honored: Plan step 5 and Verification commit to pytest -q plus ruff check/format clean, with concrete new coverage (cap, placeholder-when-absent, round-trip) and no skip/noqa routing. console-best-practices is honored: the summary is stored user content and Plan step 3 correctly surfaces it with markup=False; the one load-bearing caveat is that summary must NOT be emitted through the existing markup=True frontmatter loop in the get commands but given its own markup=False print like the body, or bracketed summary text will be silently stripped. Logic placement (cap/read-helper/placeholder in core, cli only surfacing) matches the region's thin-wrapper architecture rule. Rationale's reference to docs/context-management-design.md is design justification, not lore, and was not verified. PASS-WITH-NOTES.
+
+### Completed - 2026-07-25T01:40:07Z - John Hoff
+
+Implemented the summary field on region and lore: SUMMARY_KEY/SUMMARY_MAX_LENGTH=500 in config; shared cap-enforcing setter, placeholder helper, and SummaryTooLongError in frontmatter_utils; set_summary/read_summary wrappers in core lore and region (error re-exported for the CLI); get commands render the summary via a dedicated markup=False print kept out of the markup=True frontmatter loop; new set-summary CLI commands. Verification green: 383 tests pass, ruff check/format clean, manual get shows stored summary or explicit placeholder. Summaries also populated on all three regions and both lore entries.

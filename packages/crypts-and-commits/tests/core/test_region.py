@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from cac.core import lore, region
+from cac.core import frontmatter_utils, lore, region
 
 
 def test_list_regions_returns_empty_when_no_directory(tmp_path: Path) -> None:
@@ -107,6 +107,53 @@ def test_set_path_updates_path(tmp_path: Path) -> None:
 
     assert result.path == "src/backend"
     assert region.read_region(tmp_path, "northlands").path == "src/backend"
+
+
+def test_set_summary_round_trips(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "northlands", "Body.")
+
+    region.set_summary(tmp_path, "northlands", "A brief routing signal.")
+
+    assert region.read_summary(tmp_path, "northlands") == "A brief routing signal."
+
+
+def test_set_summary_accepts_value_at_cap(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "northlands", "Body.")
+
+    region.set_summary(tmp_path, "northlands", "x" * 500)
+
+    assert region.read_summary(tmp_path, "northlands") == "x" * 500
+
+
+def test_set_summary_rejects_value_over_cap(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "northlands", "Body.")
+
+    with pytest.raises(region.SummaryTooLongError):
+        region.set_summary(tmp_path, "northlands", "x" * 501)
+
+
+def test_set_summary_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(region.RegionNotFoundError):
+        region.set_summary(tmp_path, "missing", "text")
+
+
+def test_read_summary_returns_placeholder_when_absent(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "northlands", "Body.")
+
+    assert region.read_summary(tmp_path, "northlands") == frontmatter_utils.SUMMARY_ABSENT_MESSAGE
+
+
+def test_read_summary_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(region.RegionNotFoundError):
+        region.read_summary(tmp_path, "missing")
+
+
+def test_set_summary_preserves_path(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "frontend", "Body.", "src/frontend")
+
+    region.set_summary(tmp_path, "frontend", "A brief routing signal.")
+
+    assert region.read_region(tmp_path, "frontend").path == "src/frontend"
 
 
 def test_set_path_missing_region_raises(tmp_path: Path) -> None:

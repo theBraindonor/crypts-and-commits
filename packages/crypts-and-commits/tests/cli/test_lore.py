@@ -40,6 +40,51 @@ def test_get_preserves_bracketed_body_text() -> None:
     assert "[tool.pdm.workspace]" in result.output
 
 
+def test_get_shows_placeholder_when_summary_absent() -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "Body text."])
+
+    result = runner.invoke(app, ["lore", "get", "conventions"])
+
+    assert result.exit_code == 0
+    assert "No summary has been set" in result.output
+
+
+def test_set_summary_then_get_shows_it() -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "Body text."])
+
+    set_result = runner.invoke(app, ["lore", "set-summary", "conventions", "A brief routing signal."])
+    get_result = runner.invoke(app, ["lore", "get", "conventions"])
+
+    assert set_result.exit_code == 0
+    assert get_result.exit_code == 0
+    assert "A brief routing signal." in get_result.output
+
+
+def test_get_preserves_bracketed_summary_text() -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "Body text."])
+    runner.invoke(app, ["lore", "set-summary", "conventions", "Covers [tool.pdm.workspace] config."])
+
+    result = runner.invoke(app, ["lore", "get", "conventions"])
+
+    assert result.exit_code == 0
+    assert "[tool.pdm.workspace]" in result.output
+
+
+def test_set_summary_rejects_value_over_cap() -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "text"])
+
+    result = runner.invoke(app, ["lore", "set-summary", "conventions", "x" * 501])
+
+    assert result.exit_code == 1
+    assert "maximum of 500" in result.output
+
+
+def test_set_summary_missing_lore_fails() -> None:
+    result = runner.invoke(app, ["lore", "set-summary", "missing", "text"])
+
+    assert result.exit_code == 1
+
+
 def test_list_reports_no_lore_files() -> None:
     result = runner.invoke(app, ["lore", "list"])
 

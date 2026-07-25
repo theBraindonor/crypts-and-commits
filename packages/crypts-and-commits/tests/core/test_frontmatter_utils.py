@@ -5,7 +5,15 @@ import frontmatter
 import pytest
 
 from cac.core import frontmatter_utils
-from cac.core.frontmatter_utils import append_log_entry, toggle_list_attribute
+from cac.core.config import SUMMARY_MAX_LENGTH
+from cac.core.frontmatter_utils import (
+    SUMMARY_ABSENT_MESSAGE,
+    SummaryTooLongError,
+    append_log_entry,
+    set_summary_attribute,
+    summary_or_placeholder,
+    toggle_list_attribute,
+)
 
 
 def test_toggle_list_attribute_adds_value() -> None:
@@ -48,6 +56,47 @@ def test_toggle_list_attribute_sorts_result() -> None:
     toggle_list_attribute(post, "items", add="alpha")
 
     assert post["items"] == ["alpha", "zeta"]
+
+
+def test_set_summary_attribute_stores_value() -> None:
+    post = frontmatter.loads("---\nname: test\n---\n\nBody.")
+
+    set_summary_attribute(post, "A brief routing signal.")
+
+    assert post["summary"] == "A brief routing signal."
+
+
+def test_set_summary_attribute_accepts_value_at_cap() -> None:
+    post = frontmatter.loads("---\nname: test\n---\n\nBody.")
+
+    set_summary_attribute(post, "x" * SUMMARY_MAX_LENGTH)
+
+    assert post["summary"] == "x" * SUMMARY_MAX_LENGTH
+
+
+def test_set_summary_attribute_rejects_value_over_cap() -> None:
+    post = frontmatter.loads("---\nname: test\n---\n\nBody.")
+
+    with pytest.raises(SummaryTooLongError):
+        set_summary_attribute(post, "x" * (SUMMARY_MAX_LENGTH + 1))
+
+
+def test_summary_or_placeholder_returns_stored_value() -> None:
+    post = frontmatter.loads("---\nname: test\nsummary: Stored summary.\n---\n\nBody.")
+
+    assert summary_or_placeholder(post) == "Stored summary."
+
+
+def test_summary_or_placeholder_returns_message_when_absent() -> None:
+    post = frontmatter.loads("---\nname: test\n---\n\nBody.")
+
+    assert summary_or_placeholder(post) == SUMMARY_ABSENT_MESSAGE
+
+
+def test_summary_or_placeholder_returns_message_when_empty() -> None:
+    post = frontmatter.loads('---\nname: test\nsummary: ""\n---\n\nBody.')
+
+    assert summary_or_placeholder(post) == SUMMARY_ABSENT_MESSAGE
 
 
 _FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=timezone.utc)

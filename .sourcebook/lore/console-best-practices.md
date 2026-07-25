@@ -4,6 +4,12 @@ assigned_regions:
 assigned_to_world: false
 enabled: true
 name: console-best-practices
+summary: 'Convention for `rich.Console` in `cac/cli/*`: text from stored `.sourcebook`
+  content (any body, or free-form/user input) must be printed with `markup=False`,
+  because Console defaults to `markup=True` and silently strips unrecognized `[...]`
+  tags (e.g. `[tool.pdm.workspace]`). CLI-authored strings (status messages, frontmatter
+  key/value lines) may use markup. The rule is about the text''s source, not the presence
+  of brackets.'
 ---
 
 # Console Best Practices

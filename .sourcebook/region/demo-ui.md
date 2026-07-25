@@ -1,6 +1,12 @@
 ---
 name: demo-ui
 path: packages/demo-ui
+summary: 'Fully aspirational frontend region at `packages/demo-ui` - the package does
+  not exist yet (not in the PDM workspace). Intended: a Node.js/React chat UI against
+  the demo-api RAG backend, with answers grounded in this project''s `.sourcebook`.
+  No scaffold, build tooling, or package manager chosen yet. Treat all specifics as
+  current plan, not settled fact - confirm before assuming bundler, styling, or state
+  management.'
 ---
 
 # Demo UI (frontend)

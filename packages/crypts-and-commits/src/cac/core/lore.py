@@ -6,8 +6,16 @@ import frontmatter
 
 from cac.core import templates
 from cac.core.config import LORE_DIR_NAME, NAME_PATTERN, RESERVED_NAMES
-from cac.core.frontmatter_utils import toggle_list_attribute, write_post
+from cac.core.frontmatter_utils import (
+    SummaryTooLongError,
+    set_summary_attribute,
+    summary_or_placeholder,
+    toggle_list_attribute,
+    write_post,
+)
 from cac.core.paths import sourcebook_dir
+
+__all__ = ["SummaryTooLongError"]  # re-exported so the CLI can catch it alongside lore errors
 
 _TEMPLATE_PACKAGE = "sourcebook"
 _TEMPLATE_FILENAME = "lore.md"
@@ -94,6 +102,21 @@ def delete_lore(root: Path, name: str) -> Path:
     path = _existing_lore_path(root, name)
     path.unlink()
     return path
+
+
+def set_summary(root: Path, name: str, summary: str) -> Lore:
+    """Set this lore's summary, rejecting a value over the length cap."""
+    path = _existing_lore_path(root, name)
+    post = frontmatter.load(path)
+    set_summary_attribute(post, summary)
+    write_post(path, post)
+    return Lore(name=post.get("name", name), body=post.content)
+
+
+def read_summary(root: Path, name: str) -> str:
+    """Return this lore's stored summary, or a placeholder message when none is set."""
+    post = frontmatter.load(_existing_lore_path(root, name))
+    return summary_or_placeholder(post)
 
 
 def set_enabled(root: Path, name: str, enabled: bool) -> Lore:

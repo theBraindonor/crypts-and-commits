@@ -3,6 +3,11 @@ assigned_regions: []
 assigned_to_world: true
 enabled: true
 name: clean-tests-and-lint
+summary: 'Gate before any encounter''s Verification is complete: `pdm run pytest -q`
+  passes (no skips or deletions to dodge failures) and ruff is clean (`ruff check
+  .` zero errors, `ruff format .` no diffs, fixes applied). A failing check is unfinished
+  work - fix the cause before asking the user to confirm completion. Never use `--no-verify`,
+  skip markers, or `# noqa` to route around a failure without explicit user approval.'
 ---
 
 # Clean Tests and Lint

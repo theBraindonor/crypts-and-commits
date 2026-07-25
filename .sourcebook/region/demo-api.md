@@ -1,6 +1,12 @@
 ---
 name: demo-api
 path: packages/demo-api
+summary: 'Aspirational backend region at `packages/demo-api` - currently only a scaffold
+  (pyproject.toml, README), no app code yet. Intended: a FastAPI RAG chatbot that
+  answers questions about this project from `.sourcebook` content, via a LangChain
+  agent over swappable OpenAI/Anthropic models. Retrieval should read the sourcebook
+  through the `cac` package, not by parsing markdown directly. Framework choices are
+  the current plan, not settled - confirm before assuming.'
 ---
 
 # Demo API (backend)
