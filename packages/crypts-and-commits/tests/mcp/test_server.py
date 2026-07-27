@@ -57,4 +57,6 @@ def test_all_domain_tools_are_registered() -> None:
         "encounter_unassign_region",
         "encounter_assign_dependency",
         "encounter_unassign_dependency",
+        "index_status",
+        "index_search",
     }
