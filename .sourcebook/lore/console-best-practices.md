@@ -10,6 +10,8 @@ summary: 'Convention for `rich.Console` in `cac/cli/*`: text from stored `.sourc
   tags (e.g. `[tool.pdm.workspace]`). CLI-authored strings (status messages, frontmatter
   key/value lines) may use markup. The rule is about the text''s source, not the presence
   of brackets.'
+updated_by: John Hoff
+updated_on: '2026-07-27T03:56:49Z'
 ---
 
 # Console Best Practices

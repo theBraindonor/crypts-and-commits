@@ -8,6 +8,8 @@ summary: 'Gate before any encounter''s Verification is complete: `pdm run pytest
   .` zero errors, `ruff format .` no diffs, fixes applied). A failing check is unfinished
   work - fix the cause before asking the user to confirm completion. Never use `--no-verify`,
   skip markers, or `# noqa` to route around a failure without explicit user approval.'
+updated_by: John Hoff
+updated_on: '2026-07-27T03:56:35Z'
 ---
 
 # Clean Tests and Lint

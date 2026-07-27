@@ -9,6 +9,8 @@ summary: 'Every CLI command must have a matching MCP tool in mcp/ (thin wrapper 
   truncation preserved - except bootstrap, permanently CLI-only since it''s developer-only.
   Purpose: let an agent fall back to the CLI when the MCP server isn''t available.
   Check this when any cli/ command changes.'
+updated_by: John Hoff
+updated_on: '2026-07-27T03:56:43Z'
 ---
 
 # CLI/MCP Command Parity

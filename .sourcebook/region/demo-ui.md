@@ -7,6 +7,8 @@ summary: 'Fully aspirational frontend region at `packages/demo-ui` - the package
   No scaffold, build tooling, or package manager chosen yet. Treat all specifics as
   current plan, not settled fact - confirm before assuming bundler, styling, or state
   management.'
+updated_by: John Hoff
+updated_on: '2026-07-27T03:57:04Z'
 ---
 
 # Demo UI (frontend)

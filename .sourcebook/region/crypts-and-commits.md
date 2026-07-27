@@ -10,6 +10,8 @@ summary: 'Core `cac` Python package and console script - the project''s delivera
   templates, pytest+CliRunner, ruff (line-length 120, configured at the workspace
   root). Architecture rule: `cli/` modules are thin wrappers and all domain logic
   lives in `core/` (one module per concept). Tests mirror `src/cac/`.'
+updated_by: John Hoff
+updated_on: '2026-07-27T03:56:55Z'
 ---
 
 # Crypts and Commits (core library)

@@ -7,6 +7,8 @@ summary: 'Aspirational backend region at `packages/demo-api` - currently only a 
   agent over swappable OpenAI/Anthropic models. Retrieval should read the sourcebook
   through the `cac` package, not by parsing markdown directly. Framework choices are
   the current plan, not settled - confirm before assuming.'
+updated_by: John Hoff
+updated_on: '2026-07-27T03:57:01Z'
 ---
 
 # Demo API (backend)
