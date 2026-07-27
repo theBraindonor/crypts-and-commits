@@ -167,6 +167,42 @@ def test_search_invalid_limit_and_offset_raise(tmp_path: Path) -> None:
         search_index.search(tmp_path, "goblins", offset=-1)
 
 
+def test_search_snippet_tokens_controls_excerpt_length(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    body = "goblins " + " ".join(f"word{i}" for i in range(40))
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", body)
+    search_index.rebuild_index(tmp_path)
+
+    short_hit = search_index.search(tmp_path, "goblins", snippet_tokens=1)[0]
+    long_hit = search_index.search(tmp_path, "goblins", snippet_tokens=40)[0]
+
+    assert len(short_hit.excerpt) < len(long_hit.excerpt)
+
+
+def test_search_default_snippet_tokens_is_twenty(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    body = "goblins " + " ".join(f"word{i}" for i in range(40))
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", body)
+    search_index.rebuild_index(tmp_path)
+
+    default_hit = search_index.search(tmp_path, "goblins")[0]
+    explicit_hit = search_index.search(tmp_path, "goblins", snippet_tokens=search_index.SEARCH_DEFAULT_SNIPPET_TOKENS)[
+        0
+    ]
+
+    assert default_hit.excerpt == explicit_hit.excerpt
+
+
+def test_search_invalid_snippet_tokens_raises(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    search_index.rebuild_index(tmp_path)
+
+    with pytest.raises(search_index.InvalidSearchQueryError):
+        search_index.search(tmp_path, "goblins", snippet_tokens=0)
+    with pytest.raises(search_index.InvalidSearchQueryError):
+        search_index.search(tmp_path, "goblins", snippet_tokens=65)
+
+
 def test_rebuild_index_indexes_world_lore_and_region(tmp_path: Path) -> None:
     world.initialize_world(tmp_path)
     lore.create_lore(tmp_path, "clean-code", "Keep functions short.", "Summary.")

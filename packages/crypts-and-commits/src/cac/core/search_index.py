@@ -9,12 +9,15 @@ from cac.core import region as region_core
 from cac.core import world as world_core
 from cac.core.config import (
     SEARCH_DEFAULT_MAX_RESULTS,
+    SEARCH_DEFAULT_SNIPPET_TOKENS,
     SEARCH_INDEX_FTS_TABLE,
     SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER,
     SEARCH_INDEX_OBJECT_TYPE_LORE,
     SEARCH_INDEX_OBJECT_TYPE_REGION,
     SEARCH_INDEX_OBJECT_TYPE_WORLD,
     SEARCH_INDEX_OBJECT_TYPES,
+    SEARCH_MAX_SNIPPET_TOKENS,
+    SEARCH_MIN_SNIPPET_TOKENS,
 )
 from cac.core.paths import search_index_db_path
 
@@ -24,7 +27,6 @@ _CREATE_TABLE_SQL = (
     "tokenize='porter unicode61')"
 )
 _BODY_COLUMN_INDEX = 5
-_SNIPPET_TOKENS = 12
 
 
 class EmptySearchPhraseError(ValueError):
@@ -191,6 +193,7 @@ def search(
     object_type: str | None = None,
     limit: int = SEARCH_DEFAULT_MAX_RESULTS,
     offset: int = 0,
+    snippet_tokens: int = SEARCH_DEFAULT_SNIPPET_TOKENS,
 ) -> list[SearchHit] | None:
     """Search indexed content for `phrase`, ranked by relevance. Returns `None` if the index has
     never been built (a search is a read and must not create the index file), or the matching
@@ -204,6 +207,11 @@ def search(
     if object_type is not None and object_type not in SEARCH_INDEX_OBJECT_TYPES:
         valid = ", ".join(SEARCH_INDEX_OBJECT_TYPES)
         raise InvalidSearchQueryError(f"Unknown document type {object_type!r}; valid types are: {valid}.")
+    if not (SEARCH_MIN_SNIPPET_TOKENS <= snippet_tokens <= SEARCH_MAX_SNIPPET_TOKENS):
+        raise InvalidSearchQueryError(
+            f"snippet_tokens must be between {SEARCH_MIN_SNIPPET_TOKENS} and {SEARCH_MAX_SNIPPET_TOKENS}, "
+            f"got {snippet_tokens}."
+        )
 
     path = search_index_db_path(root)
     if not path.exists():
@@ -213,7 +221,7 @@ def search(
     try:
         sql = (
             "SELECT object_type, campaign, name, status, updated_on, "
-            f"snippet({SEARCH_INDEX_FTS_TABLE}, {_BODY_COLUMN_INDEX}, '**', '**', '...', {_SNIPPET_TOKENS}), "
+            f"snippet({SEARCH_INDEX_FTS_TABLE}, {_BODY_COLUMN_INDEX}, '**', '**', '...', {snippet_tokens}), "
             f"bm25({SEARCH_INDEX_FTS_TABLE}) "
             f"FROM {SEARCH_INDEX_FTS_TABLE} WHERE {SEARCH_INDEX_FTS_TABLE} MATCH ?"
         )

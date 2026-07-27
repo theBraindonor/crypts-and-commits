@@ -45,10 +45,22 @@ def search(
     object_type: str | None = typer.Option(
         None, "--type", "-t", help="Restrict to one document type. Defaults to all types."
     ),
+    snippet_tokens: int = typer.Option(
+        search_index_core.SEARCH_DEFAULT_SNIPPET_TOKENS,
+        "--snippet-tokens",
+        help="Snippet excerpt length, in tokens (1-64).",
+    ),
 ) -> None:
     """Search the index for a phrase, ranked by relevance, with a matching excerpt per result."""
     try:
-        hits = search_index_core.search(Path.cwd(), phrase, object_type=object_type, limit=max_results, offset=skip)
+        hits = search_index_core.search(
+            Path.cwd(),
+            phrase,
+            object_type=object_type,
+            limit=max_results,
+            offset=skip,
+            snippet_tokens=snippet_tokens,
+        )
     except (search_index_core.EmptySearchPhraseError, search_index_core.InvalidSearchQueryError) as exc:
         fail(console, str(exc))
 

@@ -140,3 +140,31 @@ def test_search_invalid_type_exits_nonzero() -> None:
 
     assert result.exit_code != 0
     assert "Unknown document type" in result.output
+
+
+def test_search_snippet_tokens_narrows_excerpt() -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+    body = "goblins " + " ".join(f"word{i}" for i in range(40))
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "-c", "opening-gambit", "--body", body])
+    runner.invoke(app, ["index", "rebuild"])
+
+    short_result = runner.invoke(app, ["index", "search", "goblins", "--snippet-tokens", "1"])
+    long_result = runner.invoke(app, ["index", "search", "goblins", "--snippet-tokens", "64"])
+
+    assert short_result.exit_code == 0
+    assert long_result.exit_code == 0
+    assert "word39" not in short_result.output
+    assert "word39" in long_result.output
+
+
+def test_search_invalid_snippet_tokens_exits_nonzero() -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "-c", "opening-gambit", "--body", "Fight goblins."])
+    runner.invoke(app, ["index", "rebuild"])
+
+    result = runner.invoke(app, ["index", "search", "goblins", "--snippet-tokens", "65"])
+
+    assert result.exit_code != 0
+    assert "snippet_tokens" in result.output
