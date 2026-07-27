@@ -27,7 +27,7 @@ def test_rebuild_reports_indexed_count() -> None:
     result = runner.invoke(app, ["index", "rebuild"])
 
     assert result.exit_code == 0
-    assert "1" in result.output
+    assert "2" in result.output
 
 
 def test_status_after_rebuild_reports_counts_by_type() -> None:
@@ -39,8 +39,45 @@ def test_status_after_rebuild_reports_counts_by_type() -> None:
     result = runner.invoke(app, ["index", "status"])
 
     assert result.exit_code == 0
-    assert "1 item(s) indexed" in result.output
+    assert "2 item(s) indexed" in result.output
     assert "encounter: 1" in result.output
+    assert "world: 1" in result.output
+
+
+def test_search_finds_matching_lore() -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["lore", "create", "clean-code", "--body", "Keep functions short.", "--summary", "Summary."])
+    runner.invoke(app, ["index", "rebuild"])
+
+    result = runner.invoke(app, ["index", "search", "functions", "--type", "lore"])
+
+    assert result.exit_code == 0
+    assert "[lore]" in result.output
+    assert "clean-code" in result.output
+    assert "enabled" in result.output
+
+
+def test_search_finds_matching_region() -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["region", "create", "backend", "--body", "FastAPI service internals.", "--summary", "Summary."])
+    runner.invoke(app, ["index", "rebuild"])
+
+    result = runner.invoke(app, ["index", "search", "FastAPI", "--type", "region"])
+
+    assert result.exit_code == 0
+    assert "[region]" in result.output
+    assert "backend" in result.output
+
+
+def test_search_finds_matching_world() -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["world", "set-body", "--body", "This world is about distinctive-world-phrase content."])
+    runner.invoke(app, ["index", "rebuild"])
+
+    result = runner.invoke(app, ["index", "search", "distinctive-world-phrase", "--type", "world"])
+
+    assert result.exit_code == 0
+    assert "[world]" in result.output
 
 
 def test_search_before_rebuild_reports_no_index() -> None:
@@ -59,7 +96,9 @@ def test_search_finds_matching_encounter() -> None:
     result = runner.invoke(app, ["index", "search", "goblins"])
 
     assert result.exit_code == 0
+    assert "RANK  SCORE   TYPE        NAME  STATUS  UPDATED" in result.output
     assert "#1" in result.output
+    assert "[encounter]" in result.output
     assert "goblin-ambush" in result.output
     assert "draft" in result.output
 

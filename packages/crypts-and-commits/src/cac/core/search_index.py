@@ -4,10 +4,16 @@ from pathlib import Path
 
 from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
+from cac.core import lore as lore_core
+from cac.core import region as region_core
+from cac.core import world as world_core
 from cac.core.config import (
     SEARCH_DEFAULT_MAX_RESULTS,
     SEARCH_INDEX_FTS_TABLE,
     SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER,
+    SEARCH_INDEX_OBJECT_TYPE_LORE,
+    SEARCH_INDEX_OBJECT_TYPE_REGION,
+    SEARCH_INDEX_OBJECT_TYPE_WORLD,
     SEARCH_INDEX_OBJECT_TYPES,
 )
 from cac.core.paths import search_index_db_path
@@ -61,7 +67,12 @@ def rebuild_index(root: Path) -> int:
     try:
         conn.execute(f"DROP TABLE IF EXISTS {SEARCH_INDEX_FTS_TABLE}")
         conn.execute(_CREATE_TABLE_SQL)
-        count = _reindex_encounters(root, conn)
+        count = (
+            _reindex_encounters(root, conn)
+            + _reindex_world(root, conn)
+            + _reindex_lore(root, conn)
+            + _reindex_regions(root, conn)
+        )
         conn.commit()
         return count
     finally:
@@ -86,6 +97,67 @@ def _reindex_encounters(root: Path, conn: sqlite3.Connection) -> int:
                 ),
             )
             count += 1
+    return count
+
+
+def _reindex_world(root: Path, conn: sqlite3.Connection) -> int:
+    try:
+        world = world_core.read_world(root)
+    except world_core.WorldNotFoundError:
+        return 0
+    conn.execute(
+        f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
+        "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            SEARCH_INDEX_OBJECT_TYPE_WORLD,
+            "",
+            world.metadata.get("name") or SEARCH_INDEX_OBJECT_TYPE_WORLD,
+            "",
+            world.metadata.get("updated_on", ""),
+            world.body,
+        ),
+    )
+    return 1
+
+
+def _reindex_lore(root: Path, conn: sqlite3.Connection) -> int:
+    count = 0
+    for name in lore_core.list_lore(root):
+        metadata, body = lore_core.read_metadata(root, name)
+        status = "enabled" if metadata.get("enabled", True) else "disabled"
+        conn.execute(
+            f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
+            "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                SEARCH_INDEX_OBJECT_TYPE_LORE,
+                "",
+                name,
+                status,
+                metadata.get("updated_on", ""),
+                body,
+            ),
+        )
+        count += 1
+    return count
+
+
+def _reindex_regions(root: Path, conn: sqlite3.Connection) -> int:
+    count = 0
+    for name in region_core.list_regions(root):
+        metadata, body = region_core.read_metadata(root, name)
+        conn.execute(
+            f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
+            "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                SEARCH_INDEX_OBJECT_TYPE_REGION,
+                "",
+                name,
+                "",
+                metadata.get("updated_on", ""),
+                body,
+            ),
+        )
+        count += 1
     return count
 
 

@@ -18,7 +18,12 @@ solved by scanning-and-returning-everything (the failure mode that hit the MCP
 character limit in a prior project).
 
 Ownership: encounter search lives in the **`campaign-manager`** domain, not
-`world-manager`. Lore/region/world stay out of search entirely.
+`world-manager`. Lore/region/world were originally meant to stay out of search
+entirely, but that call was revisited once `updated_on` existed on all three
+(added by `add-created-updated-stamps-to-world-lore-region`) and reversed by
+`add-world-lore-region-to-search-index`: all three are now indexed alongside
+encounters. `core/search_index.py` is the current source of truth for what is
+indexed today, not this paragraph.
 
 ## Requirement: a real search-engine mechanic
 

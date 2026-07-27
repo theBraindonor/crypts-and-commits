@@ -2,7 +2,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from cac.core import campaign, encounter, search_index
+from cac.core import campaign, encounter, lore, region, search_index, world
 from cac.core.paths import search_index_db_path
 
 
@@ -165,3 +165,80 @@ def test_search_invalid_limit_and_offset_raise(tmp_path: Path) -> None:
         search_index.search(tmp_path, "goblins", limit=0)
     with pytest.raises(search_index.InvalidSearchQueryError):
         search_index.search(tmp_path, "goblins", offset=-1)
+
+
+def test_rebuild_index_indexes_world_lore_and_region(tmp_path: Path) -> None:
+    world.initialize_world(tmp_path)
+    lore.create_lore(tmp_path, "clean-code", "Keep functions short.", "Summary.")
+    region.create_region(tmp_path, "backend", "FastAPI service internals.", "Summary.")
+
+    count = search_index.rebuild_index(tmp_path)
+
+    assert count == 3
+    assert search_index.index_counts(tmp_path) == {"world": 1, "lore": 1, "region": 1}
+
+
+def test_index_counts_omits_world_when_not_bootstrapped(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins.")
+
+    search_index.rebuild_index(tmp_path)
+
+    assert search_index.index_counts(tmp_path) == {"encounter": 1}
+
+
+def test_search_finds_matching_lore_with_enabled_status(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "clean-code", "Keep functions short and focused.", "Summary.")
+    search_index.rebuild_index(tmp_path)
+
+    hits = search_index.search(tmp_path, "functions", object_type="lore")
+
+    assert len(hits) == 1
+    hit = hits[0]
+    assert hit.object_type == "lore"
+    assert hit.campaign == ""
+    assert hit.name == "clean-code"
+    assert hit.status == "enabled"
+    assert hit.updated_on
+    assert "functions" in hit.excerpt.lower()
+
+
+def test_search_finds_disabled_lore_labeled_disabled(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "clean-code", "Keep functions short and focused.", "Summary.")
+    lore.set_enabled(tmp_path, "clean-code", False)
+    search_index.rebuild_index(tmp_path)
+
+    hits = search_index.search(tmp_path, "functions")
+
+    assert len(hits) == 1
+    assert hits[0].status == "disabled"
+
+
+def test_search_finds_matching_region(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "backend", "FastAPI service internals live here.", "Summary.")
+    search_index.rebuild_index(tmp_path)
+
+    hits = search_index.search(tmp_path, "FastAPI", object_type="region")
+
+    assert len(hits) == 1
+    hit = hits[0]
+    assert hit.object_type == "region"
+    assert hit.campaign == ""
+    assert hit.name == "backend"
+    assert hit.status == ""
+    assert hit.updated_on
+
+
+def test_search_finds_matching_world(tmp_path: Path) -> None:
+    world.initialize_world(tmp_path)
+    world.update_body(tmp_path, "This world is about distinctive-world-phrase content.")
+    search_index.rebuild_index(tmp_path)
+
+    hits = search_index.search(tmp_path, "distinctive-world-phrase", object_type="world")
+
+    assert len(hits) == 1
+    hit = hits[0]
+    assert hit.object_type == "world"
+    assert hit.campaign == ""
+    assert hit.status == ""
+    assert hit.updated_on

@@ -59,9 +59,12 @@ def search(
         console.print(f"No results for {phrase!r}.", markup=False)
         return
 
+    console.print("[dim]RANK  SCORE   TYPE        NAME  STATUS  UPDATED[/dim]")
+    console.print()
     for hit in hits:
         console.print(
-            f"#{hit.rank}  {hit.score:.3f}  {hit.name}  [{hit.status}]  updated {hit.updated_on}", markup=False
+            f"#{hit.rank}  {hit.score:.3f}  [{hit.object_type}] {hit.name}  [{hit.status}]  updated {hit.updated_on}",
+            markup=False,
         )
         console.print(f"    {hit.excerpt}", markup=False)
 
