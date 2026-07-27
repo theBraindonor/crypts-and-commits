@@ -4,6 +4,7 @@ from cac.cli.bootstrap import app as bootstrap_app
 from cac.cli.campaign import app as campaign_app
 from cac.cli.common import configure_output_encoding
 from cac.cli.encounter import app as encounter_app
+from cac.cli.index import app as index_app
 from cac.cli.lore import app as lore_app
 from cac.cli.prime import app as prime_app
 from cac.cli.region import app as region_app
@@ -17,6 +18,7 @@ app = typer.Typer(
 app.add_typer(bootstrap_app, name="bootstrap")
 app.add_typer(campaign_app, name="campaign")
 app.add_typer(encounter_app, name="encounter")
+app.add_typer(index_app, name="index")
 app.add_typer(lore_app, name="lore")
 app.add_typer(prime_app, name="prime")
 app.add_typer(region_app, name="region")

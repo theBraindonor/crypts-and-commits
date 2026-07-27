@@ -9,3 +9,4 @@ htmlcov/
 .coverage
 .mcp.json
 .codex/config.toml
+.sourcebook/.index/
