@@ -96,7 +96,7 @@ def create_region(root: Path, name: str, body: str, summary: str, path_value: st
     post.content = body
     set_summary_attribute(post, summary)
     frontmatter_utils.stamp_created(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return path
 
 
@@ -112,14 +112,13 @@ def update_region(root: Path, name: str, body: str, summary: str) -> Path:
     post.content = body
     set_summary_attribute(post, summary)
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return path
 
 
 def delete_region(root: Path, name: str) -> Path:
     path = _existing_region_path(root, name)
-    path.unlink()
-    return path
+    return frontmatter_utils.delete_post(root, path)
 
 
 def set_summary(root: Path, name: str, summary: str) -> Region:
@@ -128,7 +127,7 @@ def set_summary(root: Path, name: str, summary: str) -> Region:
     post = frontmatter.load(path)
     set_summary_attribute(post, summary)
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return _to_region(post, name)
 
 
@@ -148,7 +147,7 @@ def set_path(root: Path, name: str, path_value: str) -> Region:
     post = frontmatter.load(path)
     post["path"] = path_value
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return _to_region(post, name)
 
 
@@ -175,7 +174,7 @@ def _update_assigned_lore(root: Path, region_name: str, *, add: str | None = Non
     post = frontmatter.load(path)
     toggle_list_attribute(post, ASSIGNED_LORE_KEY, add=add, remove=remove)
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return _to_region(post, region_name)
 
 

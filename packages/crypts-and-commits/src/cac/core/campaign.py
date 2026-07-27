@@ -170,7 +170,7 @@ def create_campaign(root: Path, name: str, body: str) -> Path:
     post["name"] = name
     post.content = body
     frontmatter_utils.stamp_created(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return path
 
 
@@ -185,14 +185,13 @@ def update_campaign(root: Path, name: str, body: str) -> Path:
         )
     post.content = body
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return path
 
 
 def delete_campaign(root: Path, name: str) -> Path:
     path = _existing_campaign_path(root, name)
-    path.unlink()
-    return path
+    return frontmatter_utils.delete_post(root, path)
 
 
 def open_campaign(root: Path, name: str) -> Campaign:
@@ -277,7 +276,7 @@ def _apply_status(
     if message:
         frontmatter_utils.append_log_entry(post, section=_LOG_SECTION, heading=log_heading, message=message, user=user)
     post["status"] = to_status
-    write_post(path, post)
+    write_post(root, path, post)
     return _to_campaign(post, name)
 
 

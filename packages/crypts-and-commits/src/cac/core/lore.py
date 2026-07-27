@@ -93,7 +93,7 @@ def create_lore(root: Path, name: str, body: str, summary: str) -> Path:
     post.content = body
     set_summary_attribute(post, summary)
     frontmatter_utils.stamp_created(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return path
 
 
@@ -109,14 +109,13 @@ def update_lore(root: Path, name: str, body: str, summary: str) -> Path:
     post.content = body
     set_summary_attribute(post, summary)
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return path
 
 
 def delete_lore(root: Path, name: str) -> Path:
     path = _existing_lore_path(root, name)
-    path.unlink()
-    return path
+    return frontmatter_utils.delete_post(root, path)
 
 
 def set_summary(root: Path, name: str, summary: str) -> Lore:
@@ -125,7 +124,7 @@ def set_summary(root: Path, name: str, summary: str) -> Lore:
     post = frontmatter.load(path)
     set_summary_attribute(post, summary)
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return Lore(name=post.get("name", name), body=post.content)
 
 
@@ -161,7 +160,7 @@ def _update_assigned_regions(root: Path, name: str, *, add: str | None = None, r
     post = frontmatter.load(path)
     toggle_list_attribute(post, ASSIGNED_REGIONS_KEY, add=add, remove=remove)
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return Lore(name=post.get("name", name), body=post.content)
 
 
@@ -170,7 +169,7 @@ def _set_flag(root: Path, name: str, key: str, value: bool) -> Lore:
     post = frontmatter.load(path)
     post[key] = value
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return Lore(name=post.get("name", name), body=post.content)
 
 

@@ -2,14 +2,15 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from cac.core import campaign as campaign_core
-from cac.core import encounter as encounter_core
-from cac.core import lore as lore_core
-from cac.core import region as region_core
-from cac.core import world as world_core
+import frontmatter
+
 from cac.core.config import (
+    ENCOUNTER_DIR_NAME,
+    LORE_DIR_NAME,
+    REGION_DIR_NAME,
     SEARCH_DEFAULT_MAX_RESULTS,
     SEARCH_DEFAULT_SNIPPET_TOKENS,
+    SEARCH_INDEX_BUSY_TIMEOUT_MS,
     SEARCH_INDEX_FTS_TABLE,
     SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER,
     SEARCH_INDEX_OBJECT_TYPE_LORE,
@@ -18,8 +19,9 @@ from cac.core.config import (
     SEARCH_INDEX_OBJECT_TYPES,
     SEARCH_MAX_SNIPPET_TOKENS,
     SEARCH_MIN_SNIPPET_TOKENS,
+    WORLD_FILE_NAME,
 )
-from cac.core.paths import search_index_db_path
+from cac.core.paths import search_index_db_path, sourcebook_dir
 
 _CREATE_TABLE_SQL = (
     f"CREATE VIRTUAL TABLE IF NOT EXISTS {SEARCH_INDEX_FTS_TABLE} USING fts5("
@@ -57,6 +59,7 @@ def _connect(root: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute(f"PRAGMA busy_timeout = {SEARCH_INDEX_BUSY_TIMEOUT_MS}")
     conn.execute(_CREATE_TABLE_SQL)
     conn.commit()
     return conn
@@ -82,6 +85,9 @@ def rebuild_index(root: Path) -> int:
 
 
 def _reindex_encounters(root: Path, conn: sqlite3.Connection) -> int:
+    from cac.core import campaign as campaign_core
+    from cac.core import encounter as encounter_core
+
     count = 0
     for campaign in campaign_core.list_campaigns(root):
         for name in encounter_core.list_encounters(root, campaign):
@@ -103,6 +109,8 @@ def _reindex_encounters(root: Path, conn: sqlite3.Connection) -> int:
 
 
 def _reindex_world(root: Path, conn: sqlite3.Connection) -> int:
+    from cac.core import world as world_core
+
     try:
         world = world_core.read_world(root)
     except world_core.WorldNotFoundError:
@@ -123,6 +131,8 @@ def _reindex_world(root: Path, conn: sqlite3.Connection) -> int:
 
 
 def _reindex_lore(root: Path, conn: sqlite3.Connection) -> int:
+    from cac.core import lore as lore_core
+
     count = 0
     for name in lore_core.list_lore(root):
         metadata, body = lore_core.read_metadata(root, name)
@@ -144,6 +154,8 @@ def _reindex_lore(root: Path, conn: sqlite3.Connection) -> int:
 
 
 def _reindex_regions(root: Path, conn: sqlite3.Connection) -> int:
+    from cac.core import region as region_core
+
     count = 0
     for name in region_core.list_regions(root):
         metadata, body = region_core.read_metadata(root, name)
@@ -161,6 +173,85 @@ def _reindex_regions(root: Path, conn: sqlite3.Connection) -> int:
         )
         count += 1
     return count
+
+
+def _classify(root: Path, path: Path) -> tuple[str, str, str] | None:
+    """Map a `.sourcebook` file path to `(object_type, campaign, name)` for incremental sync,
+    where `name` is the filename stem (`campaign` is `""` for non-encounter types). Returns
+    `None` for paths under `campaigns/` (not an indexed type) or anything unrecognized."""
+    try:
+        rel = path.relative_to(sourcebook_dir(root))
+    except ValueError:
+        return None
+    if rel == Path(WORLD_FILE_NAME):
+        return SEARCH_INDEX_OBJECT_TYPE_WORLD, "", path.stem
+    parts = rel.parts
+    if len(parts) == 2 and parts[0] == LORE_DIR_NAME:
+        return SEARCH_INDEX_OBJECT_TYPE_LORE, "", path.stem
+    if len(parts) == 2 and parts[0] == REGION_DIR_NAME:
+        return SEARCH_INDEX_OBJECT_TYPE_REGION, "", path.stem
+    if len(parts) == 3 and parts[0] == ENCOUNTER_DIR_NAME:
+        return SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER, parts[1], path.stem
+    return None  # campaigns/ (not an indexed type) or anything unrecognized
+
+
+def sync_write(root: Path, path: Path, post: frontmatter.Post) -> None:
+    """Incrementally patch the index for a single create/update, as one short transaction.
+    No-op if the index has never been built (see `rebuild_index`) - incremental sync must
+    never bring an index into existence on its own - or if `path` isn't an indexed object
+    type (e.g. a campaign)."""
+    if not search_index_db_path(root).exists():
+        return
+    classified = _classify(root, path)
+    if classified is None:
+        return
+    object_type, campaign, stem = classified
+
+    if object_type == SEARCH_INDEX_OBJECT_TYPE_WORLD:
+        name = post.get("name") or SEARCH_INDEX_OBJECT_TYPE_WORLD
+        status = ""
+    elif object_type == SEARCH_INDEX_OBJECT_TYPE_LORE:
+        name = stem
+        status = "enabled" if post.get("enabled", True) else "disabled"
+    else:
+        name = stem
+        status = post.get("status", "")
+
+    conn = _connect(root)
+    try:
+        conn.execute(
+            f"DELETE FROM {SEARCH_INDEX_FTS_TABLE} WHERE object_type = ? AND campaign = ? AND name = ?",
+            (object_type, campaign, name),
+        )
+        conn.execute(
+            f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
+            "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
+            (object_type, campaign, name, status, post.get("updated_on", ""), post.content),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def sync_delete(root: Path, path: Path) -> None:
+    """Incrementally remove a single deleted object's row from the index, as one short
+    transaction. No-op if the index has never been built or `path` isn't an indexed type."""
+    if not search_index_db_path(root).exists():
+        return
+    classified = _classify(root, path)
+    if classified is None:
+        return
+    object_type, campaign, name = classified
+
+    conn = _connect(root)
+    try:
+        conn.execute(
+            f"DELETE FROM {SEARCH_INDEX_FTS_TABLE} WHERE object_type = ? AND campaign = ? AND name = ?",
+            (object_type, campaign, name),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def index_counts(root: Path) -> dict[str, int] | None:

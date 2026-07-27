@@ -1,6 +1,9 @@
 import sqlite3
+import threading
+import time
 from pathlib import Path
 
+import frontmatter
 import pytest
 from cac.core import campaign, encounter, lore, region, search_index, world
 from cac.core.paths import search_index_db_path
@@ -278,3 +281,171 @@ def test_search_finds_matching_world(tmp_path: Path) -> None:
     assert hit.campaign == ""
     assert hit.status == ""
     assert hit.updated_on
+
+
+# --- Incremental sync (create/update/delete without an intervening rebuild) ---
+
+
+def test_create_encounter_after_rebuild_is_immediately_searchable(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    search_index.rebuild_index(tmp_path)
+
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins in the cave.")
+
+    hits = search_index.search(tmp_path, "goblins", object_type="encounter")
+    assert len(hits) == 1
+    assert hits[0].name == "goblin-ambush"
+
+
+def test_update_encounter_after_rebuild_is_immediately_reflected(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "original body text")
+    search_index.rebuild_index(tmp_path)
+
+    encounter.update_encounter(tmp_path, "opening-gambit", "goblin-ambush", "revised body text")
+
+    assert search_index.search(tmp_path, "revised")[0].name == "goblin-ambush"
+    assert search_index.search(tmp_path, "original") == []
+    assert search_index.index_counts(tmp_path) == {"encounter": 1}
+
+
+def test_delete_encounter_after_rebuild_is_immediately_removed(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins.")
+    search_index.rebuild_index(tmp_path)
+
+    encounter.delete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    assert search_index.search(tmp_path, "goblins") == []
+    assert search_index.index_counts(tmp_path) == {}
+
+
+def test_create_lore_after_rebuild_is_immediately_searchable(tmp_path: Path) -> None:
+    search_index.rebuild_index(tmp_path)
+
+    lore.create_lore(tmp_path, "clean-code", "Keep functions short and focused.", "Summary.")
+
+    hits = search_index.search(tmp_path, "functions", object_type="lore")
+    assert len(hits) == 1
+    assert hits[0].status == "enabled"
+
+
+def test_update_lore_after_rebuild_is_immediately_reflected(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "clean-code", "original lore text", "Summary.")
+    search_index.rebuild_index(tmp_path)
+
+    lore.update_lore(tmp_path, "clean-code", "revised lore text", "Summary.")
+
+    assert search_index.search(tmp_path, "revised")[0].name == "clean-code"
+    assert search_index.search(tmp_path, "original") == []
+
+
+def test_delete_lore_after_rebuild_is_immediately_removed(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "clean-code", "Keep functions short.", "Summary.")
+    search_index.rebuild_index(tmp_path)
+
+    lore.delete_lore(tmp_path, "clean-code")
+
+    assert search_index.search(tmp_path, "functions") == []
+    assert search_index.index_counts(tmp_path) == {}
+
+
+def test_create_region_after_rebuild_is_immediately_searchable(tmp_path: Path) -> None:
+    search_index.rebuild_index(tmp_path)
+
+    region.create_region(tmp_path, "backend", "FastAPI service internals.", "Summary.")
+
+    hits = search_index.search(tmp_path, "FastAPI", object_type="region")
+    assert len(hits) == 1
+    assert hits[0].name == "backend"
+
+
+def test_delete_region_after_rebuild_is_immediately_removed(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "backend", "FastAPI service internals.", "Summary.")
+    search_index.rebuild_index(tmp_path)
+
+    region.delete_region(tmp_path, "backend")
+
+    assert search_index.search(tmp_path, "FastAPI") == []
+    assert search_index.index_counts(tmp_path) == {}
+
+
+def test_update_world_after_rebuild_is_immediately_reflected(tmp_path: Path) -> None:
+    world.initialize_world(tmp_path)
+    search_index.rebuild_index(tmp_path)
+
+    world.update_body(tmp_path, "This world is about a distinctive-world-phrase now.")
+
+    hits = search_index.search(tmp_path, "distinctive-world-phrase", object_type="world")
+    assert len(hits) == 1
+    assert search_index.index_counts(tmp_path) == {"world": 1}
+
+
+def test_writes_before_any_rebuild_do_not_create_index_file(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    world.initialize_world(tmp_path)
+    lore.create_lore(tmp_path, "clean-code", "Keep functions short.", "Summary.")
+    region.create_region(tmp_path, "backend", "FastAPI internals.", "Summary.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins.")
+    lore.delete_lore(tmp_path, "clean-code")
+
+    assert not search_index_db_path(tmp_path).exists()
+    assert search_index.index_counts(tmp_path) is None
+
+
+def test_delete_campaign_does_not_touch_index(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins.")
+    search_index.rebuild_index(tmp_path)
+
+    campaign.delete_campaign(tmp_path, "opening-gambit")
+
+    assert search_index.index_counts(tmp_path) == {"encounter": 1}
+    assert search_index.search(tmp_path, "goblins")[0].name == "goblin-ambush"
+
+
+def test_external_file_change_is_invisible_until_rebuild(tmp_path: Path) -> None:
+    """Simulates content that changed outside `cac` (e.g. a `git pull`) - it must stay
+    invisible to incremental sync until the next explicit `rebuild_index`."""
+    search_index.rebuild_index(tmp_path)
+
+    path = lore.lore_path(tmp_path, "manual-lore")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    post = frontmatter.Post("Body mentioning externally-added-phrase.", name="manual-lore", enabled=True)
+    path.write_text(frontmatter.dumps(post) + "\n", encoding="utf-8")
+
+    assert search_index.search(tmp_path, "externally-added-phrase") == []
+
+    search_index.rebuild_index(tmp_path)
+
+    assert search_index.search(tmp_path, "externally-added-phrase")[0].name == "manual-lore"
+
+
+def test_sync_write_waits_out_a_concurrent_writer_instead_of_failing(tmp_path: Path) -> None:
+    """A second process holding a brief write transaction against sourcebook.db must not make
+    an incremental sync from this process fail outright - it should wait (busy timeout) and
+    then succeed once the other transaction commits."""
+    search_index.rebuild_index(tmp_path)
+
+    blocker = sqlite3.connect(search_index_db_path(tmp_path), check_same_thread=False)
+    blocker.execute("BEGIN IMMEDIATE")
+    blocker.execute(
+        "INSERT INTO sourcebook_fts (object_type, campaign, name, status, updated_on, body) "
+        "VALUES ('lore', '', 'placeholder', 'enabled', '', 'placeholder body')"
+    )
+
+    def _release_after_delay() -> None:
+        time.sleep(0.3)
+        blocker.commit()
+        blocker.close()
+
+    releaser = threading.Thread(target=_release_after_delay)
+    releaser.start()
+    try:
+        lore.create_lore(tmp_path, "clean-code", "Keep functions short and focused.", "Summary.")
+    finally:
+        releaser.join()
+
+    hits = search_index.search(tmp_path, "functions", object_type="lore")
+    assert len(hits) == 1
+    assert hits[0].name == "clean-code"

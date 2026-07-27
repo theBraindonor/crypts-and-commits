@@ -4,7 +4,7 @@ from pathlib import Path
 
 import frontmatter
 
-from cac.core import git_utils
+from cac.core import git_utils, search_index
 from cac.core.config import (
     CREATED_BY_KEY,
     CREATED_ON_KEY,
@@ -47,8 +47,15 @@ def format_timestamp(ts: datetime) -> str:
     return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def write_post(path: Path, post: frontmatter.Post) -> None:
+def write_post(root: Path, path: Path, post: frontmatter.Post) -> None:
     path.write_text(frontmatter.dumps(post) + "\n", encoding="utf-8")
+    search_index.sync_write(root, path, post)
+
+
+def delete_post(root: Path, path: Path) -> Path:
+    path.unlink()
+    search_index.sync_delete(root, path)
+    return path
 
 
 def stamp_created(post: frontmatter.Post, root: Path) -> str:

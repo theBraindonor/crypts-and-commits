@@ -174,7 +174,7 @@ def test_read_legacy_encounter_without_depends_on_defaults_to_empty_list(tmp_pat
     path = encounter.create_encounter(tmp_path, "opening-gambit", "legacy", "Body.")
     post = frontmatter.load(path)
     del post["depends_on"]
-    frontmatter_utils.write_post(path, post)
+    frontmatter_utils.write_post(tmp_path, path, post)
 
     assert encounter.read_encounter(tmp_path, "opening-gambit", "legacy").depends_on == []
 
@@ -815,7 +815,7 @@ def test_order_encounters_reports_missing_reference_in_stored_graph(tmp_path: Pa
     path = encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
     post = frontmatter.load(path)
     post["depends_on"] = ["missing"]
-    frontmatter_utils.write_post(path, post)
+    frontmatter_utils.write_post(tmp_path, path, post)
 
     with pytest.raises(encounter.InvalidEncounterDependencyGraphError, match="feature -> missing"):
         encounter.order_encounters(tmp_path, "opening-gambit")
@@ -829,7 +829,7 @@ def test_order_encounters_reports_cycle_participants_in_stored_graph(tmp_path: P
     for name, dependency in (("one", "two"), ("two", "one")):
         post = frontmatter.load(paths[name])
         post["depends_on"] = [dependency]
-        frontmatter_utils.write_post(paths[name], post)
+        frontmatter_utils.write_post(tmp_path, paths[name], post)
 
     with pytest.raises(encounter.EncounterDependencyCycleError) as exc_info:
         encounter.order_encounters(tmp_path, "opening-gambit")

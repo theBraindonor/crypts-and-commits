@@ -167,7 +167,7 @@ def create_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
     post["campaign"] = campaign
     post.content = body
     frontmatter_utils.stamp_created(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return path
 
 
@@ -182,7 +182,7 @@ def update_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
         )
     post.content = body
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return path
 
 
@@ -197,8 +197,7 @@ def delete_encounter(root: Path, campaign: str, name: str) -> Path:
         raise EncounterHasDependentsError(
             f"Cannot delete encounter {name!r}: it is required by: {', '.join(dependents)}."
         )
-    path.unlink()
-    return path
+    return frontmatter_utils.delete_post(root, path)
 
 
 def review_encounter(root: Path, campaign: str, name: str, message: str) -> Encounter:
@@ -264,7 +263,7 @@ def record_message(root: Path, campaign: str, name: str, message: str) -> Encoun
         )
     user = frontmatter_utils.stamp_updated(post, root)
     frontmatter_utils.append_log_entry(post, section=_LOG_SECTION, heading="Message", message=message, user=user)
-    write_post(path, post)
+    write_post(root, path, post)
     return _to_encounter(post, campaign, name)
 
 
@@ -294,7 +293,7 @@ def _transition(
     if message:
         frontmatter_utils.append_log_entry(post, section=_LOG_SECTION, heading=log_heading, message=message, user=user)
     post["status"] = to_status
-    write_post(path, post)
+    write_post(root, path, post)
     return _to_encounter(post, campaign, name)
 
 
@@ -318,7 +317,7 @@ def assign_dependency(root: Path, campaign: str, name: str, dependency: str) -> 
     current = _dependencies(post, name)
     if dependency in current:
         frontmatter_utils.stamp_updated(post, root)
-        write_post(path, post)
+        write_post(root, path, post)
         return _to_encounter(post, campaign, name)
     if dependency == name:
         raise EncounterSelfDependencyError(f"Encounter {name!r} cannot depend on itself.")
@@ -336,7 +335,7 @@ def assign_dependency(root: Path, campaign: str, name: str, dependency: str) -> 
     posts[name] = post
     _validate_and_order(posts)
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return _to_encounter(post, campaign, name)
 
 
@@ -349,7 +348,7 @@ def unassign_dependency(root: Path, campaign: str, name: str, dependency: str) -
     current = _dependencies(post, name)
     post[DEPENDS_ON_KEY] = [item for item in current if item != dependency]
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return _to_encounter(post, campaign, name)
 
 
@@ -367,7 +366,7 @@ def _update_regions(
     post = frontmatter.load(path)
     toggle_list_attribute(post, REGIONS_KEY, add=add, remove=remove)
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return _to_encounter(post, campaign, name)
 
 

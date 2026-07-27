@@ -37,7 +37,7 @@ def initialize_world(root: Path) -> tuple[Path, bool]:
         path.parent.mkdir(parents=True, exist_ok=True)
         post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
         frontmatter_utils.stamp_created(post, root)
-        write_post(path, post)
+        write_post(root, path, post)
     return path, created
 
 
@@ -51,7 +51,7 @@ def set_attribute(root: Path, key: str, value: str) -> World:
     post = frontmatter.load(path)
     post[key] = value
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return World(metadata=dict(post.metadata), body=post.content)
 
 
@@ -60,7 +60,7 @@ def update_body(root: Path, body: str) -> World:
     post = frontmatter.load(path)
     post.content = body
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return World(metadata=dict(post.metadata), body=post.content)
 
 
@@ -87,7 +87,7 @@ def _update_assigned_lore(root: Path, *, add: str | None = None, remove: str | N
     post = frontmatter.load(path)
     toggle_list_attribute(post, ASSIGNED_LORE_KEY, add=add, remove=remove)
     frontmatter_utils.stamp_updated(post, root)
-    write_post(path, post)
+    write_post(root, path, post)
     return World(metadata=dict(post.metadata), body=post.content)
 
 
