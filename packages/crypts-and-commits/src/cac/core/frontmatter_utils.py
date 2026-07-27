@@ -4,7 +4,15 @@ from pathlib import Path
 
 import frontmatter
 
-from cac.core.config import SUMMARY_KEY, SUMMARY_MAX_LENGTH
+from cac.core import git_utils
+from cac.core.config import (
+    CREATED_BY_KEY,
+    CREATED_ON_KEY,
+    SUMMARY_KEY,
+    SUMMARY_MAX_LENGTH,
+    UPDATED_BY_KEY,
+    UPDATED_ON_KEY,
+)
 
 SUMMARY_ABSENT_MESSAGE = "No summary has been set for this entry; read the full body instead."
 
@@ -41,6 +49,23 @@ def format_timestamp(ts: datetime) -> str:
 
 def write_post(path: Path, post: frontmatter.Post) -> None:
     path.write_text(frontmatter.dumps(post) + "\n", encoding="utf-8")
+
+
+def stamp_created(post: frontmatter.Post, root: Path) -> str:
+    user = git_utils.current_git_user(root)
+    ts = format_timestamp(utcnow())
+    post[CREATED_BY_KEY] = user
+    post[CREATED_ON_KEY] = ts
+    post[UPDATED_BY_KEY] = user
+    post[UPDATED_ON_KEY] = ts
+    return user
+
+
+def stamp_updated(post: frontmatter.Post, root: Path) -> str:
+    user = git_utils.current_git_user(root)
+    post[UPDATED_BY_KEY] = user
+    post[UPDATED_ON_KEY] = format_timestamp(utcnow())
+    return user
 
 
 def toggle_list_attribute(

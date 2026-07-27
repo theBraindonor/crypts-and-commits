@@ -4,7 +4,7 @@ from typing import Any
 
 import frontmatter
 
-from cac.core import frontmatter_utils, git_utils, templates
+from cac.core import frontmatter_utils, templates
 from cac.core.config import (
     CAMPAIGN_DIR_NAME,
     DEFAULT_CAMPAIGN_STATUS,
@@ -19,10 +19,6 @@ from cac.core.paths import sourcebook_dir
 _TEMPLATE_PACKAGE = "sourcebook"
 _TEMPLATE_FILENAME = "campaign.md"
 _LOG_SECTION = "Log"
-CREATED_BY_KEY = "created_by"
-CREATED_ON_KEY = "created_on"
-UPDATED_BY_KEY = "updated_by"
-UPDATED_ON_KEY = "updated_on"
 
 _CAMPAIGN_TRANSITIONS: dict[str, frozenset[str]] = {
     "draft": frozenset({"open", "abandoned"}),
@@ -76,23 +72,6 @@ class Campaign:
     name: str
     status: str
     body: str
-
-
-def _stamp_created(post: frontmatter.Post, root: Path) -> str:
-    user = git_utils.current_git_user(root)
-    ts = frontmatter_utils.format_timestamp(frontmatter_utils.utcnow())
-    post[CREATED_BY_KEY] = user
-    post[CREATED_ON_KEY] = ts
-    post[UPDATED_BY_KEY] = user
-    post[UPDATED_ON_KEY] = ts
-    return user
-
-
-def _stamp_updated(post: frontmatter.Post, root: Path) -> str:
-    user = git_utils.current_git_user(root)
-    post[UPDATED_BY_KEY] = user
-    post[UPDATED_ON_KEY] = frontmatter_utils.format_timestamp(frontmatter_utils.utcnow())
-    return user
 
 
 def campaign_dir(root: Path) -> Path:
@@ -190,7 +169,7 @@ def create_campaign(root: Path, name: str, body: str) -> Path:
     post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
     post["name"] = name
     post.content = body
-    _stamp_created(post, root)
+    frontmatter_utils.stamp_created(post, root)
     write_post(path, post)
     return path
 
@@ -205,7 +184,7 @@ def update_campaign(root: Path, name: str, body: str) -> Path:
             "The postmortem recorded at that transition is the closing record and cannot be rewritten."
         )
     post.content = body
-    _stamp_updated(post, root)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return path
 
@@ -294,7 +273,7 @@ def _apply_status(
     log_heading: str | None = None,
     message: str | None = None,
 ) -> Campaign:
-    user = _stamp_updated(post, root)
+    user = frontmatter_utils.stamp_updated(post, root)
     if message:
         frontmatter_utils.append_log_entry(post, section=_LOG_SECTION, heading=log_heading, message=message, user=user)
     post["status"] = to_status

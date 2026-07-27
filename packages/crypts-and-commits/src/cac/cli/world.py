@@ -6,6 +6,7 @@ from rich.console import Console
 from cac.cli.common import edit_markdown, fail
 from cac.core import budget as budget_core
 from cac.core import world as world_core
+from cac.core.git_utils import GitIdentityError
 
 app = typer.Typer(
     help=(
@@ -41,7 +42,7 @@ def set_attribute(
     """Set a frontmatter attribute on the world file."""
     try:
         world_core.set_attribute(Path.cwd(), key, value)
-    except world_core.WorldNotFoundError as exc:
+    except (world_core.WorldNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Set [bold]{key}[/bold] = {value}")
@@ -58,5 +59,8 @@ def set_body(
         fail(console, str(exc))
 
     content = body if body is not None else edit_markdown(current.body)
-    world_core.update_body(Path.cwd(), content)
+    try:
+        world_core.update_body(Path.cwd(), content)
+    except GitIdentityError as exc:
+        fail(console, str(exc))
     console.print("Updated world body.")

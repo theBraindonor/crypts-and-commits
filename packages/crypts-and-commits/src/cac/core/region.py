@@ -4,8 +4,8 @@ from typing import Any
 
 import frontmatter
 
+from cac.core import frontmatter_utils, templates
 from cac.core import lore as lore_core
-from cac.core import templates
 from cac.core.config import NAME_PATTERN, REGION_DIR_NAME, RESERVED_NAMES
 from cac.core.frontmatter_utils import (
     SummaryTooLongError,
@@ -95,6 +95,7 @@ def create_region(root: Path, name: str, body: str, summary: str, path_value: st
     post["path"] = path_value
     post.content = body
     set_summary_attribute(post, summary)
+    frontmatter_utils.stamp_created(post, root)
     write_post(path, post)
     return path
 
@@ -110,6 +111,7 @@ def update_region(root: Path, name: str, body: str, summary: str) -> Path:
     post = frontmatter.load(path)
     post.content = body
     set_summary_attribute(post, summary)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return path
 
@@ -125,6 +127,7 @@ def set_summary(root: Path, name: str, summary: str) -> Region:
     path = _existing_region_path(root, name)
     post = frontmatter.load(path)
     set_summary_attribute(post, summary)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return _to_region(post, name)
 
@@ -144,6 +147,7 @@ def set_path(root: Path, name: str, path_value: str) -> Region:
     path = _existing_region_path(root, name)
     post = frontmatter.load(path)
     post["path"] = path_value
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return _to_region(post, name)
 
@@ -170,6 +174,7 @@ def _update_assigned_lore(root: Path, region_name: str, *, add: str | None = Non
     path = _existing_region_path(root, region_name)
     post = frontmatter.load(path)
     toggle_list_attribute(post, ASSIGNED_LORE_KEY, add=add, remove=remove)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return _to_region(post, region_name)
 

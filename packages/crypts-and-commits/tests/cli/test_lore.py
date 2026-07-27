@@ -3,9 +3,17 @@ from pathlib import Path
 import pytest
 from cac.cli import common as cli_common
 from cac.cli.app import app
+from cac.core import git_utils
 from typer.testing import CliRunner
 
 runner = CliRunner()
+
+
+def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("git user.name is not configured.")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
 
 
 @pytest.fixture(autouse=True)
@@ -96,6 +104,15 @@ def test_set_summary_rejects_value_over_cap() -> None:
     assert "maximum of 500" in result.output
 
 
+def test_set_summary_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["lore", "set-summary", "conventions", "New summary."])
+
+    assert result.exit_code == 1
+
+
 def test_set_summary_missing_lore_fails() -> None:
     result = runner.invoke(app, ["lore", "set-summary", "missing", "text"])
 
@@ -130,6 +147,14 @@ def test_create_rejects_over_cap_summary(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "maximum of 500" in result.output
     assert not (tmp_path / ".sourcebook" / "lore" / "conventions.md").exists()
+
+
+def test_create_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
+
+    assert result.exit_code == 1
 
 
 def test_create_rejects_invalid_name() -> None:
@@ -194,6 +219,15 @@ def test_update_requires_summary(tmp_path: Path) -> None:
     assert "Updated" not in text
 
 
+def test_update_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "Original", "--summary", "Summary."])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["lore", "update", "conventions", "--body", "Updated", "--summary", "Summary."])
+
+    assert result.exit_code == 1
+
+
 def test_update_missing_lore_fails() -> None:
     result = runner.invoke(app, ["lore", "update", "missing", "--body", "text", "--summary", "Summary."])
 
@@ -237,6 +271,16 @@ def test_assign_links_lore_to_world(tmp_path: Path) -> None:
     assert "assigned_to_world: true" in lore_text
 
 
+def test_assign_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["lore", "assign-world", "conventions"])
+
+    assert result.exit_code == 1
+
+
 def test_assign_missing_lore_fails() -> None:
     runner.invoke(app, ["bootstrap", "init"])
 
@@ -265,6 +309,17 @@ def test_unassign_clears_link(tmp_path: Path) -> None:
     assert "assigned_to_world: false" in lore_text
 
 
+def test_unassign_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
+    runner.invoke(app, ["lore", "assign-world", "conventions"])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["lore", "unassign-world", "conventions"])
+
+    assert result.exit_code == 1
+
+
 def test_assign_region_links_lore_to_region(tmp_path: Path) -> None:
     runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
@@ -276,6 +331,16 @@ def test_assign_region_links_lore_to_region(tmp_path: Path) -> None:
     lore_text = (tmp_path / ".sourcebook" / "lore" / "conventions.md").read_text(encoding="utf-8")
     assert "conventions" in region_text
     assert "northlands" in lore_text
+
+
+def test_assign_region_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["lore", "assign-region", "conventions", "northlands"])
+
+    assert result.exit_code == 1
 
 
 def test_assign_region_missing_lore_fails() -> None:
@@ -308,6 +373,17 @@ def test_unassign_region_clears_link(tmp_path: Path) -> None:
     assert "assigned_regions: []" in lore_text
 
 
+def test_unassign_region_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
+    runner.invoke(app, ["lore", "assign-region", "conventions", "northlands"])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["lore", "unassign-region", "conventions", "northlands"])
+
+    assert result.exit_code == 1
+
+
 def test_enable_sets_flag(tmp_path: Path) -> None:
     runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["lore", "disable", "conventions"])
@@ -327,6 +403,24 @@ def test_disable_sets_flag(tmp_path: Path) -> None:
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "lore" / "conventions.md").read_text(encoding="utf-8")
     assert "enabled: false" in text
+
+
+def test_enable_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["lore", "enable", "conventions"])
+
+    assert result.exit_code == 1
+
+
+def test_disable_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["lore", "disable", "conventions"])
+
+    assert result.exit_code == 1
 
 
 def test_enable_missing_lore_fails() -> None:

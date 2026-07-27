@@ -7,6 +7,7 @@ from cac.cli.common import edit_markdown, fail
 from cac.core import budget as budget_core
 from cac.core import region as region_core
 from cac.core.config import SUMMARY_KEY
+from cac.core.git_utils import GitIdentityError
 
 app = typer.Typer(
     help=(
@@ -84,6 +85,7 @@ def create_region(
         region_core.InvalidRegionNameError,
         region_core.RegionAlreadyExistsError,
         region_core.SummaryTooLongError,
+        GitIdentityError,
     ) as exc:
         fail(console, str(exc))
 
@@ -111,7 +113,7 @@ def update_region(
 
     try:
         path = region_core.update_region(Path.cwd(), name, content, summary)
-    except region_core.SummaryTooLongError as exc:
+    except (region_core.SummaryTooLongError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Updated [bold green]{path}[/bold green]")
@@ -142,9 +144,7 @@ def set_summary(
     """Set a region's summary."""
     try:
         region_core.set_summary(Path.cwd(), name, summary)
-    except region_core.RegionNotFoundError as exc:
-        fail(console, str(exc))
-    except region_core.SummaryTooLongError as exc:
+    except (region_core.RegionNotFoundError, region_core.SummaryTooLongError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Set summary on [bold]{name}[/bold].")
@@ -158,7 +158,7 @@ def set_path(
     """Set a region's path."""
     try:
         region_core.set_path(Path.cwd(), name, path_value)
-    except region_core.RegionNotFoundError as exc:
+    except (region_core.RegionNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Set [bold]{name}[/bold] path to [bold]{path_value}[/bold].")

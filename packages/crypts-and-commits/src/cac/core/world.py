@@ -4,8 +4,8 @@ from typing import Any
 
 import frontmatter
 
+from cac.core import frontmatter_utils, templates
 from cac.core import lore as lore_core
-from cac.core import templates
 from cac.core.config import WORLD_FILE_NAME
 from cac.core.frontmatter_utils import toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
@@ -35,7 +35,9 @@ def initialize_world(root: Path) -> tuple[Path, bool]:
     created = not path.exists()
     if created:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME), encoding="utf-8")
+        post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
+        frontmatter_utils.stamp_created(post, root)
+        write_post(path, post)
     return path, created
 
 
@@ -48,6 +50,7 @@ def set_attribute(root: Path, key: str, value: str) -> World:
     path = _existing_world_path(root)
     post = frontmatter.load(path)
     post[key] = value
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return World(metadata=dict(post.metadata), body=post.content)
 
@@ -56,6 +59,7 @@ def update_body(root: Path, body: str) -> World:
     path = _existing_world_path(root)
     post = frontmatter.load(path)
     post.content = body
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return World(metadata=dict(post.metadata), body=post.content)
 
@@ -82,6 +86,7 @@ def _update_assigned_lore(root: Path, *, add: str | None = None, remove: str | N
     path = _existing_world_path(root)
     post = frontmatter.load(path)
     toggle_list_attribute(post, ASSIGNED_LORE_KEY, add=add, remove=remove)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return World(metadata=dict(post.metadata), body=post.content)
 

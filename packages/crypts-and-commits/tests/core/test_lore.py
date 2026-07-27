@@ -1,7 +1,20 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from cac.core import frontmatter_utils, lore
+from cac.core import frontmatter_utils, git_utils, lore, region, world
+
+_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
+
+
+def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
+    monkeypatch.setattr(git_utils, "current_git_user", lambda root: user)
+    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: when)
+
+
+@pytest.fixture(autouse=True)
+def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_identity(monkeypatch)
 
 
 def test_list_lore_returns_empty_when_no_directory(tmp_path: Path) -> None:
@@ -16,6 +29,29 @@ def test_create_lore_writes_frontmatter_and_body(tmp_path: Path) -> None:
     assert text.startswith("---\n")
     assert "name: coding-style" in text
     assert "Use four spaces." in text
+
+
+def test_create_lore_sets_created_and_updated_fields(tmp_path: Path) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+
+    metadata, _ = lore.read_metadata(tmp_path, "conventions")
+
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "John Hoff"
+    assert metadata["updated_on"] == "2026-07-23T18:04:12Z"
+
+
+def test_create_lore_propagates_git_identity_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+
+    assert not lore.exists(tmp_path, "conventions")
 
 
 def test_create_lore_applies_template_defaults(tmp_path: Path) -> None:
@@ -139,6 +175,34 @@ def test_update_lore_regenerates_summary(tmp_path: Path) -> None:
     assert lore.read_summary(tmp_path, "conventions") == "Updated summary."
 
 
+def test_update_lore_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    lore.create_lore(tmp_path, "conventions", "Original.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    lore.update_lore(tmp_path, "conventions", "Updated.", "Summary.")
+
+    metadata, _ = lore.read_metadata(tmp_path, "conventions")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
+
+
+def test_update_lore_propagates_git_identity_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    lore.create_lore(tmp_path, "conventions", "Original.", "Summary.")
+
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        lore.update_lore(tmp_path, "conventions", "Updated.", "Summary.")
+
+    assert lore.read_lore(tmp_path, "conventions").body.strip() == "Original."
+
+
 def test_update_lore_rejects_over_cap_summary_without_writing(tmp_path: Path) -> None:
     lore.create_lore(tmp_path, "conventions", "Original.", "Original summary.")
 
@@ -173,6 +237,20 @@ def test_set_summary_round_trips(tmp_path: Path) -> None:
     lore.set_summary(tmp_path, "conventions", "A brief routing signal.")
 
     assert lore.read_summary(tmp_path, "conventions") == "A brief routing signal."
+
+
+def test_set_summary_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    lore.set_summary(tmp_path, "conventions", "A brief routing signal.")
+
+    metadata, _ = lore.read_metadata(tmp_path, "conventions")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
 
 
 def test_set_summary_accepts_value_at_cap(tmp_path: Path) -> None:
@@ -230,6 +308,20 @@ def test_set_enabled_toggles_flag(tmp_path: Path) -> None:
     assert "enabled: false" in text
 
 
+def test_set_enabled_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    lore.set_enabled(tmp_path, "conventions", False)
+
+    metadata, _ = lore.read_metadata(tmp_path, "conventions")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
+
+
 def test_set_enabled_missing_raises(tmp_path: Path) -> None:
     with pytest.raises(lore.LoreNotFoundError):
         lore.set_enabled(tmp_path, "missing", False)
@@ -242,6 +334,39 @@ def test_set_assigned_to_world_toggles_flag(tmp_path: Path) -> None:
 
     text = (tmp_path / ".sourcebook" / "lore" / "conventions.md").read_text(encoding="utf-8")
     assert "assigned_to_world: true" in text
+
+
+def test_set_assigned_to_world_refreshes_updated_but_not_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    lore.set_assigned_to_world(tmp_path, "conventions", True)
+
+    metadata, _ = lore.read_metadata(tmp_path, "conventions")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
+
+
+def test_world_assign_lore_refreshes_lores_updated_but_not_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world.initialize_world(tmp_path)
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    world.assign_lore(tmp_path, "conventions")
+
+    metadata, _ = lore.read_metadata(tmp_path, "conventions")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
 
 
 def test_set_assigned_to_world_missing_raises(tmp_path: Path) -> None:
@@ -267,6 +392,37 @@ def test_add_assigned_region_is_idempotent(tmp_path: Path) -> None:
     text = (tmp_path / ".sourcebook" / "lore" / "conventions.md").read_text(encoding="utf-8")
     assert text.count("northlands") == 1
     assert result.name == "conventions"
+
+
+def test_add_assigned_region_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    lore.add_assigned_region(tmp_path, "conventions", "northlands")
+
+    metadata, _ = lore.read_metadata(tmp_path, "conventions")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
+
+
+def test_region_assign_lore_refreshes_lores_updated_but_not_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    region.assign_lore(tmp_path, "northlands", "conventions")
+
+    metadata, _ = lore.read_metadata(tmp_path, "conventions")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
 
 
 def test_add_assigned_region_missing_lore_raises(tmp_path: Path) -> None:

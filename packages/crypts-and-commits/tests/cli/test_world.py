@@ -3,9 +3,17 @@ from pathlib import Path
 import pytest
 from cac.cli import common as cli_common
 from cac.cli.app import app
+from cac.core import git_utils
 from typer.testing import CliRunner
 
 runner = CliRunner()
+
+
+def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("git user.name is not configured.")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
 
 
 @pytest.fixture(autouse=True)
@@ -55,6 +63,15 @@ def test_set_missing_world_fails() -> None:
     assert result.exit_code == 1
 
 
+def test_set_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["world", "set", "name", "my-project"])
+
+    assert result.exit_code == 1
+
+
 def test_set_body_with_body_option(tmp_path: Path) -> None:
     runner.invoke(app, ["bootstrap", "init"])
 
@@ -78,6 +95,15 @@ def test_set_body_opens_editor_when_body_omitted(monkeypatch: pytest.MonkeyPatch
 
 
 def test_set_body_missing_world_fails() -> None:
+    result = runner.invoke(app, ["world", "set-body", "--body", "text"])
+
+    assert result.exit_code == 1
+
+
+def test_set_body_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    _break_git_identity(monkeypatch)
+
     result = runner.invoke(app, ["world", "set-body", "--body", "text"])
 
     assert result.exit_code == 1

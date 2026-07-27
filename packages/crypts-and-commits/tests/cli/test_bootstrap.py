@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from cac.cli.app import app
 from cac.core import bootstrap as bootstrap_core
+from cac.core import git_utils
 from tomlkit import parse
 from typer.testing import CliRunner
 
@@ -13,6 +14,19 @@ runner = CliRunner()
 @pytest.fixture(autouse=True)
 def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
+
+
+def test_init_fails_cleanly_when_git_identity_unresolvable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("git user.name is not configured.")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, git_utils.GitIdentityError)
+    assert not (tmp_path / ".sourcebook" / "world.md").exists()
 
 
 def test_init_creates_sourcebook_directory(tmp_path: Path) -> None:

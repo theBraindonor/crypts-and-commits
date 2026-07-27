@@ -4,7 +4,7 @@ from typing import Any
 
 import frontmatter
 
-from cac.core import templates
+from cac.core import frontmatter_utils, templates
 from cac.core.config import LORE_DIR_NAME, NAME_PATTERN, RESERVED_NAMES
 from cac.core.frontmatter_utils import (
     SummaryTooLongError,
@@ -92,6 +92,7 @@ def create_lore(root: Path, name: str, body: str, summary: str) -> Path:
     post["name"] = name
     post.content = body
     set_summary_attribute(post, summary)
+    frontmatter_utils.stamp_created(post, root)
     write_post(path, post)
     return path
 
@@ -107,6 +108,7 @@ def update_lore(root: Path, name: str, body: str, summary: str) -> Path:
     post = frontmatter.load(path)
     post.content = body
     set_summary_attribute(post, summary)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return path
 
@@ -122,6 +124,7 @@ def set_summary(root: Path, name: str, summary: str) -> Lore:
     path = _existing_lore_path(root, name)
     post = frontmatter.load(path)
     set_summary_attribute(post, summary)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return Lore(name=post.get("name", name), body=post.content)
 
@@ -157,6 +160,7 @@ def _update_assigned_regions(root: Path, name: str, *, add: str | None = None, r
     path = _existing_lore_path(root, name)
     post = frontmatter.load(path)
     toggle_list_attribute(post, ASSIGNED_REGIONS_KEY, add=add, remove=remove)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return Lore(name=post.get("name", name), body=post.content)
 
@@ -165,6 +169,7 @@ def _set_flag(root: Path, name: str, key: str, value: bool) -> Lore:
     path = _existing_lore_path(root, name)
     post = frontmatter.load(path)
     post[key] = value
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return Lore(name=post.get("name", name), body=post.content)
 

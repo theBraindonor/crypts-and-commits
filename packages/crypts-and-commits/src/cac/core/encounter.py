@@ -6,13 +6,15 @@ from typing import Any
 import frontmatter
 
 from cac.core import campaign as campaign_core
-from cac.core import frontmatter_utils, git_utils, templates
+from cac.core import frontmatter_utils, templates
 from cac.core import region as region_core
 from cac.core.config import (
+    CREATED_ON_KEY,
     DEFAULT_ENCOUNTER_STATUS,
     ENCOUNTER_DIR_NAME,
     NAME_PATTERN,
     RESERVED_NAMES,
+    UPDATED_ON_KEY,
 )
 from cac.core.frontmatter_utils import toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
@@ -22,10 +24,6 @@ _TEMPLATE_FILENAME = "encounter.md"
 REGIONS_KEY = "regions"
 DEPENDS_ON_KEY = "depends_on"
 _LOG_SECTION = "Log"
-CREATED_BY_KEY = "created_by"
-CREATED_ON_KEY = "created_on"
-UPDATED_BY_KEY = "updated_by"
-UPDATED_ON_KEY = "updated_on"
 
 _ENCOUNTER_TRANSITIONS: dict[str, frozenset[str]] = {
     "draft": frozenset({"reviewed", "abandoned"}),
@@ -109,23 +107,6 @@ class Encounter:
     body: str
 
 
-def _stamp_created(post: frontmatter.Post, root: Path) -> str:
-    user = git_utils.current_git_user(root)
-    ts = frontmatter_utils.format_timestamp(frontmatter_utils.utcnow())
-    post[CREATED_BY_KEY] = user
-    post[CREATED_ON_KEY] = ts
-    post[UPDATED_BY_KEY] = user
-    post[UPDATED_ON_KEY] = ts
-    return user
-
-
-def _stamp_updated(post: frontmatter.Post, root: Path) -> str:
-    user = git_utils.current_git_user(root)
-    post[UPDATED_BY_KEY] = user
-    post[UPDATED_ON_KEY] = frontmatter_utils.format_timestamp(frontmatter_utils.utcnow())
-    return user
-
-
 def encounter_dir(root: Path, campaign: str) -> Path:
     campaign_core.validate_name(campaign)
     return sourcebook_dir(root) / ENCOUNTER_DIR_NAME / campaign
@@ -185,7 +166,7 @@ def create_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
     post["name"] = name
     post["campaign"] = campaign
     post.content = body
-    _stamp_created(post, root)
+    frontmatter_utils.stamp_created(post, root)
     write_post(path, post)
     return path
 
@@ -200,7 +181,7 @@ def update_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
             "'draft' status. Use 'cac encounter record-message' to append additional context instead."
         )
     post.content = body
-    _stamp_updated(post, root)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return path
 
@@ -281,7 +262,7 @@ def record_message(root: Path, campaign: str, name: str, message: str) -> Encoun
             f"Cannot record a message on encounter {name!r}: status is {current_status!r}, but recording a "
             f"message requires status to be one of: {allowed}."
         )
-    user = _stamp_updated(post, root)
+    user = frontmatter_utils.stamp_updated(post, root)
     frontmatter_utils.append_log_entry(post, section=_LOG_SECTION, heading="Message", message=message, user=user)
     write_post(path, post)
     return _to_encounter(post, campaign, name)
@@ -309,7 +290,7 @@ def _transition(
         )
     if message_required and not (message and message.strip()):
         raise EncounterMessageRequiredError(f"A --message is required to move encounter {name!r} to {to_status!r}.")
-    user = _stamp_updated(post, root)
+    user = frontmatter_utils.stamp_updated(post, root)
     if message:
         frontmatter_utils.append_log_entry(post, section=_LOG_SECTION, heading=log_heading, message=message, user=user)
     post["status"] = to_status
@@ -336,7 +317,7 @@ def assign_dependency(root: Path, campaign: str, name: str, dependency: str) -> 
     _require_dependency_mutable(post, name)
     current = _dependencies(post, name)
     if dependency in current:
-        _stamp_updated(post, root)
+        frontmatter_utils.stamp_updated(post, root)
         write_post(path, post)
         return _to_encounter(post, campaign, name)
     if dependency == name:
@@ -354,7 +335,7 @@ def assign_dependency(root: Path, campaign: str, name: str, dependency: str) -> 
     post[DEPENDS_ON_KEY] = [*current, dependency]
     posts[name] = post
     _validate_and_order(posts)
-    _stamp_updated(post, root)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return _to_encounter(post, campaign, name)
 
@@ -367,7 +348,7 @@ def unassign_dependency(root: Path, campaign: str, name: str, dependency: str) -
     _require_dependency_mutable(post, name)
     current = _dependencies(post, name)
     post[DEPENDS_ON_KEY] = [item for item in current if item != dependency]
-    _stamp_updated(post, root)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return _to_encounter(post, campaign, name)
 
@@ -385,7 +366,7 @@ def _update_regions(
     path = _existing_encounter_path(root, campaign, name)
     post = frontmatter.load(path)
     toggle_list_attribute(post, REGIONS_KEY, add=add, remove=remove)
-    _stamp_updated(post, root)
+    frontmatter_utils.stamp_updated(post, root)
     write_post(path, post)
     return _to_encounter(post, campaign, name)
 

@@ -1,7 +1,20 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from cac.core import frontmatter_utils, lore, region
+from cac.core import frontmatter_utils, git_utils, lore, region
+
+_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
+
+
+def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
+    monkeypatch.setattr(git_utils, "current_git_user", lambda root: user)
+    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: when)
+
+
+@pytest.fixture(autouse=True)
+def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_identity(monkeypatch)
 
 
 def test_list_regions_returns_empty_when_no_directory(tmp_path: Path) -> None:
@@ -16,6 +29,29 @@ def test_create_region_writes_frontmatter_and_body(tmp_path: Path) -> None:
     assert text.startswith("---\n")
     assert "name: northlands" in text
     assert "Cold and mountainous." in text
+
+
+def test_create_region_sets_created_and_updated_fields(tmp_path: Path) -> None:
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+
+    metadata, _ = region.read_metadata(tmp_path, "northlands")
+
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "John Hoff"
+    assert metadata["updated_on"] == "2026-07-23T18:04:12Z"
+
+
+def test_create_region_propagates_git_identity_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+
+    assert not region.exists(tmp_path, "northlands")
 
 
 def test_create_region_rejects_invalid_name(tmp_path: Path) -> None:
@@ -121,12 +157,40 @@ def test_set_path_updates_path(tmp_path: Path) -> None:
     assert region.read_region(tmp_path, "northlands").path == "src/backend"
 
 
+def test_set_path_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    region.set_path(tmp_path, "northlands", "src/backend")
+
+    metadata, _ = region.read_metadata(tmp_path, "northlands")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
+
+
 def test_set_summary_round_trips(tmp_path: Path) -> None:
     region.create_region(tmp_path, "northlands", "Body.", "Summary.")
 
     region.set_summary(tmp_path, "northlands", "A brief routing signal.")
 
     assert region.read_summary(tmp_path, "northlands") == "A brief routing signal."
+
+
+def test_set_summary_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    region.set_summary(tmp_path, "northlands", "A brief routing signal.")
+
+    metadata, _ = region.read_metadata(tmp_path, "northlands")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
 
 
 def test_set_summary_accepts_value_at_cap(tmp_path: Path) -> None:
@@ -218,6 +282,34 @@ def test_update_region_preserves_path(tmp_path: Path) -> None:
     assert region.read_region(tmp_path, "frontend").path == "src/frontend"
 
 
+def test_update_region_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    region.create_region(tmp_path, "northlands", "Original.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    region.update_region(tmp_path, "northlands", "Updated.", "Summary.")
+
+    metadata, _ = region.read_metadata(tmp_path, "northlands")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
+
+
+def test_update_region_propagates_git_identity_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    region.create_region(tmp_path, "northlands", "Original.", "Summary.")
+
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("no identity")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
+
+    with pytest.raises(git_utils.GitIdentityError):
+        region.update_region(tmp_path, "northlands", "Updated.", "Summary.")
+
+    assert region.read_region(tmp_path, "northlands").body.strip() == "Original."
+
+
 def test_update_region_missing_raises(tmp_path: Path) -> None:
     with pytest.raises(region.RegionNotFoundError):
         region.update_region(tmp_path, "missing", "body", "Summary.")
@@ -251,6 +343,21 @@ def test_assign_lore_updates_region_and_lore(tmp_path: Path) -> None:
     lore_text = (tmp_path / ".sourcebook" / "lore" / "conventions.md").read_text(encoding="utf-8")
     assert "northlands" in lore_text
     assert "assigned_regions" in lore_text
+
+
+def test_assign_lore_refreshes_regions_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+
+    later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
+    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    region.assign_lore(tmp_path, "northlands", "conventions")
+
+    metadata, _ = region.read_metadata(tmp_path, "northlands")
+    assert metadata["created_by"] == "John Hoff"
+    assert metadata["created_on"] == "2026-07-23T18:04:12Z"
+    assert metadata["updated_by"] == "Jane Doe"
+    assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
 
 
 def test_assign_lore_is_idempotent(tmp_path: Path) -> None:

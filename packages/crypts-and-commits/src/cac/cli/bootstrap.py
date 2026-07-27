@@ -5,8 +5,10 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.text import Text
 
+from cac.cli.common import fail
 from cac.core import bootstrap as bootstrap_core
 from cac.core import world as world_core
+from cac.core.git_utils import GitIdentityError
 
 TITLE = "Crypts And Commits"
 SUBTITLE = "A Code Assistant Continuity Framework"
@@ -24,7 +26,10 @@ def init() -> None:
     sourcebook_dir, sourcebook_created = bootstrap_core.initialize(root)
     _report(sourcebook_dir, sourcebook_created)
 
-    world_path, world_created = world_core.initialize_world(root)
+    try:
+        world_path, world_created = world_core.initialize_world(root)
+    except GitIdentityError as exc:
+        fail(console, str(exc))
     _report(world_path, world_created)
 
     mcp_config_path, mcp_config_changed = bootstrap_core.initialize_mcp_config(root)

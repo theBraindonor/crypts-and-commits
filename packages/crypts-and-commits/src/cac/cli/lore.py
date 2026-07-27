@@ -9,6 +9,7 @@ from cac.core import lore as lore_core
 from cac.core import region as region_core
 from cac.core import world as world_core
 from cac.core.config import SUMMARY_KEY
+from cac.core.git_utils import GitIdentityError
 
 app = typer.Typer(
     help=(
@@ -81,7 +82,12 @@ def create_lore(
 
     try:
         path = lore_core.create_lore(Path.cwd(), name, content, summary)
-    except (lore_core.InvalidLoreNameError, lore_core.LoreAlreadyExistsError, lore_core.SummaryTooLongError) as exc:
+    except (
+        lore_core.InvalidLoreNameError,
+        lore_core.LoreAlreadyExistsError,
+        lore_core.SummaryTooLongError,
+        GitIdentityError,
+    ) as exc:
         fail(console, str(exc))
 
     console.print(f"Created [bold green]{path}[/bold green]")
@@ -108,7 +114,7 @@ def update_lore(
 
     try:
         path = lore_core.update_lore(Path.cwd(), name, content, summary)
-    except lore_core.SummaryTooLongError as exc:
+    except (lore_core.SummaryTooLongError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Updated [bold green]{path}[/bold green]")
@@ -139,9 +145,7 @@ def set_summary(
     """Set a lore file's summary."""
     try:
         lore_core.set_summary(Path.cwd(), name, summary)
-    except lore_core.LoreNotFoundError as exc:
-        fail(console, str(exc))
-    except lore_core.SummaryTooLongError as exc:
+    except (lore_core.LoreNotFoundError, lore_core.SummaryTooLongError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Set summary on [bold]{name}[/bold].")
@@ -154,7 +158,7 @@ def assign_world(
     """Assign a lore file to the world."""
     try:
         world_core.assign_lore(Path.cwd(), name)
-    except (world_core.WorldNotFoundError, lore_core.LoreNotFoundError) as exc:
+    except (world_core.WorldNotFoundError, lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Assigned [bold]{name}[/bold] to the world.")
@@ -167,7 +171,7 @@ def unassign_world(
     """Unassign a lore file from the world."""
     try:
         world_core.unassign_lore(Path.cwd(), name)
-    except (world_core.WorldNotFoundError, lore_core.LoreNotFoundError) as exc:
+    except (world_core.WorldNotFoundError, lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Unassigned [bold]{name}[/bold] from the world.")
@@ -181,7 +185,7 @@ def assign_region(
     """Assign a lore file to a region."""
     try:
         region_core.assign_lore(Path.cwd(), region, name)
-    except (region_core.RegionNotFoundError, lore_core.LoreNotFoundError) as exc:
+    except (region_core.RegionNotFoundError, lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Assigned [bold]{name}[/bold] to region [bold]{region}[/bold].")
@@ -195,7 +199,7 @@ def unassign_region(
     """Unassign a lore file from a region."""
     try:
         region_core.unassign_lore(Path.cwd(), region, name)
-    except (region_core.RegionNotFoundError, lore_core.LoreNotFoundError) as exc:
+    except (region_core.RegionNotFoundError, lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Unassigned [bold]{name}[/bold] from region [bold]{region}[/bold].")
@@ -208,7 +212,7 @@ def enable_lore(
     """Enable a lore file."""
     try:
         lore_core.set_enabled(Path.cwd(), name, True)
-    except lore_core.LoreNotFoundError as exc:
+    except (lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Enabled [bold]{name}[/bold].")
@@ -221,7 +225,7 @@ def disable_lore(
     """Disable a lore file."""
     try:
         lore_core.set_enabled(Path.cwd(), name, False)
-    except lore_core.LoreNotFoundError as exc:
+    except (lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Disabled [bold]{name}[/bold].")

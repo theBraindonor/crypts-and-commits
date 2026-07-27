@@ -3,9 +3,17 @@ from pathlib import Path
 import pytest
 from cac.cli import common as cli_common
 from cac.cli.app import app
+from cac.core import git_utils
 from typer.testing import CliRunner
 
 runner = CliRunner()
+
+
+def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(root: Path) -> str:
+        raise git_utils.GitIdentityError("git user.name is not configured.")
+
+    monkeypatch.setattr(git_utils, "current_git_user", _raise)
 
 
 @pytest.fixture(autouse=True)
@@ -135,6 +143,15 @@ def test_set_summary_rejects_value_over_cap() -> None:
     assert "maximum of 500" in result.output
 
 
+def test_set_summary_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["region", "set-summary", "northlands", "New summary."])
+
+    assert result.exit_code == 1
+
+
 def test_set_summary_missing_region_fails() -> None:
     result = runner.invoke(app, ["region", "set-summary", "missing", "text"])
 
@@ -169,6 +186,14 @@ def test_create_rejects_over_cap_summary(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "maximum of 500" in result.output
     assert not (tmp_path / ".sourcebook" / "region" / "northlands.md").exists()
+
+
+def test_create_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
+
+    assert result.exit_code == 1
 
 
 def test_create_rejects_invalid_name() -> None:
@@ -233,6 +258,15 @@ def test_update_requires_summary(tmp_path: Path) -> None:
     assert "Updated" not in text
 
 
+def test_update_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "Original", "--summary", "Summary."])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["region", "update", "northlands", "--body", "Updated", "--summary", "Summary."])
+
+    assert result.exit_code == 1
+
+
 def test_update_missing_region_fails() -> None:
     result = runner.invoke(app, ["region", "update", "missing", "--body", "text", "--summary", "Summary."])
 
@@ -281,6 +315,15 @@ def test_set_path_updates_path(tmp_path: Path) -> None:
     assert result.exit_code == 0
     text = (tmp_path / ".sourcebook" / "region" / "northlands.md").read_text(encoding="utf-8")
     assert "path: src/backend" in text
+
+
+def test_set_path_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
+    _break_git_identity(monkeypatch)
+
+    result = runner.invoke(app, ["region", "set-path", "northlands", "src/backend"])
+
+    assert result.exit_code == 1
 
 
 def test_set_path_missing_region_fails() -> None:
