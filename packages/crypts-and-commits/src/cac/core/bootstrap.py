@@ -4,10 +4,15 @@ import sysconfig
 from pathlib import Path
 from typing import Any
 
-from tomlkit import document, parse, table
+from tomlkit import aot, document, parse, table
 
+from cac.core import templates
 from cac.core.config import CAC_MCP_SCRIPT_NAME, MCP_SERVER_NAME, SOURCEBOOK_DIR_NAME
 from cac.core.paths import claude_settings_path, codex_config_path, mcp_config_path, sourcebook_dir
+
+_CODEX_GUARD_HOOK_RELATIVE_PATH = Path(".codex/hooks/sourcebook_guard.py")
+_CODEX_GUARD_HOOK_COMMAND = "python3 .codex/hooks/sourcebook_guard.py"
+_CODEX_GUARD_HOOK_WINDOWS_COMMAND = r"py -3 .codex\hooks\sourcebook_guard.py"
 
 
 def initialize(root: Path) -> tuple[Path, bool]:
@@ -119,6 +124,61 @@ def initialize_codex_config(root: Path) -> tuple[Path, bool]:
             server[key] = value
             changed = True
 
+    hooks = config.get("hooks")
+    if hooks is None:
+        hooks = table()
+        config["hooks"] = hooks
+        changed = True
+
+    pre_tool_use = hooks.get("PreToolUse")
+    if pre_tool_use is None:
+        pre_tool_use = aot()
+        hooks["PreToolUse"] = pre_tool_use
+        changed = True
+
+    hook_registered = False
+    for group in pre_tool_use:
+        if group.get("matcher") != "^(Bash|apply_patch)$":
+            continue
+        for hook in group.get("hooks", []):
+            if (
+                hook.get("type") == "command"
+                and hook.get("command") == _CODEX_GUARD_HOOK_COMMAND
+                and hook.get("command_windows") == _CODEX_GUARD_HOOK_WINDOWS_COMMAND
+            ):
+                hook_registered = True
+                break
+
+    if not hook_registered:
+        group = table()
+        group["matcher"] = "^(Bash|apply_patch)$"
+        group_hooks = aot()
+        group["hooks"] = group_hooks
+        hook = table()
+        hook["type"] = "command"
+        hook["command"] = _CODEX_GUARD_HOOK_COMMAND
+        hook["command_windows"] = _CODEX_GUARD_HOOK_WINDOWS_COMMAND
+        hook["timeout"] = 5
+        hook["statusMessage"] = "Checking .sourcebook guardrail"
+        group_hooks.append(hook)
+        pre_tool_use.append(group)
+        changed = True
+
     if changed:
         path.write_text(config.as_string(), encoding="utf-8")
+    return path, changed
+
+
+def initialize_codex_guard_hook(root: Path) -> tuple[Path, bool]:
+    """Deploy the framework-owned Codex sourcebook guard hook.
+
+    The hook is intentionally overwritten on subsequent bootstrap runs so a
+    newer cac release can tighten or correct the framework guardrail.
+    """
+    path = root / _CODEX_GUARD_HOOK_RELATIVE_PATH
+    content = templates.load("codex", "sourcebook_guard.py")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    changed = not path.exists() or path.read_text(encoding="utf-8") != content
+    if changed:
+        path.write_text(content, encoding="utf-8")
     return path, changed

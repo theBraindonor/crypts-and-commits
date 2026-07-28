@@ -121,6 +121,9 @@ def test_init_creates_codex_config(tmp_path: Path) -> None:
     assert server["command"] == str(bootstrap_core.resolve_cac_mcp_executable())
     assert server["args"] == []
     assert server["default_tools_approval_mode"] == "approve"
+    guard_group = parse(config_path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"][0]
+    assert guard_group["matcher"] == "^(Bash|apply_patch)$"
+    assert (tmp_path / ".codex" / "hooks" / "sourcebook_guard.py").is_file()
 
 
 def test_init_deploys_agent_skills(tmp_path: Path) -> None:

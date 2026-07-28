@@ -1,5 +1,9 @@
+import contextlib
+import io
 import json
 import os
+import runpy
+import sys
 from pathlib import Path
 
 from cac.core import bootstrap
@@ -122,6 +126,11 @@ def test_initialize_codex_config_creates_file(tmp_path: Path) -> None:
     assert server["command"] == str(bootstrap.resolve_cac_mcp_executable())
     assert server["args"] == []
     assert server["default_tools_approval_mode"] == "approve"
+    guard_group = config["hooks"]["PreToolUse"][0]
+    assert guard_group["matcher"] == "^(Bash|apply_patch)$"
+    guard_hook = guard_group["hooks"][0]
+    assert guard_hook["command"] == "python3 .codex/hooks/sourcebook_guard.py"
+    assert guard_hook["command_windows"] == r"py -3 .codex\hooks\sourcebook_guard.py"
 
 
 def test_initialize_codex_config_is_idempotent(tmp_path: Path) -> None:
@@ -155,3 +164,83 @@ def test_initialize_codex_config_merges_and_preserves_existing(tmp_path: Path) -
     assert server["command"] == str(bootstrap.resolve_cac_mcp_executable())
     assert server["args"] == []
     assert server["default_tools_approval_mode"] == "approve"
+    assert config["hooks"]["PreToolUse"][0]["matcher"] == "^(Bash|apply_patch)$"
+
+
+def test_initialize_codex_config_preserves_existing_hooks_and_is_idempotent(tmp_path: Path) -> None:
+    config_path = tmp_path / ".codex" / "config.toml"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        '[[hooks.PreToolUse]]\nmatcher = "Bash"\n\n[[hooks.PreToolUse.hooks]]\n'
+        'type = "command"\ncommand = "existing-hook"\n',
+        encoding="utf-8",
+    )
+
+    bootstrap.initialize_codex_config(tmp_path)
+    path, changed = bootstrap.initialize_codex_config(tmp_path)
+
+    assert changed is False
+    config = parse(path.read_text(encoding="utf-8"))
+    groups = config["hooks"]["PreToolUse"]
+    assert len(groups) == 2
+    assert groups[0]["hooks"][0]["command"] == "existing-hook"
+    assert groups[1]["hooks"][0]["command"] == "python3 .codex/hooks/sourcebook_guard.py"
+
+
+def _run_guard_hook(path: Path, event: dict[str, object], monkeypatch) -> str:
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(event)))
+    with contextlib.redirect_stdout(output):
+        runpy.run_path(str(path), run_name="__main__")
+    return output.getvalue()
+
+
+def test_initialize_codex_guard_hook_deploys_and_is_idempotent(tmp_path: Path) -> None:
+    path, changed = bootstrap.initialize_codex_guard_hook(tmp_path)
+
+    assert changed is True
+    assert path == tmp_path / ".codex" / "hooks" / "sourcebook_guard.py"
+    assert "permissionDecision" in path.read_text(encoding="utf-8")
+
+    path, changed = bootstrap.initialize_codex_guard_hook(tmp_path)
+
+    assert changed is False
+    assert path.is_file()
+
+
+def test_codex_guard_hook_denies_direct_sourcebook_access(tmp_path: Path, monkeypatch) -> None:
+    path, _ = bootstrap.initialize_codex_guard_hook(tmp_path)
+
+    output = _run_guard_hook(
+        path,
+        {"tool_name": "Bash", "tool_input": {"command": "Get-Content .sourcebook/world.md"}},
+        monkeypatch,
+    )
+
+    response = json.loads(output)
+    assert response["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_codex_guard_hook_denies_sourcebook_patches(tmp_path: Path, monkeypatch) -> None:
+    path, _ = bootstrap.initialize_codex_guard_hook(tmp_path)
+
+    output = _run_guard_hook(
+        path,
+        {"tool_name": "apply_patch", "tool_input": {"command": "*** Update File: .sourcebook/world.md"}},
+        monkeypatch,
+    )
+
+    response = json.loads(output)
+    assert response["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_codex_guard_hook_allows_unrelated_commands(tmp_path: Path, monkeypatch) -> None:
+    path, _ = bootstrap.initialize_codex_guard_hook(tmp_path)
+
+    output = _run_guard_hook(
+        path,
+        {"tool_name": "Bash", "tool_input": {"command": "pdm run pytest -q"}},
+        monkeypatch,
+    )
+
+    assert output == ""

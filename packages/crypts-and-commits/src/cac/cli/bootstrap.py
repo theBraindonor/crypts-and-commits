@@ -42,6 +42,9 @@ def init() -> None:
     codex_config_path, codex_config_changed = bootstrap_core.initialize_codex_config(root)
     _report_codex_config(codex_config_path, codex_config_changed)
 
+    codex_hook_path, codex_hook_changed = bootstrap_core.initialize_codex_guard_hook(root)
+    _report_codex_guard_hook(codex_hook_path, codex_hook_changed)
+
     for skill_path, skill_changed in skills_core.deploy_skills(root):
         _report_skill(skill_path, skill_changed)
 
@@ -72,6 +75,13 @@ def _report_codex_config(path: Path, changed: bool) -> None:
         console.print(f"Registered the crypts-and-commits MCP server in [bold green]{path}[/bold green]")
     else:
         console.print(f"[bold yellow]{path}[/bold yellow] already registers the crypts-and-commits MCP server")
+
+
+def _report_codex_guard_hook(path: Path, changed: bool) -> None:
+    if changed:
+        console.print(f"Deployed Codex sourcebook guard hook in [bold green]{path}[/bold green]")
+    else:
+        console.print(f"[bold yellow]{path}[/bold yellow] already has the current Codex sourcebook guard hook")
 
 
 def _report_skill(path: Path, changed: bool) -> None:

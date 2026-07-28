@@ -14,6 +14,8 @@ Once a project has been bootstrapped, its `.sourcebook/` directory is managed ex
 
 `Edit(.sourcebook/**)` is denied in `.claude/settings.json` — and, per Claude Code's permission-rule semantics, `Edit(path)` rules cover all file-editing tools including `Write`, so this single rule already blocks both; a separate `Write(.sourcebook/**)` entry would be accepted but silently unenforced (only `Edit`/`Read` path rules are matched), so don't add one. `Read` is deliberately **not** blocked either: skill instructions should still prefer the MCP `get`/`list` tools (or their `cac ... get`/`list`/etc. CLI-fallback forms) over reading files directly, but nothing yet technically prevents a direct `Read`. Treat the MCP/CLI-only rule itself as binding even where it isn't (yet) fully technically enforced.
 
+For Codex, `cac bootstrap init` also deploys a project-local `.codex` `PreToolUse` hook that blocks direct shell and `apply_patch` references to `.sourcebook/`. The hook is a guardrail, not a complete sandbox boundary: Codex hooks can miss specialized tool paths and shell filtering cannot exhaustively recognize every possible filesystem write. The `crypts-and-commits` MCP tools and `cac` CLI remain the approved sourcebook interfaces. Newly deployed project hooks require the developer to review and trust them through Codex's `/hooks` workflow before they run.
+
 `cac bootstrap init` is invoked by the **developer only** — the coding assistant must never run it itself, even to fix a missing `.sourcebook`. If `.sourcebook` is missing, ask the user to bootstrap the project.
 
 This restriction is about `.sourcebook/` *content*, not the `cac` source code itself — freely edit `packages/crypts-and-commits/src/cac/**` and its tests as normal.
