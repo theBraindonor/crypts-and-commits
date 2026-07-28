@@ -7,6 +7,7 @@ from rich.text import Text
 
 from cac.cli.common import fail
 from cac.core import bootstrap as bootstrap_core
+from cac.core import skills as skills_core
 from cac.core import world as world_core
 from cac.core.git_utils import GitIdentityError
 
@@ -41,6 +42,9 @@ def init() -> None:
     codex_config_path, codex_config_changed = bootstrap_core.initialize_codex_config(root)
     _report_codex_config(codex_config_path, codex_config_changed)
 
+    for skill_path, skill_changed in skills_core.deploy_skills(root):
+        _report_skill(skill_path, skill_changed)
+
 
 def _report(path: Path, created: bool) -> None:
     if created:
@@ -68,6 +72,13 @@ def _report_codex_config(path: Path, changed: bool) -> None:
         console.print(f"Registered the crypts-and-commits MCP server in [bold green]{path}[/bold green]")
     else:
         console.print(f"[bold yellow]{path}[/bold yellow] already registers the crypts-and-commits MCP server")
+
+
+def _report_skill(path: Path, changed: bool) -> None:
+    if changed:
+        console.print(f"Deployed [bold green]{path}[/bold green]")
+    else:
+        console.print(f"[bold yellow]{path}[/bold yellow] already up to date")
 
 
 def _show_splash() -> None:

@@ -123,6 +123,28 @@ def test_init_creates_codex_config(tmp_path: Path) -> None:
     assert server["default_tools_approval_mode"] == "approve"
 
 
+def test_init_deploys_agent_skills(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    for base_dir in (".claude", ".agents"):
+        for name in ("world-manager", "campaign-manager"):
+            skill_path = tmp_path / base_dir / "skills" / name / "SKILL.md"
+            assert skill_path.is_file()
+            assert skill_path.read_text(encoding="utf-8").startswith("---\n")
+
+
+def test_init_redeploys_agent_skills_over_local_edits(tmp_path: Path) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    skill_path = tmp_path / ".claude" / "skills" / "world-manager" / "SKILL.md"
+    skill_path.write_text("locally modified content", encoding="utf-8")
+
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    assert skill_path.read_text(encoding="utf-8") != "locally modified content"
+
+
 def test_init_merges_existing_codex_config(tmp_path: Path) -> None:
     config_path = tmp_path / ".codex" / "config.toml"
     config_path.parent.mkdir(parents=True)
