@@ -145,6 +145,16 @@ def test_encounter_assign_region_and_unassign_region(tmp_path: Path) -> None:
     assert unassigned["regions"] == []
 
 
+def test_encounter_assign_region_rejected_once_open(tmp_path: Path) -> None:
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    region.create_region(tmp_path, "backend", "Body.", "Summary.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks solid.")
+    encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    with pytest.raises(encounter.EncounterRegionMutationError):
+        mcp_encounter.encounter_assign_region("goblin-ambush", "backend")
+
+
 def test_encounter_assign_dependency_and_unassign_dependency(tmp_path: Path) -> None:
     encounter.create_encounter(tmp_path, "opening-gambit", "first", "Body.")
     encounter.create_encounter(tmp_path, "opening-gambit", "second", "Body.")

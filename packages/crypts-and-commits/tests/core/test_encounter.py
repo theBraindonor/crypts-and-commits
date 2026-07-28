@@ -554,6 +554,36 @@ def test_unassign_region_missing_encounter_raises(tmp_path: Path) -> None:
         encounter.unassign_region(tmp_path, "opening-gambit", "missing", "northlands")
 
 
+def test_region_changes_are_allowed_while_reviewed(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Reviewed.")
+
+    assigned = encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+    assert assigned.regions == ["northlands"]
+    assert encounter.unassign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands").regions == []
+
+
+@pytest.mark.parametrize("terminal_status", ["open", "completed", "abandoned"])
+def test_region_changes_are_rejected_after_reviewed(tmp_path: Path, terminal_status: str) -> None:
+    _make_campaign(tmp_path)
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Reviewed.")
+    if terminal_status == "abandoned":
+        encounter.abandon_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Stopped.")
+    else:
+        encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+        if terminal_status == "completed":
+            encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+
+    with pytest.raises(encounter.EncounterRegionMutationError):
+        encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+    with pytest.raises(encounter.EncounterRegionMutationError):
+        encounter.unassign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+
+
 def test_create_encounter_sets_created_and_updated_fields(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")

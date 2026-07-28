@@ -295,7 +295,12 @@ def assign_region(
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.assign_region(Path.cwd(), campaign, name, region)
-    except (encounter_core.EncounterNotFoundError, region_core.RegionNotFoundError, GitIdentityError) as exc:
+    except (
+        encounter_core.EncounterNotFoundError,
+        region_core.RegionNotFoundError,
+        encounter_core.EncounterRegionMutationError,
+        GitIdentityError,
+    ) as exc:
         fail(console, str(exc))
 
     console.print(f"Assigned [bold]{name}[/bold] to region [bold]{region}[/bold].")
@@ -311,7 +316,11 @@ def unassign_region(
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.unassign_region(Path.cwd(), campaign, name, region)
-    except (encounter_core.EncounterNotFoundError, GitIdentityError) as exc:
+    except (
+        encounter_core.EncounterNotFoundError,
+        encounter_core.EncounterRegionMutationError,
+        GitIdentityError,
+    ) as exc:
         fail(console, str(exc))
 
     console.print(f"Unassigned [bold]{name}[/bold] from region [bold]{region}[/bold].")

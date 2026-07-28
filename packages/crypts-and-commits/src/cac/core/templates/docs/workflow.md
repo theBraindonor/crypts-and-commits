@@ -74,9 +74,8 @@ Campaign  ---- contains ---->  Encounter  ---- assigned to ---------------+
   exactly one campaign; it is stored nested under that campaign.
 - **Encounter -> Region** (one-directional): recorded only on the encounter's
   `regions` list. A region has no back-reference to the encounters assigned
-  to it. Unlike the encounter's `depends_on` list, region assignment carries
-  **no status restriction** - it can be changed regardless of the encounter's
-  current status.
+  to it. Like the encounter's `depends_on` list, region assignment is only
+  permitted while the encounter is `draft` or `reviewed`.
 - **Encounter -> Encounter** (`depends_on`, one-directional storage): a direct
   prerequisite is recorded only on the *dependent* encounter's `depends_on`
   list, within the same campaign. The reverse ("what depends on me") is never
@@ -266,8 +265,8 @@ execute, with fixed body sections.
   `encounter_record_message` (no status change) is valid only while `reviewed`
   or `open`.
 
-  Region assignment/unassignment carries no status restriction. Dependency
-  assignment/unassignment is only permitted while `draft` or `reviewed`.
+  Region assignment/unassignment and dependency assignment/unassignment are
+  both only permitted while `draft` or `reviewed`.
 
 - **Connections**: belongs to one campaign (containment); `regions` list
   (one-directional, no back-reference on the region); `depends_on` list

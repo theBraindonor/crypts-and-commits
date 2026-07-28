@@ -436,6 +436,20 @@ def test_assign_region_missing_region_fails() -> None:
     assert result.exit_code == 1
 
 
+def test_assign_region_rejected_once_open() -> None:
+    _create_campaign()
+    runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "Lore."])
+    runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
+
+    result = runner.invoke(
+        app, ["encounter", "assign-region", "goblin-ambush", "northlands", "--campaign", "opening-gambit"]
+    )
+
+    assert result.exit_code == 1
+
+
 def test_unassign_region_clears_region(tmp_path: Path) -> None:
     _create_campaign()
     runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])

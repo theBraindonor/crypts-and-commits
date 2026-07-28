@@ -34,6 +34,7 @@ _ENCOUNTER_TRANSITIONS: dict[str, frozenset[str]] = {
 }
 _RECORD_MESSAGE_STATUSES = frozenset({"reviewed", "open"})
 _DEPENDENCY_MUTATION_STATUSES = frozenset({"draft", "reviewed"})
+_REGION_MUTATION_STATUSES = frozenset({"draft", "reviewed"})
 
 
 class InvalidEncounterNameError(ValueError):
@@ -51,6 +52,10 @@ class EncounterNotDraftError(InvalidEncounterTransitionError):
 
 class EncounterMessageRequiredError(ValueError):
     """Raised when a required message is missing or blank."""
+
+
+class EncounterRegionMutationError(ValueError):
+    """Raised when a region is assigned or unassigned after an encounter has left 'draft'/'reviewed'."""
 
 
 class EncounterNotFoundError(FileNotFoundError):
@@ -364,6 +369,7 @@ def _update_regions(
 ) -> Encounter:
     path = _existing_encounter_path(root, campaign, name)
     post = frontmatter.load(path)
+    _require_region_mutable(post, name)
     toggle_list_attribute(post, REGIONS_KEY, add=add, remove=remove)
     frontmatter_utils.stamp_updated(post, root)
     write_post(root, path, post)
@@ -387,6 +393,16 @@ def _require_dependency_mutable(post: frontmatter.Post, name: str) -> None:
         allowed = ", ".join(sorted(_DEPENDENCY_MUTATION_STATUSES))
         raise EncounterDependencyMutationError(
             f"Cannot change dependencies for encounter {name!r}: status is {status!r}, but dependency changes "
+            f"require status to be one of: {allowed}."
+        )
+
+
+def _require_region_mutable(post: frontmatter.Post, name: str) -> None:
+    status = post.get("status", DEFAULT_ENCOUNTER_STATUS)
+    if status not in _REGION_MUTATION_STATUSES:
+        allowed = ", ".join(sorted(_REGION_MUTATION_STATUSES))
+        raise EncounterRegionMutationError(
+            f"Cannot change regions for encounter {name!r}: status is {status!r}, but region changes "
             f"require status to be one of: {allowed}."
         )
 
