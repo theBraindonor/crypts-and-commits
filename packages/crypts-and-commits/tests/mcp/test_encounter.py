@@ -90,8 +90,17 @@ def test_encounter_delete_removes_file(tmp_path: Path) -> None:
     assert result["deleted"].endswith("goblin-ambush.md")
 
 
+def test_encounter_review_requires_region(tmp_path: Path) -> None:
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    with pytest.raises(encounter.EncounterRegionRequiredError):
+        mcp_encounter.encounter_review("goblin-ambush", "Looks solid.")
+
+
 def test_encounter_review_locks_and_transitions(tmp_path: Path) -> None:
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    region.create_region(tmp_path, "backend", "Body.", "Summary.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "backend")
 
     result = mcp_encounter.encounter_review("goblin-ambush", "Looks solid.")
 
@@ -100,6 +109,8 @@ def test_encounter_review_locks_and_transitions(tmp_path: Path) -> None:
 
 def test_encounter_review_requires_message(tmp_path: Path) -> None:
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    region.create_region(tmp_path, "backend", "Body.", "Summary.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "backend")
 
     with pytest.raises(encounter.EncounterMessageRequiredError):
         mcp_encounter.encounter_review("goblin-ambush", "")
@@ -107,6 +118,8 @@ def test_encounter_review_requires_message(tmp_path: Path) -> None:
 
 def test_encounter_open_and_complete(tmp_path: Path) -> None:
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    region.create_region(tmp_path, "backend", "Body.", "Summary.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "backend")
     encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks solid.")
 
     opened = mcp_encounter.encounter_open("goblin-ambush")
@@ -118,6 +131,8 @@ def test_encounter_open_and_complete(tmp_path: Path) -> None:
 
 def test_encounter_record_message_appends_without_status_change(tmp_path: Path) -> None:
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    region.create_region(tmp_path, "backend", "Body.", "Summary.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "backend")
     encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks solid.")
 
     result = mcp_encounter.encounter_record_message("goblin-ambush", "Heads up.")
@@ -148,11 +163,13 @@ def test_encounter_assign_region_and_unassign_region(tmp_path: Path) -> None:
 def test_encounter_assign_region_rejected_once_open(tmp_path: Path) -> None:
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
     region.create_region(tmp_path, "backend", "Body.", "Summary.")
+    region.create_region(tmp_path, "frontend", "Body.", "Summary.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "backend")
     encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks solid.")
     encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
 
     with pytest.raises(encounter.EncounterRegionMutationError):
-        mcp_encounter.encounter_assign_region("goblin-ambush", "backend")
+        mcp_encounter.encounter_assign_region("goblin-ambush", "frontend")
 
 
 def test_encounter_assign_dependency_and_unassign_dependency(tmp_path: Path) -> None:

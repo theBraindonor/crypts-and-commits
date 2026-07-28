@@ -74,16 +74,16 @@ Campaign  ---- contains ---->  Encounter  ---- assigned to ---------------+
   exactly one campaign; it is stored nested under that campaign.
 - **Encounter -> Region** (one-directional): recorded only on the encounter's
   `regions` list. A region has no back-reference to the encounters assigned
-  to it. Like the encounter's `depends_on` list, region assignment is only
-  permitted while the encounter is `draft` or `reviewed`.
+  to it. Region assignment is only permitted while the encounter is `draft`,
+  and at least one region must be assigned before `encounter_review` will
+  succeed.
 - **Encounter -> Encounter** (`depends_on`, one-directional storage): a direct
   prerequisite is recorded only on the *dependent* encounter's `depends_on`
   list, within the same campaign. The reverse ("what depends on me") is never
   stored - it's computed on demand (e.g. to block deleting an encounter other
   encounters still depend on). Dependency changes are only permitted while
-  the dependent encounter is `draft` or `reviewed`; self-dependencies and
-  cycles are rejected, and an abandoned encounter cannot be assigned as a
-  prerequisite.
+  the dependent encounter is `draft`; self-dependencies and cycles are
+  rejected, and an abandoned encounter cannot be assigned as a prerequisite.
 
 Lore's effect on an encounter is resolved, not stored directly on the
 encounter: the applicable set for a given encounter is world-assigned lore
@@ -240,7 +240,7 @@ execute, with fixed body sections.
 
   | From | To | Trigger | Notes |
   |---|---|---|---|
-  | `draft` | `reviewed` | `encounter_review` | Message required. Performed by an independent reviewer (see the `campaign-manager` skill), never the plan's author. Permanently locks the four fixed sections. |
+  | `draft` | `reviewed` | `encounter_review` | Message required. Requires at least one assigned region. Performed by an independent reviewer (see the `campaign-manager` skill), never the plan's author. Permanently locks the four fixed sections. |
   | `draft` | `abandoned` | `encounter_abandon` | Message required. |
   | `reviewed` | `open` | `encounter_open` | Message optional. Fails, listing every unsatisfied prerequisite and its status, until all direct `depends_on` entries are `completed`. |
   | `reviewed` | `abandoned` | `encounter_abandon` | Message required. |
@@ -266,7 +266,7 @@ execute, with fixed body sections.
   or `open`.
 
   Region assignment/unassignment and dependency assignment/unassignment are
-  both only permitted while `draft` or `reviewed`.
+  both only permitted while `draft`.
 
 - **Connections**: belongs to one campaign (containment); `regions` list
   (one-directional, no back-reference on the region); `depends_on` list

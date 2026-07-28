@@ -22,6 +22,18 @@ def _make_campaign(tmp_path: Path, name: str = "opening-gambit") -> None:
     campaign.create_campaign(tmp_path, name, "Body.")
 
 
+def _assign_default_region(tmp_path: Path, campaign_name: str, name: str, region_name: str = "default-region") -> None:
+    if not region.exists(tmp_path, region_name):
+        region.create_region(tmp_path, region_name, "Body.", "Summary.")
+    encounter.assign_region(tmp_path, campaign_name, name, region_name)
+
+
+def _review(tmp_path: Path, campaign_name: str, name: str, message: str = "Reviewed.") -> encounter.Encounter:
+    if not encounter.read_encounter(tmp_path, campaign_name, name).regions:
+        _assign_default_region(tmp_path, campaign_name, name)
+    return encounter.review_encounter(tmp_path, campaign_name, name, message)
+
+
 def test_list_encounters_returns_empty_when_no_directory(tmp_path: Path) -> None:
     assert encounter.list_encounters(tmp_path, "opening-gambit") == []
 
@@ -221,13 +233,13 @@ def test_update_encounter_missing_raises(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "advance",
     [
-        lambda tmp_path: encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+        lambda tmp_path: _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
         lambda tmp_path: (
-            encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+            _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
             encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
         ),
         lambda tmp_path: (
-            encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+            _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
             encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
             encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
         ),
@@ -269,7 +281,7 @@ def test_review_encounter_transitions_status_and_appends_message(tmp_path: Path)
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
-    result = encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+    result = _review(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
 
     assert result.status == "reviewed"
     body = encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush").body
@@ -282,6 +294,7 @@ def test_review_encounter_transitions_status_and_appends_message(tmp_path: Path)
 def test_review_encounter_requires_message(tmp_path: Path, message: str) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    _assign_default_region(tmp_path, "opening-gambit", "goblin-ambush")
 
     with pytest.raises(encounter.EncounterMessageRequiredError):
         encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", message)
@@ -290,7 +303,7 @@ def test_review_encounter_requires_message(tmp_path: Path, message: str) -> None
 def test_review_encounter_rejects_when_not_draft(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "First review.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "First review.")
 
     with pytest.raises(encounter.InvalidEncounterTransitionError):
         encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Second review.")
@@ -301,13 +314,34 @@ def test_review_encounter_missing_encounter_raises(tmp_path: Path) -> None:
         encounter.review_encounter(tmp_path, "opening-gambit", "missing", "Looks good.")
 
 
+def test_review_encounter_requires_region(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    with pytest.raises(encounter.EncounterRegionRequiredError):
+        encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+
+    assert encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush").status == "draft"
+
+
+def test_review_encounter_succeeds_with_region_assigned(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+
+    result = encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+
+    assert result.status == "reviewed"
+
+
 @pytest.mark.parametrize(
     "advance",
     [
         lambda tmp_path: None,
-        lambda tmp_path: encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+        lambda tmp_path: _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
         lambda tmp_path: (
-            encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+            _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
             encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
         ),
     ],
@@ -329,7 +363,7 @@ def test_abandon_encounter_succeeds_from_non_terminal_statuses(tmp_path: Path, a
 def test_abandon_encounter_rejects_from_completed(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
     encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
     encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
 
@@ -358,7 +392,7 @@ def test_abandon_encounter_requires_message(tmp_path: Path, message: str) -> Non
 def test_open_encounter_transitions_from_reviewed_without_message(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
 
     result = encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
 
@@ -369,7 +403,7 @@ def test_open_encounter_transitions_from_reviewed_without_message(tmp_path: Path
 def test_open_encounter_transitions_from_reviewed_with_message(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
 
     result = encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Go ahead.")
 
@@ -389,7 +423,7 @@ def test_open_encounter_rejects_from_draft(tmp_path: Path) -> None:
 def test_complete_encounter_transitions_from_open(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
     encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
 
     result = encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush", "All verified.")
@@ -402,7 +436,7 @@ def test_complete_encounter_transitions_from_open(tmp_path: Path) -> None:
 def test_complete_encounter_rejects_from_reviewed(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
 
     with pytest.raises(encounter.InvalidEncounterTransitionError):
         encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
@@ -412,7 +446,7 @@ def test_complete_encounter_rejects_from_reviewed(tmp_path: Path) -> None:
 def test_record_message_allowed_in_reviewed_and_open_statuses(tmp_path: Path, status: str) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
     if status == "open":
         encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
 
@@ -428,7 +462,7 @@ def test_record_message_allowed_in_reviewed_and_open_statuses(tmp_path: Path, st
     [
         lambda tmp_path: None,
         lambda tmp_path: (
-            encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
+            _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore."),
             encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
             encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush"),
         ),
@@ -449,7 +483,7 @@ def test_record_message_rejects_outside_reviewed_or_open(tmp_path: Path, advance
 def test_record_message_requires_message(tmp_path: Path, message: str) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
 
     with pytest.raises(encounter.EncounterMessageRequiredError):
         encounter.record_message(tmp_path, "opening-gambit", "goblin-ambush", message)
@@ -463,7 +497,7 @@ def test_record_message_missing_encounter_raises(tmp_path: Path) -> None:
 def test_record_message_multiple_calls_append_multiple_entries_under_one_log_section(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "Checked lore.")
     encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
 
     encounter.record_message(tmp_path, "opening-gambit", "goblin-ambush", "First note.")
@@ -554,26 +588,17 @@ def test_unassign_region_missing_encounter_raises(tmp_path: Path) -> None:
         encounter.unassign_region(tmp_path, "opening-gambit", "missing", "northlands")
 
 
-def test_region_changes_are_allowed_while_reviewed(tmp_path: Path) -> None:
-    _make_campaign(tmp_path)
-    region.create_region(tmp_path, "northlands", "Body.", "Summary.")
-    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Reviewed.")
-
-    assigned = encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
-    assert assigned.regions == ["northlands"]
-    assert encounter.unassign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands").regions == []
-
-
-@pytest.mark.parametrize("terminal_status", ["open", "completed", "abandoned"])
+@pytest.mark.parametrize("terminal_status", ["reviewed", "open", "completed", "abandoned"])
 def test_region_changes_are_rejected_after_reviewed(tmp_path: Path, terminal_status: str) -> None:
     _make_campaign(tmp_path)
+    region.create_region(tmp_path, "southlands", "Body.", "Summary.")
     region.create_region(tmp_path, "northlands", "Body.", "Summary.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "southlands")
     encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Reviewed.")
     if terminal_status == "abandoned":
         encounter.abandon_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Stopped.")
-    else:
+    elif terminal_status != "reviewed":
         encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
         if terminal_status == "completed":
             encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
@@ -581,7 +606,7 @@ def test_region_changes_are_rejected_after_reviewed(tmp_path: Path, terminal_sta
     with pytest.raises(encounter.EncounterRegionMutationError):
         encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
     with pytest.raises(encounter.EncounterRegionMutationError):
-        encounter.unassign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
+        encounter.unassign_region(tmp_path, "opening-gambit", "goblin-ambush", "southlands")
 
 
 def test_create_encounter_sets_created_and_updated_fields(tmp_path: Path) -> None:
@@ -604,7 +629,7 @@ def test_touching_an_encounter_refreshes_updated_but_not_created(
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
     _set_identity(monkeypatch, user="Jane Doe", when=later)
-    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+    _review(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
 
     metadata, _ = encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")
     assert metadata["created_by"] == "John Hoff"
@@ -631,7 +656,7 @@ def test_log_entry_includes_timestamp_and_user(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
-    result = encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+    result = _review(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
 
     assert "### Review - 2026-07-23T18:04:12Z - John Hoff" in result.body
 
@@ -674,6 +699,7 @@ def test_review_encounter_propagates_git_identity_error_and_leaves_file_unchange
 ) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+    _assign_default_region(tmp_path, "opening-gambit", "goblin-ambush")
     path = encounter.encounter_dir(tmp_path, "opening-gambit") / "goblin-ambush.md"
     before = path.read_text(encoding="utf-8")
 
@@ -703,26 +729,15 @@ def test_assign_and_unassign_dependency_are_idempotent(tmp_path: Path) -> None:
     assert unassigned.depends_on == []
 
 
-def test_dependency_changes_are_allowed_while_reviewed(tmp_path: Path) -> None:
-    _make_campaign(tmp_path)
-    encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
-    encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "feature", "Reviewed.")
-
-    assigned = encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
-    assert assigned.depends_on == ["foundation"]
-    assert encounter.unassign_dependency(tmp_path, "opening-gambit", "feature", "foundation").depends_on == []
-
-
-@pytest.mark.parametrize("terminal_status", ["open", "completed", "abandoned"])
+@pytest.mark.parametrize("terminal_status", ["reviewed", "open", "completed", "abandoned"])
 def test_dependency_changes_are_rejected_after_reviewed(tmp_path: Path, terminal_status: str) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
     encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "feature", "Reviewed.")
+    _review(tmp_path, "opening-gambit", "feature", "Reviewed.")
     if terminal_status == "abandoned":
         encounter.abandon_encounter(tmp_path, "opening-gambit", "feature", "Stopped.")
-    else:
+    elif terminal_status != "reviewed":
         encounter.open_encounter(tmp_path, "opening-gambit", "feature")
         if terminal_status == "completed":
             encounter.complete_encounter(tmp_path, "opening-gambit", "feature")
@@ -768,7 +783,7 @@ def test_open_reports_all_incomplete_dependencies_and_statuses(tmp_path: Path) -
     encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "draft-dependency")
     encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "abandoned-dependency")
     encounter.abandon_encounter(tmp_path, "opening-gambit", "abandoned-dependency", "Stopped.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "feature", "Reviewed.")
+    _review(tmp_path, "opening-gambit", "feature", "Reviewed.")
 
     with pytest.raises(encounter.EncounterDependenciesIncompleteError) as exc_info:
         encounter.open_encounter(tmp_path, "opening-gambit", "feature")
@@ -782,12 +797,12 @@ def test_open_reports_all_incomplete_dependencies_and_statuses(tmp_path: Path) -
 def test_open_succeeds_when_all_dependencies_are_completed(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
-    encounter.review_encounter(tmp_path, "opening-gambit", "foundation", "Reviewed.")
+    _review(tmp_path, "opening-gambit", "foundation", "Reviewed.")
     encounter.open_encounter(tmp_path, "opening-gambit", "foundation")
     encounter.complete_encounter(tmp_path, "opening-gambit", "foundation")
     encounter.create_encounter(tmp_path, "opening-gambit", "feature", "Body.")
     encounter.assign_dependency(tmp_path, "opening-gambit", "feature", "foundation")
-    encounter.review_encounter(tmp_path, "opening-gambit", "feature", "Reviewed.")
+    _review(tmp_path, "opening-gambit", "feature", "Reviewed.")
 
     assert encounter.open_encounter(tmp_path, "opening-gambit", "feature").status == "open"
 

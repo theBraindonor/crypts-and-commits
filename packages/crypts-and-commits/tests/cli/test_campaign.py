@@ -223,6 +223,10 @@ def test_pause_fails_with_open_encounter() -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["campaign", "open", "opening-gambit"])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["region", "create", "default-region", "--body", "text", "--summary", "Summary."])
+    runner.invoke(
+        app, ["encounter", "assign-region", "goblin-ambush", "default-region", "--campaign", "opening-gambit"]
+    )
     runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "ok"])
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
 
@@ -247,6 +251,10 @@ def test_complete_fails_with_open_encounter() -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["campaign", "open", "opening-gambit"])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["region", "create", "default-region", "--body", "text", "--summary", "Summary."])
+    runner.invoke(
+        app, ["encounter", "assign-region", "goblin-ambush", "default-region", "--campaign", "opening-gambit"]
+    )
     runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "ok"])
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
 
@@ -280,6 +288,10 @@ def test_abandon_fails_with_open_encounter() -> None:
     runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["campaign", "open", "opening-gambit"])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["region", "create", "default-region", "--body", "text", "--summary", "Summary."])
+    runner.invoke(
+        app, ["encounter", "assign-region", "goblin-ambush", "default-region", "--campaign", "opening-gambit"]
+    )
     runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "ok"])
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
 

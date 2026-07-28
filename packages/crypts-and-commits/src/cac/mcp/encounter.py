@@ -83,9 +83,9 @@ def encounter_delete(name: str, campaign: str | None = None) -> dict[str, str]:
 
 @mcp.tool()
 def encounter_review(name: str, message: str, campaign: str | None = None) -> dict[str, Any]:
-    """Move an encounter from 'draft' to 'reviewed' after a lore review. message is required and
-    permanently locks its Requirements/Rationale/Plan/Verification sections against further
-    replacement."""
+    """Move an encounter from 'draft' to 'reviewed' after a lore review. Requires at least one
+    assigned region. message is required and permanently locks its
+    Requirements/Rationale/Plan/Verification sections against further replacement."""
     resolved = _resolve_campaign(campaign, require_mutable=True)
     return encounter_to_dict(encounter_core.review_encounter(Path.cwd(), resolved, name, message))
 
@@ -138,13 +138,13 @@ def encounter_unassign_region(name: str, region: str, campaign: str | None = Non
 
 @mcp.tool()
 def encounter_assign_dependency(name: str, dependency: str, campaign: str | None = None) -> dict[str, Any]:
-    """Add a direct prerequisite to an encounter while it is 'draft' or 'reviewed'."""
+    """Add a direct prerequisite to an encounter while it is 'draft'."""
     resolved = _resolve_campaign(campaign, require_mutable=True)
     return encounter_to_dict(encounter_core.assign_dependency(Path.cwd(), resolved, name, dependency))
 
 
 @mcp.tool()
 def encounter_unassign_dependency(name: str, dependency: str, campaign: str | None = None) -> dict[str, Any]:
-    """Remove a direct prerequisite while the dependent encounter is 'draft' or 'reviewed'."""
+    """Remove a direct prerequisite while the dependent encounter is 'draft'."""
     resolved = _resolve_campaign(campaign, require_mutable=True)
     return encounter_to_dict(encounter_core.unassign_dependency(Path.cwd(), resolved, name, dependency))

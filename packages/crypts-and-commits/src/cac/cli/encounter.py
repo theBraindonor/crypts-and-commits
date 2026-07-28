@@ -16,13 +16,14 @@ app = typer.Typer(
         "Manage encounter entries - a concrete unit of work within a campaign, representing "
         "a plan the AI agent is expected to execute. An encounter moves through a fixed "
         "lifecycle: 'draft' (being planned; the only status in which its content may be "
-        "replaced with 'update') -> 'reviewed' (via 'review', after a lore check; locks the "
-        "content) -> 'open' (via 'open'; work begins) -> 'completed' (via 'complete', after "
-        "verification passes). It may instead be marked 'abandoned' (via 'abandon') from "
-        "'draft', 'reviewed', or 'open' - but not once 'completed'. Once past 'draft', content "
-        "can no longer be replaced, only appended to via the 'review'/'abandon'/'open'/"
-        "'complete' messages or 'record-message'. Dependencies may be changed while an "
-        "encounter is 'draft' or 'reviewed'; all must be completed before it can open. "
+        "replaced with 'update') -> 'reviewed' (via 'review', after a lore check; requires at "
+        "least one assigned region and locks the content) -> 'open' (via 'open'; work begins) -> "
+        "'completed' (via 'complete', after verification passes). It may instead be marked "
+        "'abandoned' (via 'abandon') from 'draft', 'reviewed', or 'open' - but not once "
+        "'completed'. Once past 'draft', content can no longer be replaced, only appended to via "
+        "the 'review'/'abandon'/'open'/'complete' messages or 'record-message'. Regions and "
+        "dependencies may only be changed while an encounter is 'draft'; all dependencies must be "
+        "completed before it can open. "
         "The campaign defaults to the active (open) campaign; use --campaign to target another one."
     )
 )
@@ -187,7 +188,8 @@ def review_encounter(
     campaign: str | None = _campaign_option(),
     message: str = typer.Option(..., "--message", "-m", help="Lore-review result. Required."),
 ) -> None:
-    """Move an encounter from 'draft' to 'reviewed' after a lore review. Locks its content."""
+    """Move an encounter from 'draft' to 'reviewed' after a lore review. Requires at least one
+    assigned region. Locks its content."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.review_encounter(Path.cwd(), campaign, name, message)
@@ -195,6 +197,7 @@ def review_encounter(
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
         encounter_core.EncounterMessageRequiredError,
+        encounter_core.EncounterRegionRequiredError,
         GitIdentityError,
     ) as exc:
         fail(console, str(exc))
@@ -332,7 +335,7 @@ def assign_dependency(
     dependency: str = typer.Argument(..., help="Direct prerequisite encounter name."),
     campaign: str | None = _campaign_option(),
 ) -> None:
-    """Assign a direct prerequisite while the dependent encounter is draft or reviewed."""
+    """Assign a direct prerequisite while the dependent encounter is draft."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.assign_dependency(Path.cwd(), campaign, name, dependency)
@@ -353,7 +356,7 @@ def unassign_dependency(
     dependency: str = typer.Argument(..., help="Direct prerequisite encounter name."),
     campaign: str | None = _campaign_option(),
 ) -> None:
-    """Unassign a direct prerequisite while the dependent encounter is draft or reviewed."""
+    """Unassign a direct prerequisite while the dependent encounter is draft."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.unassign_dependency(Path.cwd(), campaign, name, dependency)

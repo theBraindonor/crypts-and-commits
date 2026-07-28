@@ -33,8 +33,8 @@ _ENCOUNTER_TRANSITIONS: dict[str, frozenset[str]] = {
     "abandoned": frozenset(),
 }
 _RECORD_MESSAGE_STATUSES = frozenset({"reviewed", "open"})
-_DEPENDENCY_MUTATION_STATUSES = frozenset({"draft", "reviewed"})
-_REGION_MUTATION_STATUSES = frozenset({"draft", "reviewed"})
+_DEPENDENCY_MUTATION_STATUSES = frozenset({"draft"})
+_REGION_MUTATION_STATUSES = frozenset({"draft"})
 
 
 class InvalidEncounterNameError(ValueError):
@@ -56,6 +56,10 @@ class EncounterMessageRequiredError(ValueError):
 
 class EncounterRegionMutationError(ValueError):
     """Raised when a region is assigned or unassigned after an encounter has left 'draft'/'reviewed'."""
+
+
+class EncounterRegionRequiredError(ValueError):
+    """Raised when reviewing a draft encounter that has no regions assigned."""
 
 
 class EncounterNotFoundError(FileNotFoundError):
@@ -206,8 +210,16 @@ def delete_encounter(root: Path, campaign: str, name: str) -> Path:
 
 
 def review_encounter(root: Path, campaign: str, name: str, message: str) -> Encounter:
-    """Move an encounter from 'draft' to 'reviewed'. Message is required and permanently locks
-    the Requirements/Rationale/Plan/Verification sections against further replacement."""
+    """Move an encounter from 'draft' to 'reviewed'. Requires at least one region to already be
+    assigned. Message is required and permanently locks the Requirements/Rationale/Plan/Verification
+    sections against further replacement."""
+    path = _existing_encounter_path(root, campaign, name)
+    post = frontmatter.load(path)
+    if post.get("status", DEFAULT_ENCOUNTER_STATUS) == "draft" and not post.get(REGIONS_KEY, []):
+        raise EncounterRegionRequiredError(
+            f"Cannot review encounter {name!r}: at least one region must be assigned first "
+            "(use 'assign_region' / 'cac encounter assign-region')."
+        )
     return _transition(
         root, campaign, name, to_status="reviewed", log_heading="Review", message=message, message_required=True
     )
@@ -314,7 +326,7 @@ def unassign_region(root: Path, campaign: str, name: str, region: str) -> Encoun
 
 
 def assign_dependency(root: Path, campaign: str, name: str, dependency: str) -> Encounter:
-    """Add a direct prerequisite to an encounter while it is draft or reviewed."""
+    """Add a direct prerequisite to an encounter while it is draft."""
     validate_name(dependency)
     path = _existing_encounter_path(root, campaign, name)
     post = frontmatter.load(path)
@@ -345,7 +357,7 @@ def assign_dependency(root: Path, campaign: str, name: str, dependency: str) -> 
 
 
 def unassign_dependency(root: Path, campaign: str, name: str, dependency: str) -> Encounter:
-    """Remove a direct prerequisite while the dependent encounter is draft or reviewed."""
+    """Remove a direct prerequisite while the dependent encounter is draft."""
     validate_name(dependency)
     path = _existing_encounter_path(root, campaign, name)
     post = frontmatter.load(path)

@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from cac.core import campaign, encounter, frontmatter_utils, git_utils
+from cac.core import campaign, encounter, frontmatter_utils, git_utils, region
 
 _FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
 
@@ -19,6 +19,9 @@ def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _open_encounter(tmp_path: Path, campaign_name: str, encounter_name: str) -> None:
     encounter.create_encounter(tmp_path, campaign_name, encounter_name, "Body.")
+    if not region.exists(tmp_path, "default-region"):
+        region.create_region(tmp_path, "default-region", "Body.", "Summary.")
+    encounter.assign_region(tmp_path, campaign_name, encounter_name, "default-region")
     encounter.review_encounter(tmp_path, campaign_name, encounter_name, "Looks good.")
     encounter.open_encounter(tmp_path, campaign_name, encounter_name)
 
