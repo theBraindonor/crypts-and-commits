@@ -8,8 +8,9 @@ from cac.core import search_index as search_index_core
 
 app = typer.Typer(
     help=(
-        "Build and inspect the search index over .sourcebook content. The index is derived data, "
-        "regenerated from disk by 'rebuild' - it is not kept in sync automatically."
+        "Build and inspect the search index over .sourcebook content. The index stays in sync "
+        "automatically as content is created, updated, or deleted through cac - 'rebuild' is only "
+        "needed for the first build, or to catch up on changes made outside cac (e.g. a git pull)."
     )
 )
 console = Console()
