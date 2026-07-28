@@ -68,20 +68,20 @@ In the tool forms below, `campaign` is shown explicitly, but omit it to use the 
 - `encounter_get(name, campaign)` — show an encounter's frontmatter (`status`, `regions`) and body. CLI fallback: `cac encounter get --help`.
 - `encounter_create(name, body, campaign)` — create a new encounter. The campaign must already exist and not be completed/abandoned. CLI fallback: `cac encounter create --help`.
 - `encounter_update(name, body, campaign)` — replace an encounter's body. Only works while status is `draft`. CLI fallback: `cac encounter update --help`.
-- `encounter_review(name, message, campaign)` — move `draft` → `reviewed` after a lore review. Message is required and permanently locks the content. CLI fallback: `cac encounter review --help`.
+- `encounter_review(name, message, campaign)` — move `draft` → `reviewed` after a lore review. Requires at least one region already assigned. Message is required and permanently locks the content. CLI fallback: `cac encounter review --help`.
 - `encounter_open(name, campaign, message)` — move `reviewed` → `open` and begin execution. Message is optional. CLI fallback: `cac encounter open --help`.
 - `encounter_record_message(name, message, campaign)` — append a note without changing status. Works while `reviewed` or `open`. CLI fallback: `cac encounter record-message --help`.
 - `encounter_complete(name, campaign, message)` — move `open` → `completed` once verification passes. Message is optional. CLI fallback: `cac encounter complete --help`.
 - `encounter_abandon(name, message, campaign)` — move `draft`, `reviewed`, or `open` → `abandoned`. Not available once `completed`. Message is required. CLI fallback: `cac encounter abandon --help`.
-- `encounter_assign_region(name, region, campaign)` / `encounter_unassign_region(name, region, campaign)` — an encounter may be assigned to one or more regions. This link is recorded only on the encounter. CLI fallback: `cac encounter assign-region --help` / `cac encounter unassign-region --help`.
-- `encounter_assign_dependency(name, dependency, campaign)` / `encounter_unassign_dependency(name, dependency, campaign)` — change direct prerequisites while the dependent encounter is `draft` or `reviewed`. CLI fallback: `cac encounter assign-dependency --help` / `cac encounter unassign-dependency --help`.
+- `encounter_assign_region(name, region, campaign)` / `encounter_unassign_region(name, region, campaign)` — an encounter may be assigned to one or more regions. This link is recorded only on the encounter. Only permitted while `draft`. CLI fallback: `cac encounter assign-region --help` / `cac encounter unassign-region --help`.
+- `encounter_assign_dependency(name, dependency, campaign)` / `encounter_unassign_dependency(name, dependency, campaign)` — change direct prerequisites while the dependent encounter is `draft`. CLI fallback: `cac encounter assign-dependency --help` / `cac encounter unassign-dependency --help`.
 - `encounter_delete(name, campaign)` — remove an encounter, unconditionally. Fails while another encounter depends on it. CLI fallback: `cac encounter delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
 
 ## Encounter Lifecycle
 
-**`draft`** — the encounter is being documented and planned. Write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. This is the only status in which `encounter_update` can replace the body.
+**`draft`** — the encounter is being documented and planned. Write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. This is the only status in which `encounter_update` can replace the body. Also assign at least one region (`encounter_assign_region`) before requesting review — `encounter_review` will refuse to run without one.
 
-Dependencies may be assigned or unassigned while an encounter is `draft` or `reviewed`, but not after it opens. Assignments must reference a non-abandoned encounter in the same campaign and cannot introduce a self-dependency or cycle. An abandoned existing prerequisite remains an unsatisfied blocker until it is removed or replaced.
+Region and dependency assignment are both only permitted while an encounter is `draft`, not after it moves to `reviewed`. Dependency assignments must reference a non-abandoned encounter in the same campaign and cannot introduce a self-dependency or cycle. An abandoned existing prerequisite remains an unsatisfied blocker until it is removed or replaced.
 
 **`draft` → `reviewed`** — this gate is performed by an **independent, fresh reviewer subagent**, never inline by the agent that authored the plan. An agent reviewing its own plan just re-checks it against the priors that produced it — a rubber stamp — so **do not review the Plan yourself**.
 
