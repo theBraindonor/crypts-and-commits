@@ -319,6 +319,23 @@ and wait for an explicit answer, every time the gate is reached.
    the agent confirms with the developer before closing it out - never
    unilaterally, even when every check is green.
 
+Each of these three gates must be written explicitly into the skill that
+carries the encounter lifecycle - `campaign_manager`, under both
+`templates/skills/claude/campaign_manager/SKILL.md` and
+`templates/skills/codex/campaign_manager/SKILL.md` - not left implicit, and
+not treated as adequately covered by a cross-reference to this document.
+"Explicit" means the stop-and-ask instruction for each gate is present in the
+skill's own wording, in a form an agent following the skill text alone (with
+no memory of this guide) would still stop and ask. This requirement is not a
+one-time authoring checklist item - it must hold every time either skill
+template is modified or regenerated, for any reason, including a rewrite that
+touches unrelated parts of the encounter lifecycle procedure. An edit to
+either template that drops, waters down, or fails to carry forward any of the
+three gates' stop-and-ask wording is a defect in that edit, to be caught the
+same way any other lore violation is: by checking the skill template's actual
+current text against this section, not by assuming a past edit is still
+intact.
+
 What is *not* separately gated: the draft -> reviewed transition itself, once
 a `PASS-WITH-NOTES` verdict is in hand - it runs immediately, because gate 1
 already covers it. Campaign-level transitions (`open`/`pause`/`complete`/
