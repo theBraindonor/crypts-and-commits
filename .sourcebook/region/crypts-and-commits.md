@@ -2,6 +2,8 @@
 assigned_lore:
 - cli-mcp-parity
 - console-best-practices
+- skills-authored-only-in-templates
+- workflow-doc-source-of-truth
 name: crypts-and-commits
 path: packages/crypts-and-commits
 summary: 'Core `cac` Python package and console script - the project''s deliverable
@@ -11,7 +13,7 @@ summary: 'Core `cac` Python package and console script - the project''s delivera
   root). Architecture rule: `cli/` modules are thin wrappers and all domain logic
   lives in `core/` (one module per concept). Tests mirror `src/cac/`.'
 updated_by: John Hoff
-updated_on: '2026-07-27T03:56:55Z'
+updated_on: '2026-07-28T03:53:02Z'
 ---
 
 # Crypts and Commits (core library)
