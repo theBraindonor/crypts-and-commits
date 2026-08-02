@@ -4,6 +4,8 @@ A Coding Assistant Continuity Framework. Crypts and Commits uses a tabletop-gami
 
 This repository is the development workspace for the project. It is a [PDM workspace](https://pdm-project.org/en/latest/usage/monorepo/) containing the individual packages that make up Crypts and Commits.
 
+Adopting CAC in your own project? See the [Quickstart](docs/QUICKSTART.md).
+
 ## Packages
 
 - [`packages/crypts-and-commits`](packages/crypts-and-commits) — the core framework.
