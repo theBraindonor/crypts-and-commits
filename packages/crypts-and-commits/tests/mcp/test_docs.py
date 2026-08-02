@@ -7,6 +7,7 @@ def test_docs_list_returns_name_and_summary() -> None:
     result = mcp_docs.docs_list()
 
     assert {"name": "workflow", "summary": docs_core.doc_summary("workflow")} in result["items"]
+    assert {"name": "migration-guide", "summary": docs_core.doc_summary("migration-guide")} in result["items"]
     assert result["next_cursor"] is None
 
 
@@ -17,6 +18,13 @@ def test_docs_get_returns_full_body() -> None:
     assert result["summary"] == docs_core.doc_summary("workflow")
     assert result["body"] == docs_core.read_doc("workflow")
     assert "[TRUNCATED" not in result["body"]
+
+
+def test_docs_get_returns_migration_guide_body() -> None:
+    result = mcp_docs.docs_get("migration-guide")
+
+    assert result["name"] == "migration-guide"
+    assert result["body"] == docs_core.read_doc("migration-guide")
 
 
 def test_docs_get_missing_raises() -> None:

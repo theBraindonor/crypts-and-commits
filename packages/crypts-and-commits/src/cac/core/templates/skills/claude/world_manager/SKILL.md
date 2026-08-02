@@ -60,6 +60,20 @@ Docs are read-only, framework-owned reference guides packaged with `cac` itself 
 - `mcp__crypts-and-commits__docs_list(cursor)` — list registered docs by `name` + `summary`, paged under the response budget. CLI fallback: `cac docs list --help`.
 - `mcp__crypts-and-commits__docs_get(name)` — show a doc's full body, e.g. `docs_get("workflow")` for the Workflow Reference Guide (the `.sourcebook` domain model's structure, status lifecycles, and workflow procedure in full). CLI fallback: `cac docs get --help`.
 
+## Sourcebook schema version
+
+`world.md` carries a `schema_version` frontmatter attribute — present on every sourcebook `cac bootstrap init` creates; a sourcebook bootstrapped before this attribute existed has none, which means version 1. `cac bootstrap init` reports when an existing sourcebook is behind or ahead of what the installed `cac` expects, but never migrates it itself — that's this skill's job, on request.
+
+When asked to check for or perform a sourcebook migration/upgrade:
+
+1. Read the world's `schema_version` (from `mcp__crypts-and-commits__world_get()` or `mcp__crypts-and-commits__prime_get()`; absent means 1) and compare it against the current version stated at the top of `mcp__crypts-and-commits__docs_get("migration-guide")`. CLI fallback: `cac world get --help` / `cac docs get migration-guide`.
+2. If it's already current, say so and stop.
+3. If it's behind, relay the guide's generic guardrail-suspend/restore procedure and its applicable version-specific section(s) to the developer, and get their explicit approval before disabling any guardrail mechanism — this is a bigger ask than a normal approval, since it means temporarily turning off the project's `.sourcebook`-is-MCP/CLI-only guardrail.
+4. Apply the guide's steps exactly, restoring every guardrail mechanism you disabled before considering the work done, then set the new version with `mcp__crypts-and-commits__world_set(key="schema_version", value="<new version>")`. CLI fallback: `cac world set --help`.
+5. Confirm with the developer that the guardrail was restored and the migration verified.
+
+Never assume a sourcebook is out of date, and never start suspending a guardrail, without reading the guide's stated current version and getting the developer's approval first.
+
 ## Priming context: the disclosure ladder
 
 The **procedure** below for going deeper is authored once, here in the skill — it does not live in any tool payload. Tool calls return only the data traversed on (bundles, summaries, edge names); re-sending this traversal prose on every call would be the per-call token churn the ladder exists to avoid. Four steps, each going one tier deeper only when the task actually needs it:

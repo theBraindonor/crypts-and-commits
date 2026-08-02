@@ -2,8 +2,9 @@
 assigned_lore:
 - clean-tests-and-lint
 name: Crypts and Commits
+schema_version: '1'
 updated_by: John Hoff
-updated_on: '2026-07-27T03:56:27Z'
+updated_on: '2026-08-02T17:28:32Z'
 ---
 
 # Crypts and Commits

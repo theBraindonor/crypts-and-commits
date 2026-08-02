@@ -11,6 +11,7 @@ def test_list_shows_registered_docs() -> None:
 
     assert result.exit_code == 0
     assert "workflow" in result.output
+    assert "migration-guide" in result.output
 
 
 def test_get_shows_full_body() -> None:
@@ -18,6 +19,13 @@ def test_get_shows_full_body() -> None:
 
     assert result.exit_code == 0
     assert "Crypts and Commits Workflow Reference Guide" in result.output
+
+
+def test_get_shows_migration_guide_body() -> None:
+    result = runner.invoke(app, ["docs", "get", "migration-guide"])
+
+    assert result.exit_code == 0
+    assert "Crypts and Commits Sourcebook Migration Guide" in result.output
 
 
 def test_get_missing_doc_fails() -> None:

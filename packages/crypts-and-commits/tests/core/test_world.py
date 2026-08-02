@@ -73,6 +73,7 @@ def test_read_world_returns_metadata_and_body(tmp_path: Path) -> None:
     assert result.metadata == {
         "name": "unnamed_world",
         "assigned_lore": [],
+        "schema_version": 1,
         "created_by": "John Hoff",
         "created_on": "2026-07-23T18:04:12Z",
         "updated_by": "John Hoff",
@@ -254,3 +255,69 @@ def test_unassign_lore_missing_lore_raises(tmp_path: Path) -> None:
 
     with pytest.raises(lore.LoreNotFoundError):
         world.unassign_lore(tmp_path, "missing")
+
+
+def test_initialize_world_stamps_current_schema_version(tmp_path: Path) -> None:
+    world.initialize_world(tmp_path)
+
+    assert world.read_world(tmp_path).metadata["schema_version"] == world.SOURCEBOOK_SCHEMA_VERSION
+
+
+def test_check_schema_version_missing_world_raises(tmp_path: Path) -> None:
+    with pytest.raises(world.WorldNotFoundError):
+        world.check_schema_version(tmp_path)
+
+
+def test_check_schema_version_current(tmp_path: Path) -> None:
+    world.initialize_world(tmp_path)
+
+    status = world.check_schema_version(tmp_path)
+
+    assert status == world.SchemaVersionStatus(
+        stored=world.SOURCEBOOK_SCHEMA_VERSION,
+        current=world.SOURCEBOOK_SCHEMA_VERSION,
+        outcome=world.SCHEMA_VERSION_OUTCOME_CURRENT,
+    )
+
+
+def test_check_schema_version_missing_attribute_implies_version_one(tmp_path: Path) -> None:
+    world.initialize_world(tmp_path)
+    path = world.world_path(tmp_path)
+    path.write_text(path.read_text(encoding="utf-8").replace("schema_version: 1\n", ""), encoding="utf-8")
+
+    status = world.check_schema_version(tmp_path)
+
+    assert status.stored == 1
+
+
+def test_check_schema_version_behind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world.initialize_world(tmp_path)
+    monkeypatch.setattr(world, "SOURCEBOOK_SCHEMA_VERSION", 2)
+
+    status = world.check_schema_version(tmp_path)
+
+    assert status.outcome == world.SCHEMA_VERSION_OUTCOME_BEHIND
+    assert status.stored == 1
+    assert status.current == 2
+
+
+def test_check_schema_version_ahead(tmp_path: Path) -> None:
+    world.initialize_world(tmp_path)
+    world.set_attribute(tmp_path, "schema_version", "2")
+
+    status = world.check_schema_version(tmp_path)
+
+    assert status.outcome == world.SCHEMA_VERSION_OUTCOME_AHEAD
+    assert status.stored == 2
+    assert status.current == 1
+
+
+def test_check_schema_version_never_writes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world.initialize_world(tmp_path)
+    monkeypatch.setattr(world, "SOURCEBOOK_SCHEMA_VERSION", 2)
+    path = world.world_path(tmp_path)
+    before = path.read_text(encoding="utf-8")
+
+    world.check_schema_version(tmp_path)
+
+    assert path.read_text(encoding="utf-8") == before

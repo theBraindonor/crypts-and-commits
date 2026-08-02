@@ -100,7 +100,9 @@ encounter: the applicable set for a given encounter is world-assigned lore
 The project-level summary: goals, purpose, and domain orientation. Read first
 to prime context for any other work. Exactly one exists per project.
 
-- **Frontmatter**: `name`, `assigned_lore` (list), plus the common
+- **Frontmatter**: `name`, `assigned_lore` (list), `schema_version` (int -
+  the `.sourcebook` domain model's format version; see "Sourcebook schema
+  versioning" below), plus the common
   `created_by`/`created_on`/`updated_by`/`updated_on` stamps applied on every
   write.
 - **Body**: free-form markdown summary.
@@ -114,6 +116,33 @@ to prime context for any other work. Exactly one exists per project.
 | Set a frontmatter attribute | `world_set` | `cac world set` |
 | Replace the body | `world_set_body` | `cac world set-body` |
 | Assign/unassign lore | (via lore's tools, below - world is the "target" object) | `cac lore assign-world` / `unassign-world` |
+
+### Sourcebook schema versioning
+
+`schema_version` is stamped onto every `world.md` `cac bootstrap init`
+creates from scratch, set to the format version the installed `cac` package
+currently expects. A sourcebook created before this attribute existed has
+none; a missing value is treated as version 1, the format that existed
+before versioning was introduced.
+
+`cac bootstrap init` compares an *existing* `world.md`'s `schema_version`
+against the installed `cac`'s expected version whenever it runs against an
+already-bootstrapped project, and reports if the sourcebook is behind (needs
+migration) or ahead (the installed `cac` is older than the sourcebook and
+should itself be upgraded). Bootstrap only reports this - it never edits
+`schema_version` on an existing file.
+
+Migrating a behind sourcebook to the current version is the coding
+assistant's job, via the `world-manager` skill, guided by the `migration-guide`
+doc (`docs_get("migration-guide")` / `cac docs get migration-guide` - see
+"Cross-cutting: priming, search, and docs" below). That doc states the
+current schema version, a generic procedure for temporarily suspending and
+then restoring the project's `.sourcebook`-is-MCP/CLI-only guardrail (a real
+migration is likely to need direct file edits the generic per-object setters
+can't perform), and one `## Migrating from version N to N+1` section per
+schema change. There is deliberately no separate migration tool - the agent
+reads the guide and makes the changes itself, then records completion with
+`world_set("schema_version", ...)`.
 
 ## Lore
 
@@ -369,11 +398,12 @@ none of them is a content type itself:
   framework-owned, not `.sourcebook` content, and not user-editable. `docs_list`
   returns `name` + `summary` pairs (paged, same routing-signal pattern as
   lore/region); `docs_get(name)` returns one doc's full body (e.g.
-  `docs_get("workflow")` for this guide). It exists so a consuming project's
-  `CLAUDE.md`/`AGENTS.md` doesn't need to carry deep CAC procedural detail
-  inline - an agent session pulls a doc in only when a task actually needs
-  it, via the `world-manager` skill's disclosure ladder (its fourth,
-  "go deeper" step).
+  `docs_get("workflow")` for this guide, or `docs_get("migration-guide")` for
+  the sourcebook schema migration procedure - see "Sourcebook schema
+  versioning" above). It exists so a consuming project's `CLAUDE.md`/`AGENTS.md`
+  doesn't need to carry deep CAC procedural detail inline - an agent session
+  pulls a doc in only when a task actually needs it, via the `world-manager`
+  skill's disclosure ladder (its fourth, "go deeper" step).
 
 ## Example: an encounter's lifecycle, conversation to commit
 

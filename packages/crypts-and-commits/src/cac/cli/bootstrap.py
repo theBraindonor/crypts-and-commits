@@ -32,6 +32,8 @@ def init() -> None:
     except GitIdentityError as exc:
         fail(console, str(exc))
     _report(world_path, world_created)
+    if not world_created:
+        _report_schema_version(world_core.check_schema_version(root))
 
     mcp_config_path, mcp_config_changed = bootstrap_core.initialize_mcp_config(root)
     _report_mcp_config(mcp_config_path, mcp_config_changed)
@@ -54,6 +56,21 @@ def _report(path: Path, created: bool) -> None:
         console.print(f"Created [bold green]{path}[/bold green]")
     else:
         console.print(f"[bold yellow]{path}[/bold yellow] already exists")
+
+
+def _report_schema_version(status: world_core.SchemaVersionStatus) -> None:
+    if status.outcome == world_core.SCHEMA_VERSION_OUTCOME_BEHIND:
+        console.print(
+            f"[bold red]This sourcebook is on schema version {status.stored}[/bold red], behind the "
+            f"current version {status.current}. Ask your coding assistant to use the [bold]world-manager[/bold] "
+            'skill to migrate it - it consults the migration-guide doc (docs_get("migration-guide") / '
+            "cac docs get migration-guide) for the exact steps."
+        )
+    elif status.outcome == world_core.SCHEMA_VERSION_OUTCOME_AHEAD:
+        console.print(
+            f"[bold red]This sourcebook is on schema version {status.stored}[/bold red], ahead of the "
+            f"installed cac's version {status.current}. Upgrade your installed cac package."
+        )
 
 
 def _report_mcp_config(path: Path, changed: bool) -> None:

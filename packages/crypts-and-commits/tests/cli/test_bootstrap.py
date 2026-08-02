@@ -148,6 +148,43 @@ def test_init_redeploys_agent_skills_over_local_edits(tmp_path: Path) -> None:
     assert skill_path.read_text(encoding="utf-8") != "locally modified content"
 
 
+def test_init_second_run_on_current_schema_version_reports_nothing_extra(tmp_path: Path) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    assert "schema version" not in result.output
+
+
+def test_init_reports_behind_schema_version(tmp_path: Path) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    world_file = tmp_path / ".sourcebook" / "world.md"
+    world_file.write_text(
+        world_file.read_text(encoding="utf-8").replace("schema_version: 1", "schema_version: 0"), encoding="utf-8"
+    )
+
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    assert "schema version 0" in result.output
+    assert "world-manager" in result.output
+
+
+def test_init_reports_ahead_schema_version(tmp_path: Path) -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    world_file = tmp_path / ".sourcebook" / "world.md"
+    world_file.write_text(
+        world_file.read_text(encoding="utf-8").replace("schema_version: 1", "schema_version: 99"), encoding="utf-8"
+    )
+
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0
+    assert "schema version 99" in result.output
+    assert "Upgrade your installed cac" in result.output
+
+
 def test_init_merges_existing_codex_config(tmp_path: Path) -> None:
     config_path = tmp_path / ".codex" / "config.toml"
     config_path.parent.mkdir(parents=True)

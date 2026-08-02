@@ -10,6 +10,7 @@ def test_list_docs_returns_registered_entries() -> None:
     names = [name for name, _ in items]
     assert names == sorted(names)
     assert "workflow" in names
+    assert "migration-guide" in names
 
 
 def test_doc_summary_returns_registered_summary() -> None:
@@ -45,3 +46,17 @@ def test_doc_source_path_points_at_real_file() -> None:
 def test_doc_source_path_missing_raises() -> None:
     with pytest.raises(docs.DocNotFoundError):
         docs.doc_source_path("missing")
+
+
+def test_migration_guide_doc_summary_returns_registered_summary() -> None:
+    summary = docs.doc_summary("migration-guide")
+
+    assert "Migration Guide" in summary
+
+
+def test_migration_guide_doc_returns_full_body() -> None:
+    body = docs.read_doc("migration-guide")
+
+    assert body.startswith("# Crypts and Commits Sourcebook Migration Guide")
+    assert "Current sourcebook schema version: 1" in body
+    assert "guardrail" in body

@@ -29,6 +29,16 @@ _DOCS: dict[str, DocEntry] = {
             "Read this when a task needs the exact rule, not just a summary of it."
         ),
     ),
+    "migration-guide": DocEntry(
+        name="migration-guide",
+        filename="migration-guide.md",
+        summary=(
+            "The Sourcebook Migration Guide: the current sourcebook schema version, the generic "
+            "guardrail-suspend/restore procedure a migration requires, and the version-specific steps "
+            "needed to bring an older sourcebook fully onto the current schema. Read this when "
+            "world.md's schema_version is behind the version cac expects."
+        ),
+    ),
 }
 
 

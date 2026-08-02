@@ -6,13 +6,17 @@ import frontmatter
 
 from cac.core import frontmatter_utils, templates
 from cac.core import lore as lore_core
-from cac.core.config import WORLD_FILE_NAME
+from cac.core.config import SCHEMA_VERSION_KEY, SOURCEBOOK_SCHEMA_VERSION, WORLD_FILE_NAME
 from cac.core.frontmatter_utils import toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
 
 _TEMPLATE_PACKAGE = "sourcebook"
 _TEMPLATE_FILENAME = "world.md"
 ASSIGNED_LORE_KEY = "assigned_lore"
+
+SCHEMA_VERSION_OUTCOME_CURRENT = "current"
+SCHEMA_VERSION_OUTCOME_BEHIND = "behind"
+SCHEMA_VERSION_OUTCOME_AHEAD = "ahead"
 
 
 class WorldNotFoundError(FileNotFoundError):
@@ -23,6 +27,13 @@ class WorldNotFoundError(FileNotFoundError):
 class World:
     metadata: dict[str, Any]
     body: str
+
+
+@dataclass(frozen=True)
+class SchemaVersionStatus:
+    stored: int
+    current: int
+    outcome: str
 
 
 def world_path(root: Path) -> Path:
@@ -36,6 +47,7 @@ def initialize_world(root: Path) -> tuple[Path, bool]:
     if created:
         path.parent.mkdir(parents=True, exist_ok=True)
         post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
+        post[SCHEMA_VERSION_KEY] = SOURCEBOOK_SCHEMA_VERSION
         frontmatter_utils.stamp_created(post, root)
         write_post(root, path, post)
     return path, created
@@ -44,6 +56,22 @@ def initialize_world(root: Path) -> tuple[Path, bool]:
 def read_world(root: Path) -> World:
     post = frontmatter.load(_existing_world_path(root))
     return World(metadata=dict(post.metadata), body=post.content)
+
+
+def check_schema_version(root: Path) -> SchemaVersionStatus:
+    """Compare an existing world file's schema_version against this package's
+    SOURCEBOOK_SCHEMA_VERSION, without writing anything. A missing attribute
+    implies version 1 - a sourcebook bootstrapped before this feature existed."""
+    post = frontmatter.load(_existing_world_path(root))
+    stored = int(post.get(SCHEMA_VERSION_KEY, 1))
+    current = SOURCEBOOK_SCHEMA_VERSION
+    if stored == current:
+        outcome = SCHEMA_VERSION_OUTCOME_CURRENT
+    elif stored < current:
+        outcome = SCHEMA_VERSION_OUTCOME_BEHIND
+    else:
+        outcome = SCHEMA_VERSION_OUTCOME_AHEAD
+    return SchemaVersionStatus(stored=stored, current=current, outcome=outcome)
 
 
 def set_attribute(root: Path, key: str, value: str) -> World:
