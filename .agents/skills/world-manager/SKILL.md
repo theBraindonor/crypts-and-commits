@@ -56,10 +56,18 @@ A region documents a path within the repository that needs its own conventions, 
 
 Both calls return **summaries**, never lore bodies — summaries are a routing signal (what exists, roughly), not a substitute for the governing text. When a lore entry has no summary yet, the field carries an explicit placeholder saying so; treat that as a prompt to read the body directly rather than assuming there's nothing to know.
 
+## Docs
+
+Docs are read-only, framework-owned reference guides packaged with `cac` itself — not `.sourcebook` content, and not user-editable. They exist so deep procedural or structural detail can be pulled into context on demand instead of being carried in every project's `CLAUDE.md`/`AGENTS.md`.
+
+- `docs_list(cursor)` — list registered docs by `name` + `summary`, paged under the response budget. CLI fallback: `cac docs list --help`.
+- `docs_get(name)` — show a doc's full body, e.g. `docs_get("workflow")` for the Workflow Reference Guide (the `.sourcebook` domain model's structure, status lifecycles, and workflow procedure in full). CLI fallback: `cac docs get --help`.
+
 ## Priming context: the disclosure ladder
 
-The **procedure** below for going deeper is authored once, here in the skill — it does not live in any tool payload. Tool calls return only the data traversed on (bundles, summaries, edge names); re-sending this traversal prose on every call would be the per-call token churn the ladder exists to avoid. Three steps, each going one tier deeper only when the task actually needs it:
+The **procedure** below for going deeper is authored once, here in the skill — it does not live in any tool payload. Tool calls return only the data traversed on (bundles, summaries, edge names); re-sending this traversal prose on every call would be the per-call token churn the ladder exists to avoid. Four steps, each going one tier deeper only when the task actually needs it:
 
 1. **Orient** — `prime_get()`, once at the start of a session or before other work (this is also `campaign-manager`'s first step, since the bundle already includes the active campaign body). Gives world full + world-lore summaries + region map + campaign body in one round trip. Summarize what you found rather than dumping raw tool output.
 2. **Focus a task** — once a specific region is in scope (e.g. the region(s) an encounter is assigned to), `region_get(region)` for its full body and its `assigned_lore` names, then `lore_get(name)` per assigned name to read that lore's `summary` (not yet its body) — enough to judge which of that region's lore looks relevant before going further.
 3. **Review a plan** — the only step that needs exact, ground-truth text. Run `prime_applicable_lore(encounter)` to resolve the finite applicable set (world-assigned ∪ the encounter's region-assigned enabled lore) as summaries, then hydrate each one with `lore_get(ref)` and check the plan against the full body — never the summary. Summaries route which lore is in scope; only the body is authoritative for a compliance verdict. This is the step the reviewer subagent in `campaign-manager`'s draft → reviewed gate performs.
+4. **Go deeper** — when a task needs full procedural or structural detail beyond what any summary above covers (e.g. the exact status-transition rules or cross-type connections behind this skill), `docs_list()` to see what's registered, then `docs_get(name)` to pull one in whole. Most sessions never need this step — reach for it only when the ladder above genuinely isn't enough.

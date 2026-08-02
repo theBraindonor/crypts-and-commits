@@ -59,4 +59,6 @@ def test_all_domain_tools_are_registered() -> None:
         "encounter_unassign_dependency",
         "index_status",
         "index_search",
+        "docs_list",
+        "docs_get",
     }

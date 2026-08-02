@@ -24,6 +24,7 @@ CREATED_ON_KEY = "created_on"
 UPDATED_BY_KEY = "updated_by"
 UPDATED_ON_KEY = "updated_on"
 RESPONSE_BUDGET = 20_000
+DOCS_RESPONSE_BUDGET = 40_000
 CAMPAIGN_STATUSES = ("draft", "open", "paused", "completed", "abandoned")
 DEFAULT_CAMPAIGN_STATUS = "draft"
 ENCOUNTER_STATUSES = ("draft", "reviewed", "open", "completed", "abandoned")

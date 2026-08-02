@@ -28,6 +28,11 @@ This is a reference to the domain model's current, real behavior - not a
 design proposal and not a historical record of how it used to work. When the
 model changes, this document should change with it.
 
+This guide is itself one of the framework's packaged "docs" (see "Cross-cutting:
+priming, search, and docs" below) - retrievable in full, on demand, via
+`docs_get("workflow")` (MCP) or `cac docs get workflow` (CLI), rather than
+needing to be pasted into a consuming project's `CLAUDE.md`/`AGENTS.md`.
+
 Two interaction surfaces exist over this model: the `crypts-and-commits` MCP
 server (the primary surface for an agent session) and the `cac` CLI (a
 fallback for when the MCP server isn't available, and the surface a human
@@ -343,10 +348,10 @@ already covers it. Campaign-level transitions (`open`/`pause`/`complete`/
 their own in this model; they take effect as soon as the corresponding
 mutating tool is called.
 
-## Cross-cutting: priming and search
+## Cross-cutting: priming, search, and docs
 
-Two auxiliary capabilities sit on top of the five content types above -
-neither is a content type itself:
+Three auxiliary capabilities sit on top of the five content types above -
+none of them is a content type itself:
 
 - **Prime** (`prime_get` / `cac prime get`, `prime_applicable_lore` /
   `cac prime applicable-lore`) assembles cross-object context in one call
@@ -359,6 +364,16 @@ neither is a content type itself:
   sync automatically as content changes through `cac`. Rebuilding it
   (`cac index rebuild`) is developer-only and intentionally not exposed over
   MCP.
+- **Docs** (`docs_list` / `cac docs list`, `docs_get` / `cac docs get`) is a
+  small, read-only set of reference guides packaged with `cac` itself -
+  framework-owned, not `.sourcebook` content, and not user-editable. `docs_list`
+  returns `name` + `summary` pairs (paged, same routing-signal pattern as
+  lore/region); `docs_get(name)` returns one doc's full body (e.g.
+  `docs_get("workflow")` for this guide). It exists so a consuming project's
+  `CLAUDE.md`/`AGENTS.md` doesn't need to carry deep CAC procedural detail
+  inline - an agent session pulls a doc in only when a task actually needs
+  it, via the `world-manager` skill's disclosure ladder (its fourth,
+  "go deeper" step).
 
 ## Example: an encounter's lifecycle, conversation to commit
 
