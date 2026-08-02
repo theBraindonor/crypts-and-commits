@@ -1,4 +1,5 @@
 ---
+archived: true
 campaign: v0.1.5-generate-and-integrate-documentation
 created_by: John Hoff
 created_on: '2026-08-02T16:18:58Z'
@@ -8,7 +9,7 @@ regions:
 - crypts-and-commits
 status: completed
 updated_by: John Hoff
-updated_on: '2026-08-02T16:37:08Z'
+updated_on: '2026-08-02T22:47:30Z'
 ---
 
 ## Requirements

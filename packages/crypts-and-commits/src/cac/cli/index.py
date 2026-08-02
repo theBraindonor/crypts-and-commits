@@ -51,8 +51,12 @@ def search(
         "--snippet-tokens",
         help="Snippet excerpt length, in tokens (1-64).",
     ),
+    include_archived: bool = typer.Option(
+        False, "--include-archived", help="Also include archived campaigns/encounters, excluded by default."
+    ),
 ) -> None:
-    """Search the index for a phrase, ranked by relevance, with a matching excerpt per result."""
+    """Search the index for a phrase, ranked by relevance, with a matching excerpt per result.
+    Archived campaigns/encounters are excluded by default - pass --include-archived to include them."""
     try:
         hits = search_index_core.search(
             Path.cwd(),
@@ -61,6 +65,7 @@ def search(
             limit=max_results,
             offset=skip,
             snippet_tokens=snippet_tokens,
+            include_archived=include_archived,
         )
     except (search_index_core.EmptySearchPhraseError, search_index_core.InvalidSearchQueryError) as exc:
         fail(console, str(exc))
@@ -75,8 +80,10 @@ def search(
     console.print("[dim]RANK  SCORE   TYPE        NAME  STATUS  UPDATED[/dim]")
     console.print()
     for hit in hits:
+        archived_suffix = " (archived)" if hit.archived else ""
         console.print(
-            f"#{hit.rank}  {hit.score:.3f}  [{hit.object_type}] {hit.name}  [{hit.status}]  updated {hit.updated_on}",
+            f"#{hit.rank}  {hit.score:.3f}  [{hit.object_type}] {hit.name}  [{hit.status}]{archived_suffix}  "
+            f"updated {hit.updated_on}",
             markup=False,
         )
         console.print(f"    {hit.excerpt}", markup=False)

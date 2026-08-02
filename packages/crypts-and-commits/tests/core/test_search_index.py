@@ -510,9 +510,10 @@ def test_sync_write_waits_out_a_concurrent_writer_instead_of_failing(tmp_path: P
     assert hits[0].name == "clean-code"
 
 
-def test_archive_campaign_leaves_index_rows_untouched(tmp_path: Path) -> None:
+def test_archive_campaign_leaves_index_rows_untouched_but_excludes_by_default(tmp_path: Path) -> None:
     """Archiving must not call sync_delete on the old path - the campaign's and its encounter's
-    index rows should survive unchanged, per this campaign's 'don't touch the index yet' decision."""
+    index rows survive - but they must now be marked archived and excluded from a default search,
+    only reappearing with include_archived=True."""
     _make_campaign(tmp_path)
     campaign.open_campaign(tmp_path, "opening-gambit")
     region.create_region(tmp_path, "default-region", "Body.", "Summary.")
@@ -528,15 +529,20 @@ def test_archive_campaign_leaves_index_rows_untouched(tmp_path: Path) -> None:
     campaign.archive_campaign(tmp_path, "opening-gambit")
 
     assert search_index.index_counts(tmp_path) == before
-    campaign_hits = search_index.search(tmp_path, "Body", object_type="campaign")
-    encounter_hits = search_index.search(tmp_path, "goblins", object_type="encounter")
+    assert search_index.search(tmp_path, "Body", object_type="campaign") == []
+    assert search_index.search(tmp_path, "goblins", object_type="encounter") == []
+    campaign_hits = search_index.search(tmp_path, "Body", object_type="campaign", include_archived=True)
+    encounter_hits = search_index.search(tmp_path, "goblins", object_type="encounter", include_archived=True)
     assert len(campaign_hits) == 1
+    assert campaign_hits[0].archived is True
     assert len(encounter_hits) == 1
+    assert encounter_hits[0].archived is True
 
 
 def test_rebuild_index_includes_archived_campaigns_and_encounters(tmp_path: Path) -> None:
     """A rebuild is disk-driven, not sync_write/sync_delete-driven - it must not silently drop
-    archived content just because _reindex_* only used to look at the live directories."""
+    archived content just because _reindex_* only used to look at the live directories. Default
+    search excludes it; include_archived=True includes it, correctly flagged."""
     _make_campaign(tmp_path)
     campaign.open_campaign(tmp_path, "opening-gambit")
     region.create_region(tmp_path, "default-region", "Body.", "Summary.")
@@ -552,9 +558,54 @@ def test_rebuild_index_includes_archived_campaigns_and_encounters(tmp_path: Path
 
     assert count == 3
     assert search_index.index_counts(tmp_path) == {"campaign": 1, "encounter": 1, "region": 1}
-    campaign_hits = search_index.search(tmp_path, "Body", object_type="campaign")
-    encounter_hits = search_index.search(tmp_path, "goblins", object_type="encounter")
+    assert search_index.search(tmp_path, "Body", object_type="campaign") == []
+    assert search_index.search(tmp_path, "goblins", object_type="encounter") == []
+    campaign_hits = search_index.search(tmp_path, "Body", object_type="campaign", include_archived=True)
+    encounter_hits = search_index.search(tmp_path, "goblins", object_type="encounter", include_archived=True)
     assert len(campaign_hits) == 1
     assert campaign_hits[0].status == "completed"
+    assert campaign_hits[0].archived is True
     assert len(encounter_hits) == 1
     assert encounter_hits[0].status == "completed"
+    assert encounter_hits[0].archived is True
+
+
+def test_search_default_excludes_archived_lore_never_flagged(tmp_path: Path) -> None:
+    """world/lore/region rows must be archived=0 (not NULL) so the default filter doesn't
+    accidentally exclude them too."""
+    lore.create_lore(tmp_path, "clean-code", "Keep functions short and focused.", "Summary.")
+    search_index.rebuild_index(tmp_path)
+
+    hits = search_index.search(tmp_path, "functions", object_type="lore")
+
+    assert len(hits) == 1
+    assert hits[0].archived is False
+
+
+def test_include_archived_search_reports_mixed_archived_flags(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "campaign-a", "Recover the goblin hoard.")
+    campaign.create_campaign(tmp_path, "campaign-b", "Fight the goblin horde.")
+    campaign.open_campaign(tmp_path, "campaign-a")
+    campaign.complete_campaign(tmp_path, "campaign-a", "Shipped.")
+    campaign.archive_campaign(tmp_path, "campaign-a")
+    search_index.rebuild_index(tmp_path)
+
+    hits = search_index.search(tmp_path, "goblin", object_type="campaign", include_archived=True)
+
+    assert {hit.name: hit.archived for hit in hits} == {"campaign-a": True, "campaign-b": False}
+
+
+def test_deleting_an_archived_campaign_removes_its_index_row(tmp_path: Path) -> None:
+    """The sync_delete side of the _classify() archive-awareness fix: deleting an already-archived
+    campaign (reachable via the read-fallback) must remove its row, not orphan it."""
+    _make_campaign(tmp_path)
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
+    campaign.archive_campaign(tmp_path, "opening-gambit")
+    search_index.rebuild_index(tmp_path)
+    assert search_index.index_counts(tmp_path) == {"campaign": 1}
+
+    campaign.delete_campaign(tmp_path, "opening-gambit")
+
+    assert search_index.index_counts(tmp_path) == {}
+    assert search_index.search(tmp_path, "Body", object_type="campaign", include_archived=True) == []

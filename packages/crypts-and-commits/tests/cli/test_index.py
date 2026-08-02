@@ -181,3 +181,21 @@ def test_search_invalid_snippet_tokens_exits_nonzero() -> None:
 
     assert result.exit_code != 0
     assert "snippet_tokens" in result.output
+
+
+def test_search_excludes_archived_campaign_by_default_and_includes_with_flag() -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Recover the goblin hoard."])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "Shipped."])
+    runner.invoke(app, ["campaign", "archive", "opening-gambit"])
+    runner.invoke(app, ["index", "rebuild"])
+
+    default_result = runner.invoke(app, ["index", "search", "goblin", "--type", "campaign"])
+    included_result = runner.invoke(app, ["index", "search", "goblin", "--type", "campaign", "--include-archived"])
+
+    assert default_result.exit_code == 0
+    assert "No results" in default_result.output
+    assert included_result.exit_code == 0
+    assert "opening-gambit" in included_result.output
+    assert "(archived)" in included_result.output

@@ -279,9 +279,14 @@ from `campaign_list`, and calling `encounter_list`/`encounter_order` against
 an archived campaign now returns an empty result. Archived content is
 inspectable one item at a time via `_get`, not via bulk listing.
 
-The search index is unaffected by archiving - an archived campaign/encounter
-stays indexed and searchable exactly as it was before, with no distinction
-yet made between live and archived content in search results.
+Archiving does not remove a campaign/encounter from the search index - the
+row for an archived object is updated in place (via the same `write_post`
+call that moves the file), not deleted. It stays fully indexed, but
+`index_search`/`cac index search` exclude archived content by default;
+pass `include_archived=True`/`--include-archived` to include it alongside
+live results. `index_status`/`cac index status` counts are unaffected by
+this default - they still total archived and live content together, with
+no live/archived split.
 
 | Operation | MCP tool | CLI fallback |
 |---|---|---|
@@ -434,7 +439,9 @@ none of them is a content type itself:
   `cac index search`) is a full-text index over `.sourcebook` content kept in
   sync automatically as content changes through `cac`. Rebuilding it
   (`cac index rebuild`) is developer-only and intentionally not exposed over
-  MCP.
+  MCP. `index_search` excludes archived campaigns/encounters by default -
+  see the Campaign section's "Archiving" above for the `include_archived`
+  opt-in and the counts-vs-search asymmetry.
 - **Docs** (`docs_list` / `cac docs list`, `docs_get` / `cac docs get`) is a
   small, read-only set of reference guides packaged with `cac` itself -
   framework-owned, not `.sourcebook` content, and not user-editable. `docs_list`

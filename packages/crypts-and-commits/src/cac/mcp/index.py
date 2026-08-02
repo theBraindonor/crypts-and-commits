@@ -14,6 +14,7 @@ def _hit_to_dict(hit: search_index_core.SearchHit) -> dict[str, Any]:
         "name": hit.name,
         "status": hit.status,
         "updated_on": hit.updated_on,
+        "archived": hit.archived,
         "excerpt": hit.excerpt,
     }
 
@@ -36,10 +37,12 @@ def index_search(
     skip: int = 0,
     object_type: str | None = None,
     snippet_tokens: int = search_index_core.SEARCH_DEFAULT_SNIPPET_TOKENS,
+    include_archived: bool = False,
 ) -> dict[str, Any]:
     """Search the index for a phrase, ranked by relevance, with a matching excerpt per result.
-    `built` is False if the index has never been built - run `index_rebuild` via the `cac` CLI to
-    build one (index rebuild is developer-only and not exposed over MCP)."""
+    Archived campaigns/encounters are excluded by default - pass include_archived=True to include
+    them. `built` is False if the index has never been built - run `index_rebuild` via the `cac`
+    CLI to build one (index rebuild is developer-only and not exposed over MCP)."""
     hits = search_index_core.search(
         Path.cwd(),
         phrase,
@@ -47,6 +50,7 @@ def index_search(
         limit=max_results,
         offset=skip,
         snippet_tokens=snippet_tokens,
+        include_archived=include_archived,
     )
     if hits is None:
         return {"built": False, "hits": []}

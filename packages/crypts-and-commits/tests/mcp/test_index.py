@@ -97,3 +97,21 @@ def test_index_search_invalid_snippet_tokens_raises(tmp_path: Path) -> None:
 
     with pytest.raises(search_index.InvalidSearchQueryError):
         mcp_index.index_search("goblins", snippet_tokens=0)
+
+
+def test_index_search_excludes_archived_by_default_and_includes_with_flag(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Recover the goblin hoard.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
+    campaign.archive_campaign(tmp_path, "opening-gambit")
+    search_index.rebuild_index(tmp_path)
+
+    default_result = mcp_index.index_search("goblin", object_type="campaign")
+    included_result = mcp_index.index_search("goblin", object_type="campaign", include_archived=True)
+
+    assert default_result == {"built": True, "hits": []}
+    assert included_result["built"] is True
+    assert len(included_result["hits"]) == 1
+    hit = included_result["hits"][0]
+    assert hit["name"] == "opening-gambit"
+    assert hit["archived"] is True

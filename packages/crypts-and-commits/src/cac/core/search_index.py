@@ -5,6 +5,7 @@ from pathlib import Path
 import frontmatter
 
 from cac.core.config import (
+    ARCHIVE_DIR_NAME,
     CAMPAIGN_DIR_NAME,
     ENCOUNTER_DIR_NAME,
     LORE_DIR_NAME,
@@ -27,10 +28,10 @@ from cac.core.paths import search_index_db_path, sourcebook_dir
 
 _CREATE_TABLE_SQL = (
     f"CREATE VIRTUAL TABLE IF NOT EXISTS {SEARCH_INDEX_FTS_TABLE} USING fts5("
-    "object_type UNINDEXED, campaign UNINDEXED, name UNINDEXED, status UNINDEXED, updated_on UNINDEXED, body, "
-    "tokenize='porter unicode61')"
+    "object_type UNINDEXED, campaign UNINDEXED, name UNINDEXED, status UNINDEXED, updated_on UNINDEXED, "
+    "archived UNINDEXED, body, tokenize='porter unicode61')"
 )
-_BODY_COLUMN_INDEX = 5
+_BODY_COLUMN_INDEX = 6
 
 
 class EmptySearchPhraseError(ValueError):
@@ -50,6 +51,7 @@ class SearchHit:
     name: str
     status: str
     updated_on: str
+    archived: bool
     excerpt: str
 
 
@@ -94,25 +96,33 @@ def _reindex_encounters(root: Path, conn: sqlite3.Connection) -> int:
     from cac.core import encounter as encounter_core
 
     count = 0
-    campaigns = campaign_core.list_campaigns(root) + campaign_core.list_archived_campaigns(root)
-    for campaign in campaigns:
-        names = encounter_core.list_encounters(root, campaign) + encounter_core.list_archived_encounters(root, campaign)
-        for name in names:
-            metadata, body = encounter_core.read_metadata(root, campaign, name)
-            conn.execute(
-                f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
-                "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER,
-                    campaign,
-                    name,
-                    metadata.get("status", ""),
-                    metadata.get("updated_on", ""),
-                    body,
-                ),
-            )
-            count += 1
+    for campaign in campaign_core.list_campaigns(root):
+        for name in encounter_core.list_encounters(root, campaign):
+            count += _insert_encounter_row(root, conn, campaign, name, archived=False)
+    for campaign in campaign_core.list_archived_campaigns(root):
+        for name in encounter_core.list_archived_encounters(root, campaign):
+            count += _insert_encounter_row(root, conn, campaign, name, archived=True)
     return count
+
+
+def _insert_encounter_row(root: Path, conn: sqlite3.Connection, campaign: str, name: str, *, archived: bool) -> int:
+    from cac.core import encounter as encounter_core
+
+    metadata, body = encounter_core.read_metadata(root, campaign, name)
+    conn.execute(
+        f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
+        "(object_type, campaign, name, status, updated_on, archived, body) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER,
+            campaign,
+            name,
+            metadata.get("status", ""),
+            metadata.get("updated_on", ""),
+            archived,
+            body,
+        ),
+    )
+    return 1
 
 
 def _reindex_world(root: Path, conn: sqlite3.Connection) -> int:
@@ -124,13 +134,14 @@ def _reindex_world(root: Path, conn: sqlite3.Connection) -> int:
         return 0
     conn.execute(
         f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
-        "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
+        "(object_type, campaign, name, status, updated_on, archived, body) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (
             SEARCH_INDEX_OBJECT_TYPE_WORLD,
             "",
             world.metadata.get("name") or SEARCH_INDEX_OBJECT_TYPE_WORLD,
             "",
             world.metadata.get("updated_on", ""),
+            False,
             world.body,
         ),
     )
@@ -146,13 +157,14 @@ def _reindex_lore(root: Path, conn: sqlite3.Connection) -> int:
         status = "enabled" if metadata.get("enabled", True) else "disabled"
         conn.execute(
             f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
-            "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
+            "(object_type, campaign, name, status, updated_on, archived, body) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 SEARCH_INDEX_OBJECT_TYPE_LORE,
                 "",
                 name,
                 status,
                 metadata.get("updated_on", ""),
+                False,
                 body,
             ),
         )
@@ -168,13 +180,14 @@ def _reindex_regions(root: Path, conn: sqlite3.Connection) -> int:
         metadata, body = region_core.read_metadata(root, name)
         conn.execute(
             f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
-            "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
+            "(object_type, campaign, name, status, updated_on, archived, body) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 SEARCH_INDEX_OBJECT_TYPE_REGION,
                 "",
                 name,
                 "",
                 metadata.get("updated_on", ""),
+                False,
                 body,
             ),
         )
@@ -188,43 +201,59 @@ def _reindex_campaigns(root: Path, conn: sqlite3.Connection) -> int:
     from cac.core import campaign as campaign_core
 
     count = 0
-    for name in campaign_core.list_campaigns(root) + campaign_core.list_archived_campaigns(root):
-        metadata, body = campaign_core.read_metadata(root, name)
-        conn.execute(
-            f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
-            "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN,
-                "",
-                name,
-                metadata.get("status", ""),
-                metadata.get("updated_on", ""),
-                body,
-            ),
-        )
-        count += 1
+    for name in campaign_core.list_campaigns(root):
+        count += _insert_campaign_row(root, conn, name, archived=False)
+    for name in campaign_core.list_archived_campaigns(root):
+        count += _insert_campaign_row(root, conn, name, archived=True)
     return count
 
 
-def _classify(root: Path, path: Path) -> tuple[str, str, str] | None:
-    """Map a `.sourcebook` file path to `(object_type, campaign, name)` for incremental sync,
-    where `name` is the filename stem (`campaign` is `""` for non-encounter types). Returns
-    `None` for anything unrecognized."""
+def _insert_campaign_row(root: Path, conn: sqlite3.Connection, name: str, *, archived: bool) -> int:
+    from cac.core import campaign as campaign_core
+
+    metadata, body = campaign_core.read_metadata(root, name)
+    conn.execute(
+        f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
+        "(object_type, campaign, name, status, updated_on, archived, body) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN,
+            "",
+            name,
+            metadata.get("status", ""),
+            metadata.get("updated_on", ""),
+            archived,
+            body,
+        ),
+    )
+    return 1
+
+
+def _classify(root: Path, path: Path) -> tuple[str, str, str, bool] | None:
+    """Map a `.sourcebook` file path to `(object_type, campaign, name, archived)` for incremental
+    sync, where `name` is the filename stem (`campaign` is `""` for non-encounter types). A
+    campaign/encounter's live and archived locations both classify to the *same* identity - rows
+    are keyed by identity, not path - with only `archived` differing, so moving one to the other
+    location via `write_post` transparently updates the existing row in place. Returns `None` for
+    anything unrecognized."""
     try:
         rel = path.relative_to(sourcebook_dir(root))
     except ValueError:
         return None
     if rel == Path(WORLD_FILE_NAME):
-        return SEARCH_INDEX_OBJECT_TYPE_WORLD, "", path.stem
+        return SEARCH_INDEX_OBJECT_TYPE_WORLD, "", path.stem, False
     parts = rel.parts
     if len(parts) == 2 and parts[0] == LORE_DIR_NAME:
-        return SEARCH_INDEX_OBJECT_TYPE_LORE, "", path.stem
+        return SEARCH_INDEX_OBJECT_TYPE_LORE, "", path.stem, False
     if len(parts) == 2 and parts[0] == REGION_DIR_NAME:
-        return SEARCH_INDEX_OBJECT_TYPE_REGION, "", path.stem
+        return SEARCH_INDEX_OBJECT_TYPE_REGION, "", path.stem, False
     if len(parts) == 2 and parts[0] == CAMPAIGN_DIR_NAME:
-        return SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN, "", path.stem
+        return SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN, "", path.stem, False
     if len(parts) == 3 and parts[0] == ENCOUNTER_DIR_NAME:
-        return SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER, parts[1], path.stem
+        return SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER, parts[1], path.stem, False
+    if len(parts) == 3 and parts[0] == ARCHIVE_DIR_NAME and parts[1] == CAMPAIGN_DIR_NAME:
+        return SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN, "", path.stem, True
+    if len(parts) == 4 and parts[0] == ARCHIVE_DIR_NAME and parts[1] == ENCOUNTER_DIR_NAME:
+        return SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER, parts[2], path.stem, True
     return None  # anything unrecognized
 
 
@@ -238,7 +267,7 @@ def sync_write(root: Path, path: Path, post: frontmatter.Post) -> None:
     classified = _classify(root, path)
     if classified is None:
         return
-    object_type, campaign, stem = classified
+    object_type, campaign, stem, archived = classified
 
     if object_type == SEARCH_INDEX_OBJECT_TYPE_WORLD:
         name = post.get("name") or SEARCH_INDEX_OBJECT_TYPE_WORLD
@@ -258,8 +287,8 @@ def sync_write(root: Path, path: Path, post: frontmatter.Post) -> None:
         )
         conn.execute(
             f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
-            "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
-            (object_type, campaign, name, status, post.get("updated_on", ""), post.content),
+            "(object_type, campaign, name, status, updated_on, archived, body) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (object_type, campaign, name, status, post.get("updated_on", ""), archived, post.content),
         )
         conn.commit()
     finally:
@@ -274,7 +303,7 @@ def sync_delete(root: Path, path: Path) -> None:
     classified = _classify(root, path)
     if classified is None:
         return
-    object_type, campaign, name = classified
+    object_type, campaign, name, _archived = classified
 
     conn = _connect(root)
     try:
@@ -318,10 +347,13 @@ def search(
     limit: int = SEARCH_DEFAULT_MAX_RESULTS,
     offset: int = 0,
     snippet_tokens: int = SEARCH_DEFAULT_SNIPPET_TOKENS,
+    include_archived: bool = False,
 ) -> list[SearchHit] | None:
     """Search indexed content for `phrase`, ranked by relevance. Returns `None` if the index has
     never been built (a search is a read and must not create the index file), or the matching
-    page of `SearchHit`s otherwise - possibly empty if nothing matched."""
+    page of `SearchHit`s otherwise - possibly empty if nothing matched. Archived campaigns/
+    encounters are excluded by default; pass `include_archived=True` to include them alongside
+    live content."""
     if not phrase.strip():
         raise EmptySearchPhraseError("Search phrase must not be empty.")
     if limit < 1:
@@ -344,7 +376,7 @@ def search(
     conn = sqlite3.connect(path)
     try:
         sql = (
-            "SELECT object_type, campaign, name, status, updated_on, "
+            "SELECT object_type, campaign, name, status, updated_on, archived, "
             f"snippet({SEARCH_INDEX_FTS_TABLE}, {_BODY_COLUMN_INDEX}, '**', '**', '...', {snippet_tokens}), "
             f"bm25({SEARCH_INDEX_FTS_TABLE}) "
             f"FROM {SEARCH_INDEX_FTS_TABLE} WHERE {SEARCH_INDEX_FTS_TABLE} MATCH ?"
@@ -353,6 +385,8 @@ def search(
         if object_type is not None:
             sql += " AND object_type = ?"
             params.append(object_type)
+        if not include_archived:
+            sql += " AND archived = 0"
         sql += f" ORDER BY bm25({SEARCH_INDEX_FTS_TABLE}) LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
@@ -360,13 +394,14 @@ def search(
         return [
             SearchHit(
                 rank=offset + position,
-                score=row[6],
+                score=row[7],
                 object_type=row[0],
                 campaign=row[1],
                 name=row[2],
                 status=row[3],
                 updated_on=row[4],
-                excerpt=row[5],
+                archived=bool(row[5]),
+                excerpt=row[6],
             )
             for position, row in enumerate(rows, start=1)
         ]
