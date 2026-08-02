@@ -31,8 +31,8 @@ def test_rebuild_index_indexes_encounters_across_campaigns(tmp_path: Path) -> No
 
     count = search_index.rebuild_index(tmp_path)
 
-    assert count == 2
-    assert search_index.index_counts(tmp_path) == {"encounter": 2}
+    assert count == 4
+    assert search_index.index_counts(tmp_path) == {"encounter": 2, "campaign": 2}
 
 
 def test_rebuild_index_is_a_true_drop_and_reindex(tmp_path: Path) -> None:
@@ -44,8 +44,8 @@ def test_rebuild_index_is_a_true_drop_and_reindex(tmp_path: Path) -> None:
 
     count = search_index.rebuild_index(tmp_path)
 
-    assert count == 1
-    assert search_index.index_counts(tmp_path) == {"encounter": 1}
+    assert count == 2
+    assert search_index.index_counts(tmp_path) == {"encounter": 1, "campaign": 1}
 
 
 def test_rebuild_index_reflects_updated_body(tmp_path: Path) -> None:
@@ -135,7 +135,7 @@ def test_search_unknown_object_type_raises(tmp_path: Path) -> None:
     search_index.rebuild_index(tmp_path)
 
     with pytest.raises(search_index.InvalidSearchQueryError):
-        search_index.search(tmp_path, "goblins", object_type="campaign")
+        search_index.search(tmp_path, "goblins", object_type="not-a-type")
 
 
 def test_search_pages_with_limit_and_offset(tmp_path: Path) -> None:
@@ -217,13 +217,23 @@ def test_rebuild_index_indexes_world_lore_and_region(tmp_path: Path) -> None:
     assert search_index.index_counts(tmp_path) == {"world": 1, "lore": 1, "region": 1}
 
 
+def test_rebuild_index_indexes_campaigns(tmp_path: Path) -> None:
+    _make_campaign(tmp_path, "campaign-a")
+    _make_campaign(tmp_path, "campaign-b")
+
+    count = search_index.rebuild_index(tmp_path)
+
+    assert count == 2
+    assert search_index.index_counts(tmp_path) == {"campaign": 2}
+
+
 def test_index_counts_omits_world_when_not_bootstrapped(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins.")
 
     search_index.rebuild_index(tmp_path)
 
-    assert search_index.index_counts(tmp_path) == {"encounter": 1}
+    assert search_index.index_counts(tmp_path) == {"encounter": 1, "campaign": 1}
 
 
 def test_search_finds_matching_lore_with_enabled_status(tmp_path: Path) -> None:
@@ -283,6 +293,22 @@ def test_search_finds_matching_world(tmp_path: Path) -> None:
     assert hit.updated_on
 
 
+def test_search_finds_matching_campaign_with_full_metadata(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "This initiative covers distinctive-campaign-phrase work.")
+    search_index.rebuild_index(tmp_path)
+
+    hits = search_index.search(tmp_path, "distinctive-campaign-phrase", object_type="campaign")
+
+    assert len(hits) == 1
+    hit = hits[0]
+    assert hit.object_type == "campaign"
+    assert hit.campaign == ""
+    assert hit.name == "opening-gambit"
+    assert hit.status == "draft"
+    assert hit.updated_on
+    assert "distinctive-campaign-phrase" in hit.excerpt.lower()
+
+
 # --- Incremental sync (create/update/delete without an intervening rebuild) ---
 
 
@@ -306,7 +332,7 @@ def test_update_encounter_after_rebuild_is_immediately_reflected(tmp_path: Path)
 
     assert search_index.search(tmp_path, "revised")[0].name == "goblin-ambush"
     assert search_index.search(tmp_path, "original") == []
-    assert search_index.index_counts(tmp_path) == {"encounter": 1}
+    assert search_index.index_counts(tmp_path) == {"encounter": 1, "campaign": 1}
 
 
 def test_delete_encounter_after_rebuild_is_immediately_removed(tmp_path: Path) -> None:
@@ -317,7 +343,7 @@ def test_delete_encounter_after_rebuild_is_immediately_removed(tmp_path: Path) -
     encounter.delete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
 
     assert search_index.search(tmp_path, "goblins") == []
-    assert search_index.index_counts(tmp_path) == {}
+    assert search_index.index_counts(tmp_path) == {"campaign": 1}
 
 
 def test_create_lore_after_rebuild_is_immediately_searchable(tmp_path: Path) -> None:
@@ -370,6 +396,38 @@ def test_delete_region_after_rebuild_is_immediately_removed(tmp_path: Path) -> N
     assert search_index.index_counts(tmp_path) == {}
 
 
+def test_create_campaign_after_rebuild_is_immediately_searchable(tmp_path: Path) -> None:
+    search_index.rebuild_index(tmp_path)
+
+    campaign.create_campaign(tmp_path, "opening-gambit", "Recover the dragon's hoard.")
+
+    hits = search_index.search(tmp_path, "hoard", object_type="campaign")
+    assert len(hits) == 1
+    assert hits[0].name == "opening-gambit"
+    assert hits[0].status == "draft"
+
+
+def test_campaign_status_transition_is_immediately_reflected(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    search_index.rebuild_index(tmp_path)
+
+    campaign.open_campaign(tmp_path, "opening-gambit")
+
+    hits = search_index.search(tmp_path, "Body", object_type="campaign")
+    assert len(hits) == 1
+    assert hits[0].status == "open"
+
+
+def test_delete_campaign_after_rebuild_is_immediately_removed(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    search_index.rebuild_index(tmp_path)
+
+    campaign.delete_campaign(tmp_path, "opening-gambit")
+
+    assert search_index.search(tmp_path, "Body") == []
+    assert search_index.index_counts(tmp_path) == {}
+
+
 def test_update_world_after_rebuild_is_immediately_reflected(tmp_path: Path) -> None:
     world.initialize_world(tmp_path)
     search_index.rebuild_index(tmp_path)
@@ -393,10 +451,11 @@ def test_writes_before_any_rebuild_do_not_create_index_file(tmp_path: Path) -> N
     assert search_index.index_counts(tmp_path) is None
 
 
-def test_delete_campaign_does_not_touch_index(tmp_path: Path) -> None:
+def test_delete_campaign_removes_its_own_row_but_leaves_encounters(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins.")
     search_index.rebuild_index(tmp_path)
+    assert search_index.index_counts(tmp_path) == {"encounter": 1, "campaign": 1}
 
     campaign.delete_campaign(tmp_path, "opening-gambit")
 

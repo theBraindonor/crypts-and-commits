@@ -27,7 +27,7 @@ def test_rebuild_reports_indexed_count() -> None:
     result = runner.invoke(app, ["index", "rebuild"])
 
     assert result.exit_code == 0
-    assert "2" in result.output
+    assert "3" in result.output
 
 
 def test_status_after_rebuild_reports_counts_by_type() -> None:
@@ -39,9 +39,10 @@ def test_status_after_rebuild_reports_counts_by_type() -> None:
     result = runner.invoke(app, ["index", "status"])
 
     assert result.exit_code == 0
-    assert "2 item(s) indexed" in result.output
+    assert "3 item(s) indexed" in result.output
     assert "encounter: 1" in result.output
     assert "world: 1" in result.output
+    assert "campaign: 1" in result.output
 
 
 def test_search_finds_matching_lore() -> None:
@@ -67,6 +68,18 @@ def test_search_finds_matching_region() -> None:
     assert result.exit_code == 0
     assert "[region]" in result.output
     assert "backend" in result.output
+
+
+def test_search_finds_matching_campaign() -> None:
+    runner.invoke(app, ["bootstrap", "init"])
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Recover the distinctive-campaign-hoard."])
+    runner.invoke(app, ["index", "rebuild"])
+
+    result = runner.invoke(app, ["index", "search", "distinctive-campaign-hoard", "--type", "campaign"])
+
+    assert result.exit_code == 0
+    assert "[campaign]" in result.output
+    assert "opening-gambit" in result.output
 
 
 def test_search_finds_matching_world() -> None:

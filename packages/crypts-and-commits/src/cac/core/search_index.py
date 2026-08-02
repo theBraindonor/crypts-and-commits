@@ -5,6 +5,7 @@ from pathlib import Path
 import frontmatter
 
 from cac.core.config import (
+    CAMPAIGN_DIR_NAME,
     ENCOUNTER_DIR_NAME,
     LORE_DIR_NAME,
     REGION_DIR_NAME,
@@ -12,6 +13,7 @@ from cac.core.config import (
     SEARCH_DEFAULT_SNIPPET_TOKENS,
     SEARCH_INDEX_BUSY_TIMEOUT_MS,
     SEARCH_INDEX_FTS_TABLE,
+    SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN,
     SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER,
     SEARCH_INDEX_OBJECT_TYPE_LORE,
     SEARCH_INDEX_OBJECT_TYPE_REGION,
@@ -77,6 +79,7 @@ def rebuild_index(root: Path) -> int:
             + _reindex_world(root, conn)
             + _reindex_lore(root, conn)
             + _reindex_regions(root, conn)
+            + _reindex_campaigns(root, conn)
         )
         conn.commit()
         return count
@@ -175,10 +178,32 @@ def _reindex_regions(root: Path, conn: sqlite3.Connection) -> int:
     return count
 
 
+def _reindex_campaigns(root: Path, conn: sqlite3.Connection) -> int:
+    from cac.core import campaign as campaign_core
+
+    count = 0
+    for name in campaign_core.list_campaigns(root):
+        metadata, body = campaign_core.read_metadata(root, name)
+        conn.execute(
+            f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
+            "(object_type, campaign, name, status, updated_on, body) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN,
+                "",
+                name,
+                metadata.get("status", ""),
+                metadata.get("updated_on", ""),
+                body,
+            ),
+        )
+        count += 1
+    return count
+
+
 def _classify(root: Path, path: Path) -> tuple[str, str, str] | None:
     """Map a `.sourcebook` file path to `(object_type, campaign, name)` for incremental sync,
     where `name` is the filename stem (`campaign` is `""` for non-encounter types). Returns
-    `None` for paths under `campaigns/` (not an indexed type) or anything unrecognized."""
+    `None` for anything unrecognized."""
     try:
         rel = path.relative_to(sourcebook_dir(root))
     except ValueError:
@@ -190,16 +215,18 @@ def _classify(root: Path, path: Path) -> tuple[str, str, str] | None:
         return SEARCH_INDEX_OBJECT_TYPE_LORE, "", path.stem
     if len(parts) == 2 and parts[0] == REGION_DIR_NAME:
         return SEARCH_INDEX_OBJECT_TYPE_REGION, "", path.stem
+    if len(parts) == 2 and parts[0] == CAMPAIGN_DIR_NAME:
+        return SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN, "", path.stem
     if len(parts) == 3 and parts[0] == ENCOUNTER_DIR_NAME:
         return SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER, parts[1], path.stem
-    return None  # campaigns/ (not an indexed type) or anything unrecognized
+    return None  # anything unrecognized
 
 
 def sync_write(root: Path, path: Path, post: frontmatter.Post) -> None:
     """Incrementally patch the index for a single create/update, as one short transaction.
     No-op if the index has never been built (see `rebuild_index`) - incremental sync must
     never bring an index into existence on its own - or if `path` isn't an indexed object
-    type (e.g. a campaign)."""
+    type."""
     if not search_index_db_path(root).exists():
         return
     classified = _classify(root, path)

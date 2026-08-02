@@ -27,7 +27,7 @@ def test_index_status_after_rebuild(tmp_path: Path) -> None:
 
     result = mcp_index.index_status()
 
-    assert result == {"built": True, "counts": {"encounter": 1}}
+    assert result == {"built": True, "counts": {"encounter": 1, "campaign": 1}}
 
 
 def test_index_search_before_any_rebuild() -> None:
@@ -49,6 +49,21 @@ def test_index_search_returns_matching_hits(tmp_path: Path) -> None:
     assert hit["campaign"] == "opening-gambit"
     assert hit["name"] == "goblin-ambush"
     assert "goblins" in hit["excerpt"].lower()
+
+
+def test_index_search_returns_matching_campaign_hit(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Recover the distinctive-campaign-hoard.")
+    search_index.rebuild_index(tmp_path)
+
+    result = mcp_index.index_search("distinctive-campaign-hoard", object_type="campaign")
+
+    assert result["built"] is True
+    assert len(result["hits"]) == 1
+    hit = result["hits"][0]
+    assert hit["object_type"] == "campaign"
+    assert hit["campaign"] == ""
+    assert hit["name"] == "opening-gambit"
+    assert hit["status"] == "draft"
 
 
 def test_index_search_returns_no_hits_for_no_match(tmp_path: Path) -> None:
