@@ -207,7 +207,7 @@ app), and that lore can be scoped to.
 A long-running initiative, analogous to a Jira Epic (e.g. "Create the MVP"),
 expected to span many encounters before completion.
 
-- **Frontmatter**: `name`, `status`, plus the common stamps.
+- **Frontmatter**: `name`, `status`, `archived` (bool, default `false` - see "Archiving" below), plus the common stamps.
 - **Body**: free-form description of the initiative. Once a campaign reaches
   a terminal status, a dated, attributed **postmortem log entry** is appended
   to the body and the body is locked (`campaign_update`/`cac campaign update`
@@ -245,6 +245,44 @@ expected to span many encounters before completion.
 - **Connections**: contains its encounters (by directory nesting); an
   encounter records its parent campaign's name on its own frontmatter.
 
+### Archiving
+
+`archived` is an orthogonal flag, not a status - archiving a campaign never
+changes its `status`, and a `completed`/`abandoned` campaign stays exactly
+that after archiving. It exists to move finished work out of the way of the
+active `campaigns/`/`encounters/<campaign>/` directories, into
+`.sourcebook/archive/`, once nothing about it is still in flight.
+
+Guard, enforced by `campaign_archive`/`cac campaign archive`: the campaign's
+`status` must already be `completed` or `abandoned`; it must not already be
+archived; and **every** encounter under it must also be `completed` or
+`abandoned` - a strictly broader check than `complete`/`pause`/`abandon`'s
+own open-encounter guard, which only blocks on an `open` encounter and lets
+`draft`/`reviewed` ones through. There is no separate encounter-level archive
+operation - archiving a campaign archives every one of its encounters in the
+same call, atomically, each getting `archived: true`. There is currently no
+reverse (unarchive) operation.
+
+On success, the campaign file moves from `.sourcebook/campaigns/<name>.md` to
+`.sourcebook/archive/campaigns/<name>.md`, and each encounter file moves from
+`.sourcebook/encounters/<campaign>/<name>.md` to
+`.sourcebook/archive/encounters/<campaign>/<name>.md` - the same layout, one
+level under `archive/`.
+
+Read/list asymmetry: `campaign_get`/`cac campaign get` and
+`encounter_get`/`cac encounter get` transparently resolve an archived
+campaign/encounter (checking the live location, then the archive location),
+so a single lookup by name keeps working unchanged after archiving.
+`campaign_list`, `encounter_list`, and `encounter_order` do **not** - they
+only ever look at the live directories, so an archived campaign disappears
+from `campaign_list`, and calling `encounter_list`/`encounter_order` against
+an archived campaign now returns an empty result. Archived content is
+inspectable one item at a time via `_get`, not via bulk listing.
+
+The search index is unaffected by archiving - an archived campaign/encounter
+stays indexed and searchable exactly as it was before, with no distinction
+yet made between live and archived content in search results.
+
 | Operation | MCP tool | CLI fallback |
 |---|---|---|
 | Read | `campaign_get` | `cac campaign get` |
@@ -256,6 +294,7 @@ expected to span many encounters before completion.
 | Pause | `campaign_pause` | `cac campaign pause` |
 | Complete (+ postmortem message) | `campaign_complete` | `cac campaign complete` |
 | Abandon (+ postmortem message) | `campaign_abandon` | `cac campaign abandon` |
+| Archive (campaign + all its encounters) | `campaign_archive` | `cac campaign archive` |
 
 ## Encounter
 
@@ -264,7 +303,10 @@ execute, with fixed body sections.
 
 - **Frontmatter**: `name`, `campaign` (parent campaign name), `status`,
   `regions` (list), `depends_on` (list of direct prerequisite encounter names
-  within the same campaign), plus the common stamps.
+  within the same campaign), `archived` (bool, default `false` - see the
+  Campaign section's "Archiving" below; an encounter is never archived
+  standalone, only as a cascade of its campaign being archived), plus the
+  common stamps.
 - **Body**: four fixed sections - `Requirements`, `Rationale`, `Plan`,
   `Verification` - plus an appended `Log` section once any transition or
   message carries a message. The four fixed sections may only be *replaced*
@@ -373,9 +415,9 @@ intact.
 What is *not* separately gated: the draft -> reviewed transition itself, once
 a `PASS-WITH-NOTES` verdict is in hand - it runs immediately, because gate 1
 already covers it. Campaign-level transitions (`open`/`pause`/`complete`/
-`abandon`) and lore/region/world edits have no codified approval gate of
-their own in this model; they take effect as soon as the corresponding
-mutating tool is called.
+`abandon`/`archive`) and lore/region/world edits have no codified approval
+gate of their own in this model; they take effect as soon as the
+corresponding mutating tool is called.
 
 ## Cross-cutting: priming, search, and docs
 

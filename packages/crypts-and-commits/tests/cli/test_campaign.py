@@ -403,3 +403,77 @@ def test_list_rejects_invalid_cursor() -> None:
     result = runner.invoke(app, ["campaign", "list", "--cursor", "not-a-number"])
 
     assert result.exit_code == 1
+
+
+def _complete_campaign_with_encounter(tmp_path: Path) -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["region", "create", "default-region", "--body", "text", "--summary", "Summary."])
+    runner.invoke(
+        app, ["encounter", "assign-region", "goblin-ambush", "default-region", "--campaign", "opening-gambit"]
+    )
+    runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "--message", "ok"])
+    runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
+    runner.invoke(app, ["encounter", "complete", "goblin-ambush", "--campaign", "opening-gambit"])
+    runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "Shipped."])
+
+
+def test_archive_moves_campaign_and_encounter(tmp_path: Path) -> None:
+    _complete_campaign_with_encounter(tmp_path)
+
+    result = runner.invoke(app, ["campaign", "archive", "opening-gambit"])
+
+    assert result.exit_code == 0
+    assert "1 encounter(s)" in result.output
+    assert not (tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md").exists()
+    assert not (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").exists()
+    assert (tmp_path / ".sourcebook" / "archive" / "campaigns" / "opening-gambit.md").exists()
+    assert (tmp_path / ".sourcebook" / "archive" / "encounters" / "opening-gambit" / "goblin-ambush.md").exists()
+
+
+def test_archive_missing_campaign_fails() -> None:
+    result = runner.invoke(app, ["campaign", "archive", "missing"])
+
+    assert result.exit_code == 1
+
+
+def test_archive_rejects_non_terminal_campaign() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+
+    result = runner.invoke(app, ["campaign", "archive", "opening-gambit"])
+
+    assert result.exit_code == 1
+
+
+def test_archive_rejects_unfinished_encounter() -> None:
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+    runner.invoke(app, ["encounter", "create", "dragon-hoard", "--campaign", "opening-gambit", "--body", "text"])
+    runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "Shipped."])
+
+    result = runner.invoke(app, ["campaign", "archive", "opening-gambit"])
+
+    assert result.exit_code == 1
+    assert "dragon-hoard" in result.output
+
+
+def test_archive_rejects_already_archived(tmp_path: Path) -> None:
+    _complete_campaign_with_encounter(tmp_path)
+    runner.invoke(app, ["campaign", "archive", "opening-gambit"])
+
+    result = runner.invoke(app, ["campaign", "archive", "opening-gambit"])
+
+    assert result.exit_code == 1
+
+
+def test_get_and_list_after_archiving(tmp_path: Path) -> None:
+    _complete_campaign_with_encounter(tmp_path)
+    runner.invoke(app, ["campaign", "archive", "opening-gambit"])
+
+    get_result = runner.invoke(app, ["campaign", "get", "opening-gambit"])
+    list_result = runner.invoke(app, ["campaign", "list"])
+
+    assert get_result.exit_code == 0
+    assert "text" in get_result.output
+    assert "opening-gambit" not in list_result.output

@@ -22,7 +22,9 @@ app = typer.Typer(
         "still has an open encounter. 'complete' and 'abandon' each require a --message - a "
         "postmortem recorded as a dated, attributed log entry on the campaign body. Once "
         "'completed' or 'abandoned', the campaign's body is locked: 'update' fails, since the "
-        "postmortem is meant to be that campaign's closing record."
+        "postmortem is meant to be that campaign's closing record. Once a campaign and every one "
+        "of its encounters are 'completed'/'abandoned', it may be 'archive'd - moved into "
+        ".sourcebook/archive/, out of the way of active work, without changing its status."
     )
 )
 console = Console()
@@ -200,3 +202,25 @@ def abandon_campaign(
         fail(console, str(exc))
 
     console.print(f"Abandoned [bold]{name}[/bold].")
+
+
+@app.command("archive")
+def archive_campaign(
+    name: str = typer.Argument(..., help="Campaign name to archive."),
+) -> None:
+    """Archive a campaign and all its encounters. The campaign must already be 'completed' or
+    'abandoned', and every one of its encounters must also be 'completed' or 'abandoned'. Moves the
+    campaign and its encounters into .sourcebook/archive/, mirroring their live layout, and sets
+    archived: true on each - status is preserved, not replaced."""
+    try:
+        campaign, archived_encounters = campaign_core.archive_campaign(Path.cwd(), name)
+    except (
+        campaign_core.CampaignNotFoundError,
+        campaign_core.CampaignNotTerminalError,
+        campaign_core.CampaignAlreadyArchivedError,
+        campaign_core.CampaignHasUnfinishedEncountersError,
+        GitIdentityError,
+    ) as exc:
+        fail(console, str(exc))
+
+    console.print(f"Archived [bold]{campaign.name}[/bold] and {len(archived_encounters)} encounter(s).")

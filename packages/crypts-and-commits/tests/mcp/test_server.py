@@ -42,6 +42,7 @@ def test_all_domain_tools_are_registered() -> None:
         "campaign_pause",
         "campaign_complete",
         "campaign_abandon",
+        "campaign_archive",
         "encounter_get",
         "encounter_list",
         "encounter_order",

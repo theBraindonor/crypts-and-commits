@@ -14,6 +14,7 @@ def encounter_to_dict(encounter: encounter_core.Encounter) -> dict[str, Any]:
         "status": encounter.status,
         "regions": encounter.regions,
         "depends_on": encounter.depends_on,
+        "archived": encounter.archived,
         "body": encounter.body,
     }
 

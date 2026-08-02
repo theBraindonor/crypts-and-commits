@@ -36,6 +36,7 @@ A campaign is a long-running initiative, similar to an "Epic" in Jira-style work
 - `campaign_complete(name, message)` — move `open` or `paused` → `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required — a postmortem, appended as a dated, attributed log entry on the campaign body. CLI fallback: `cac campaign complete --help`.
 - `campaign_abandon(name, message)` — move `draft`, `open`, or `paused` → `abandoned`. Not available once `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required, recorded the same way as `complete`'s. CLI fallback: `cac campaign abandon --help`.
 - `campaign_delete(name)` — remove a campaign, unconditionally. CLI fallback: `cac campaign delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
+- `campaign_archive(name)` — archive a campaign and every one of its encounters, moving them into `.sourcebook/archive/` and setting `archived: true` on each. Requires the campaign to already be `completed`/`abandoned`, not already archived, and every one of its encounters to also be `completed`/`abandoned`. CLI fallback: `cac campaign archive --help`.
 
 ## Campaign Lifecycle
 
@@ -48,6 +49,8 @@ A campaign is a long-running initiative, similar to an "Epic" in Jira-style work
 **`open`/`paused` → `completed`** — run `campaign_complete(name, message)` once the initiative is done. Same open-encounter restriction as `pause`. The message is a required postmortem — a closing summary of what happened and what was learned — appended to the campaign body as a dated, attributed log entry. Once `completed`, the campaign's body is locked: `campaign_update` will fail, since the postmortem is meant to be that campaign's closing record.
 
 **`draft`/`open`/`paused` → `abandoned`** — run `campaign_abandon(name, message)` to record why the initiative is being called off. Not available once `completed`. Same open-encounter restriction as `pause`, and the same required-postmortem, body-locking behavior as `complete`.
+
+**`completed`/`abandoned` → archived** — once a campaign and *every one* of its encounters are `completed`/`abandoned` (a strictly broader check than the open-encounter guards above — `draft`/`reviewed` encounters block this too), run `campaign_archive(name)` to move the campaign and all its encounters into `.sourcebook/archive/`, out of the way of active work. This does not change `status` — a `completed` campaign stays `completed`. `campaign_get`/`encounter_get` keep working unchanged afterward; `campaign_list`/`encounter_list`/`encounter_order` do not show archived content. CLI fallback: `cac campaign archive --help`.
 
 ## Encounters
 

@@ -9,6 +9,8 @@ from cac.core import campaign as campaign_core
 from cac.core import frontmatter_utils, templates
 from cac.core import region as region_core
 from cac.core.config import (
+    ARCHIVE_DIR_NAME,
+    ARCHIVED_KEY,
     CREATED_ON_KEY,
     DEFAULT_ENCOUNTER_STATUS,
     ENCOUNTER_DIR_NAME,
@@ -35,6 +37,7 @@ _ENCOUNTER_TRANSITIONS: dict[str, frozenset[str]] = {
 _RECORD_MESSAGE_STATUSES = frozenset({"reviewed", "open"})
 _DEPENDENCY_MUTATION_STATUSES = frozenset({"draft"})
 _REGION_MUTATION_STATUSES = frozenset({"draft"})
+_TERMINAL_STATUSES = frozenset({"completed", "abandoned"})
 
 
 class InvalidEncounterNameError(ValueError):
@@ -113,12 +116,18 @@ class Encounter:
     status: str
     regions: list[str]
     depends_on: list[str]
+    archived: bool
     body: str
 
 
 def encounter_dir(root: Path, campaign: str) -> Path:
     campaign_core.validate_name(campaign)
     return sourcebook_dir(root) / ENCOUNTER_DIR_NAME / campaign
+
+
+def archive_encounter_dir(root: Path, campaign: str) -> Path:
+    campaign_core.validate_name(campaign)
+    return sourcebook_dir(root) / ARCHIVE_DIR_NAME / ENCOUNTER_DIR_NAME / campaign
 
 
 def validate_name(name: str) -> None:
@@ -145,6 +154,16 @@ def list_encounters(root: Path, campaign: str) -> list[str]:
     return [path.stem for path in sorted(paths, key=lambda p: frontmatter.load(p).get(UPDATED_ON_KEY, ""))]
 
 
+def list_archived_encounters(root: Path, campaign: str) -> list[str]:
+    """List archived encounter names for a campaign, e.g. for the search index to include archived
+    content alongside live content when rebuilding from disk."""
+    directory = archive_encounter_dir(root, campaign)
+    if not directory.is_dir():
+        return []
+    paths = directory.glob("*.md")
+    return [path.stem for path in sorted(paths, key=lambda p: frontmatter.load(p).get(UPDATED_ON_KEY, ""))]
+
+
 def template_body() -> str:
     return frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME)).content
 
@@ -160,8 +179,10 @@ def read_metadata(root: Path, campaign: str, name: str) -> tuple[dict[str, Any],
 
 
 def encounter_path(root: Path, campaign: str, name: str) -> Path:
-    """Return the on-disk path for an encounter, e.g. for use in a truncation fallback notice."""
-    return _encounter_path(root, campaign, name)
+    """Return the on-disk path for an encounter, e.g. for use in a truncation fallback notice.
+    Resolves the live location first, then the archive location, so this stays correct for an
+    archived encounter too."""
+    return _existing_encounter_path(root, campaign, name)
 
 
 def create_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
@@ -376,6 +397,45 @@ def order_encounters(root: Path, campaign: str) -> list[Encounter]:
     return [_to_encounter(posts[name], campaign, name) for name in names]
 
 
+def unfinished_encounter_names(root: Path, campaign: str) -> list[tuple[str, str]]:
+    """Return (name, status) for every encounter in the campaign's live directory whose status
+    isn't 'completed' or 'abandoned'. Used to gate campaign archiving - a campaign being checked
+    for archiving is not yet archived, so its encounters are always still live at this point."""
+    directory = encounter_dir(root, campaign)
+    if not directory.is_dir():
+        return []
+    result = []
+    for path in sorted(directory.glob("*.md")):
+        status = frontmatter.load(path).get("status", DEFAULT_ENCOUNTER_STATUS)
+        if status not in _TERMINAL_STATUSES:
+            result.append((path.stem, status))
+    return result
+
+
+def archive_encounters(root: Path, campaign: str) -> list[str]:
+    """Move every encounter under `campaign` from its live directory into the archive location,
+    setting archived: true on each. Callers (campaign_core.archive_campaign) must already have
+    verified every encounter is 'completed'/'abandoned' before calling this - it does not itself
+    re-check status. Returns the archived names, sorted."""
+    directory = encounter_dir(root, campaign)
+    if not directory.is_dir():
+        return []
+    names = []
+    for path in sorted(directory.glob("*.md")):
+        name = path.stem
+        post = frontmatter.load(path)
+        frontmatter_utils.stamp_updated(post, root)
+        post[ARCHIVED_KEY] = True
+        new_path = archive_encounter_dir(root, campaign) / f"{name}.md"
+        new_path.parent.mkdir(parents=True, exist_ok=True)
+        frontmatter_utils.write_post(root, new_path, post)
+        path.unlink()
+        names.append(name)
+    if names and not any(directory.iterdir()):
+        directory.rmdir()
+    return names
+
+
 def _update_regions(
     root: Path, campaign: str, name: str, *, add: str | None = None, remove: str | None = None
 ) -> Encounter:
@@ -395,6 +455,7 @@ def _to_encounter(post: frontmatter.Post, campaign: str, name: str) -> Encounter
         status=post.get("status", DEFAULT_ENCOUNTER_STATUS),
         regions=post.get("regions", []),
         depends_on=post.get(DEPENDS_ON_KEY, []),
+        archived=post.get(ARCHIVED_KEY, False),
         body=post.content,
     )
 
@@ -507,6 +568,9 @@ def _encounter_path(root: Path, campaign: str, name: str) -> Path:
 
 def _existing_encounter_path(root: Path, campaign: str, name: str) -> Path:
     path = _encounter_path(root, campaign, name)
-    if not path.exists():
-        raise EncounterNotFoundError(f"Encounter {name!r} does not exist in campaign {campaign!r}.")
-    return path
+    if path.exists():
+        return path
+    archived_path = archive_encounter_dir(root, campaign) / f"{name}.md"
+    if archived_path.exists():
+        return archived_path
+    raise EncounterNotFoundError(f"Encounter {name!r} does not exist in campaign {campaign!r}.")

@@ -508,3 +508,53 @@ def test_sync_write_waits_out_a_concurrent_writer_instead_of_failing(tmp_path: P
     hits = search_index.search(tmp_path, "functions", object_type="lore")
     assert len(hits) == 1
     assert hits[0].name == "clean-code"
+
+
+def test_archive_campaign_leaves_index_rows_untouched(tmp_path: Path) -> None:
+    """Archiving must not call sync_delete on the old path - the campaign's and its encounter's
+    index rows should survive unchanged, per this campaign's 'don't touch the index yet' decision."""
+    _make_campaign(tmp_path)
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    region.create_region(tmp_path, "default-region", "Body.", "Summary.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "default-region")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+    encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
+    search_index.rebuild_index(tmp_path)
+    before = search_index.index_counts(tmp_path)
+
+    campaign.archive_campaign(tmp_path, "opening-gambit")
+
+    assert search_index.index_counts(tmp_path) == before
+    campaign_hits = search_index.search(tmp_path, "Body", object_type="campaign")
+    encounter_hits = search_index.search(tmp_path, "goblins", object_type="encounter")
+    assert len(campaign_hits) == 1
+    assert len(encounter_hits) == 1
+
+
+def test_rebuild_index_includes_archived_campaigns_and_encounters(tmp_path: Path) -> None:
+    """A rebuild is disk-driven, not sync_write/sync_delete-driven - it must not silently drop
+    archived content just because _reindex_* only used to look at the live directories."""
+    _make_campaign(tmp_path)
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    region.create_region(tmp_path, "default-region", "Body.", "Summary.")
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins.")
+    encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "default-region")
+    encounter.review_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
+    encounter.open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
+    campaign.archive_campaign(tmp_path, "opening-gambit")
+
+    count = search_index.rebuild_index(tmp_path)
+
+    assert count == 3
+    assert search_index.index_counts(tmp_path) == {"campaign": 1, "encounter": 1, "region": 1}
+    campaign_hits = search_index.search(tmp_path, "Body", object_type="campaign")
+    encounter_hits = search_index.search(tmp_path, "goblins", object_type="encounter")
+    assert len(campaign_hits) == 1
+    assert campaign_hits[0].status == "completed"
+    assert len(encounter_hits) == 1
+    assert encounter_hits[0].status == "completed"

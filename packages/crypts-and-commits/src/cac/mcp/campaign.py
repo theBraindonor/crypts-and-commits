@@ -7,7 +7,12 @@ from cac.mcp.instance import mcp
 
 
 def campaign_to_dict(campaign: campaign_core.Campaign) -> dict[str, Any]:
-    return {"name": campaign.name, "status": campaign.status, "body": campaign.body}
+    return {
+        "name": campaign.name,
+        "status": campaign.status,
+        "archived": campaign.archived,
+        "body": campaign.body,
+    }
 
 
 @mcp.tool()
@@ -83,3 +88,12 @@ def campaign_abandon(name: str, message: str) -> dict[str, Any]:
     an open encounter. message is a required postmortem, recorded as a dated, attributed log entry;
     the campaign's body is locked thereafter."""
     return campaign_to_dict(campaign_core.abandon_campaign(Path.cwd(), name, message))
+
+
+@mcp.tool()
+def campaign_archive(name: str) -> dict[str, Any]:
+    """Archive a campaign and all its encounters, moving them into .sourcebook/archive/ and setting
+    archived: true on each. The campaign must already be 'completed' or 'abandoned', and every one
+    of its encounters must also be 'completed' or 'abandoned' - status is preserved, not replaced."""
+    campaign, archived_encounters = campaign_core.archive_campaign(Path.cwd(), name)
+    return {**campaign_to_dict(campaign), "archived_encounters": archived_encounters}

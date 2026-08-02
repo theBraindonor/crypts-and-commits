@@ -273,8 +273,18 @@ def test_delete_encounter_missing_raises(tmp_path: Path) -> None:
 
 
 def test_encounter_path_returns_on_disk_path(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
     expected = tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md"
     assert encounter.encounter_path(tmp_path, "opening-gambit", "goblin-ambush") == expected
+
+
+def test_encounter_path_missing_raises(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+
+    with pytest.raises(encounter.EncounterNotFoundError):
+        encounter.encounter_path(tmp_path, "opening-gambit", "missing")
 
 
 def test_review_encounter_transitions_status_and_appends_message(tmp_path: Path) -> None:
@@ -881,3 +891,83 @@ def test_order_encounters_reports_cycle_participants_in_stored_graph(tmp_path: P
 
     assert "one -> two -> one" in str(exc_info.value)
     assert "three" not in str(exc_info.value)
+
+
+# --- Archiving ---
+
+
+def _completed_encounter(tmp_path: Path, campaign_name: str, name: str) -> None:
+    encounter.create_encounter(tmp_path, campaign_name, name, "Body.")
+    _review(tmp_path, campaign_name, name)
+    encounter.open_encounter(tmp_path, campaign_name, name)
+    encounter.complete_encounter(tmp_path, campaign_name, name)
+
+
+def test_unfinished_encounter_names_returns_empty_when_no_directory(tmp_path: Path) -> None:
+    assert encounter.unfinished_encounter_names(tmp_path, "opening-gambit") == []
+
+
+def test_unfinished_encounter_names_lists_non_terminal_encounters(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    encounter.create_encounter(tmp_path, "opening-gambit", "dragon-hoard", "Body.")
+    _review(tmp_path, "opening-gambit", "dragon-hoard")
+    _completed_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    encounter.create_encounter(tmp_path, "opening-gambit", "wizard-tower", "Body.")
+
+    result = encounter.unfinished_encounter_names(tmp_path, "opening-gambit")
+
+    assert result == [("dragon-hoard", "reviewed"), ("wizard-tower", "draft")]
+
+
+def test_archive_encounters_returns_empty_when_no_directory(tmp_path: Path) -> None:
+    assert encounter.archive_encounters(tmp_path, "opening-gambit") == []
+
+
+def test_archive_encounters_moves_files_and_sets_flag(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    _completed_encounter(tmp_path, "opening-gambit", "dragon-hoard")
+    _completed_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    live_dir = tmp_path / ".sourcebook" / "encounters" / "opening-gambit"
+    assert (live_dir / "dragon-hoard.md").exists()
+    assert (live_dir / "goblin-ambush.md").exists()
+
+    names = encounter.archive_encounters(tmp_path, "opening-gambit")
+
+    assert names == ["dragon-hoard", "goblin-ambush"]
+    assert not (live_dir / "dragon-hoard.md").exists()
+    assert not (live_dir / "goblin-ambush.md").exists()
+    archive_dir = tmp_path / ".sourcebook" / "archive" / "encounters" / "opening-gambit"
+    assert "archived: true" in (archive_dir / "dragon-hoard.md").read_text(encoding="utf-8")
+    assert "archived: true" in (archive_dir / "goblin-ambush.md").read_text(encoding="utf-8")
+
+
+def test_archive_encounters_removes_now_empty_live_directory(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    _completed_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    live_dir = tmp_path / ".sourcebook" / "encounters" / "opening-gambit"
+
+    encounter.archive_encounters(tmp_path, "opening-gambit")
+
+    assert not live_dir.exists()
+
+
+def test_read_encounter_and_encounter_path_work_after_archiving(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    _completed_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    encounter.archive_encounters(tmp_path, "opening-gambit")
+
+    result = encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    assert result.archived is True
+    assert result.status == "completed"
+    assert encounter.encounter_path(tmp_path, "opening-gambit", "goblin-ambush") == (
+        tmp_path / ".sourcebook" / "archive" / "encounters" / "opening-gambit" / "goblin-ambush.md"
+    )
+
+
+def test_list_and_order_encounters_are_empty_once_archived(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+    _completed_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    encounter.archive_encounters(tmp_path, "opening-gambit")
+
+    assert encounter.list_encounters(tmp_path, "opening-gambit") == []
+    assert encounter.order_encounters(tmp_path, "opening-gambit") == []

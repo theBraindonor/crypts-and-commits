@@ -4,6 +4,7 @@ campaign: ""
 status: "draft"
 regions: []
 depends_on: []
+archived: false
 ---
 
 # Encounter

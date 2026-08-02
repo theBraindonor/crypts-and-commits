@@ -88,12 +88,16 @@ def rebuild_index(root: Path) -> int:
 
 
 def _reindex_encounters(root: Path, conn: sqlite3.Connection) -> int:
+    """Index every encounter, live and archived alike - a rebuild must not drop archived content
+    from the index, since archiving is a physical move, not a deletion."""
     from cac.core import campaign as campaign_core
     from cac.core import encounter as encounter_core
 
     count = 0
-    for campaign in campaign_core.list_campaigns(root):
-        for name in encounter_core.list_encounters(root, campaign):
+    campaigns = campaign_core.list_campaigns(root) + campaign_core.list_archived_campaigns(root)
+    for campaign in campaigns:
+        names = encounter_core.list_encounters(root, campaign) + encounter_core.list_archived_encounters(root, campaign)
+        for name in names:
             metadata, body = encounter_core.read_metadata(root, campaign, name)
             conn.execute(
                 f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
@@ -179,10 +183,12 @@ def _reindex_regions(root: Path, conn: sqlite3.Connection) -> int:
 
 
 def _reindex_campaigns(root: Path, conn: sqlite3.Connection) -> int:
+    """Index every campaign, live and archived alike - a rebuild must not drop archived content
+    from the index, since archiving is a physical move, not a deletion."""
     from cac.core import campaign as campaign_core
 
     count = 0
-    for name in campaign_core.list_campaigns(root):
+    for name in campaign_core.list_campaigns(root) + campaign_core.list_archived_campaigns(root):
         metadata, body = campaign_core.read_metadata(root, name)
         conn.execute(
             f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "

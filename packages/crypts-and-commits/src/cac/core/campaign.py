@@ -6,6 +6,8 @@ import frontmatter
 
 from cac.core import frontmatter_utils, templates
 from cac.core.config import (
+    ARCHIVE_DIR_NAME,
+    ARCHIVED_KEY,
     CAMPAIGN_DIR_NAME,
     DEFAULT_CAMPAIGN_STATUS,
     DEFAULT_ENCOUNTER_STATUS,
@@ -46,6 +48,19 @@ class CampaignHasOpenEncountersError(ValueError):
     """Raised when pausing, completing, or abandoning a campaign that still has an open encounter."""
 
 
+class CampaignNotTerminalError(ValueError):
+    """Raised when archiving a campaign whose status isn't 'completed' or 'abandoned'."""
+
+
+class CampaignAlreadyArchivedError(ValueError):
+    """Raised when archiving a campaign that is already archived."""
+
+
+class CampaignHasUnfinishedEncountersError(ValueError):
+    """Raised when archiving a campaign that has one or more encounters not yet 'completed' or
+    'abandoned'."""
+
+
 class NoActiveCampaignError(ValueError):
     """Raised when a campaign must be resolved from the active (open) campaign but none is open."""
 
@@ -71,11 +86,16 @@ class CampaignAlreadyExistsError(FileExistsError):
 class Campaign:
     name: str
     status: str
+    archived: bool
     body: str
 
 
 def campaign_dir(root: Path) -> Path:
     return sourcebook_dir(root) / CAMPAIGN_DIR_NAME
+
+
+def archive_campaign_dir(root: Path) -> Path:
+    return sourcebook_dir(root) / ARCHIVE_DIR_NAME / CAMPAIGN_DIR_NAME
 
 
 def validate_name(name: str) -> None:
@@ -93,6 +113,15 @@ def exists(root: Path, name: str) -> bool:
 
 def list_campaigns(root: Path) -> list[str]:
     directory = campaign_dir(root)
+    if not directory.is_dir():
+        return []
+    return sorted(path.stem for path in directory.glob("*.md"))
+
+
+def list_archived_campaigns(root: Path) -> list[str]:
+    """List archived campaign names, e.g. for the search index to include archived content
+    alongside live content when rebuilding from disk."""
+    directory = archive_campaign_dir(root)
     if not directory.is_dir():
         return []
     return sorted(path.stem for path in directory.glob("*.md"))
@@ -157,8 +186,10 @@ def read_metadata(root: Path, name: str) -> tuple[dict[str, Any], str]:
 
 
 def campaign_path(root: Path, name: str) -> Path:
-    """Return the on-disk path for a campaign, e.g. for use in a truncation fallback notice."""
-    return _campaign_path(root, name)
+    """Return the on-disk path for a campaign, e.g. for use in a truncation fallback notice.
+    Resolves the live location first, then the archive location, so this stays correct for an
+    archived campaign too."""
+    return _existing_campaign_path(root, name)
 
 
 def create_campaign(root: Path, name: str, body: str) -> Path:
@@ -232,6 +263,47 @@ def abandon_campaign(root: Path, name: str, message: str) -> Campaign:
     )
 
 
+def archive_campaign(root: Path, name: str) -> tuple[Campaign, list[str]]:
+    """Archive a campaign and every one of its encounters: move them from the live
+    campaigns/encounters directories into .sourcebook/archive/, mirroring the live layout, and set
+    archived: true on each. status is left untouched - archiving is not a status transition.
+
+    Requires the campaign to already be 'completed' or 'abandoned', not already archived, and every
+    one of its encounters to also be 'completed' or 'abandoned' - a strictly broader check than
+    complete/abandon's existing open-encounter guard. Returns the updated Campaign and the names of
+    every encounter archived alongside it."""
+    from cac.core import encounter as encounter_core
+
+    path = _existing_campaign_path(root, name)
+    post = frontmatter.load(path)
+    status = post.get("status", DEFAULT_CAMPAIGN_STATUS)
+    if status not in _TERMINAL_STATUSES:
+        raise CampaignNotTerminalError(
+            f"Cannot archive campaign {name!r}: status is {status!r}. Only 'completed' or "
+            "'abandoned' campaigns may be archived."
+        )
+    if post.get(ARCHIVED_KEY, False):
+        raise CampaignAlreadyArchivedError(f"Campaign {name!r} is already archived.")
+    unfinished = encounter_core.unfinished_encounter_names(root, name)
+    if unfinished:
+        details = ", ".join(f"{encounter_name} ({encounter_status})" for encounter_name, encounter_status in unfinished)
+        raise CampaignHasUnfinishedEncountersError(
+            f"Cannot archive campaign {name!r}: it has unfinished encounter(s) {details}. "
+            "Complete or abandon them first."
+        )
+
+    archived_encounters = encounter_core.archive_encounters(root, name)
+
+    frontmatter_utils.stamp_updated(post, root)
+    post[ARCHIVED_KEY] = True
+    new_path = archive_campaign_dir(root) / f"{name}.md"
+    new_path.parent.mkdir(parents=True, exist_ok=True)
+    frontmatter_utils.write_post(root, new_path, post)
+    path.unlink()
+
+    return _to_campaign(post, name), archived_encounters
+
+
 def _guarded_transition(
     root: Path, name: str, *, to_status: str, action: str, log_heading: str | None, message: str | None
 ) -> Campaign:
@@ -301,6 +373,7 @@ def _to_campaign(post: frontmatter.Post, name: str) -> Campaign:
     return Campaign(
         name=post.get("name", name),
         status=post.get("status", DEFAULT_CAMPAIGN_STATUS),
+        archived=post.get(ARCHIVED_KEY, False),
         body=post.content,
     )
 
@@ -312,6 +385,9 @@ def _campaign_path(root: Path, name: str) -> Path:
 
 def _existing_campaign_path(root: Path, name: str) -> Path:
     path = _campaign_path(root, name)
-    if not path.exists():
-        raise CampaignNotFoundError(f"Campaign {name!r} does not exist.")
-    return path
+    if path.exists():
+        return path
+    archived_path = archive_campaign_dir(root) / f"{name}.md"
+    if archived_path.exists():
+        return archived_path
+    raise CampaignNotFoundError(f"Campaign {name!r} does not exist.")

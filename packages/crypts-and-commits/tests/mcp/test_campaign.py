@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from cac.core import campaign, git_utils
+from cac.core import campaign, encounter, git_utils, region
 from cac.mcp import campaign as mcp_campaign
 
 
@@ -43,7 +43,7 @@ def test_campaign_list_returns_items_and_cursor(tmp_path: Path) -> None:
 def test_campaign_create_returns_new_campaign() -> None:
     result = mcp_campaign.campaign_create("mvp", "Campaign body.")
 
-    assert result == {"name": "mvp", "status": "draft", "body": "Campaign body."}
+    assert result == {"name": "mvp", "status": "draft", "archived": False, "body": "Campaign body."}
 
 
 def test_campaign_update_replaces_body(tmp_path: Path) -> None:
@@ -89,3 +89,66 @@ def test_campaign_abandon_records_postmortem(tmp_path: Path) -> None:
 
     assert result["status"] == "abandoned"
     assert "Cutting scope." in result["body"]
+
+
+def _complete_campaign_with_encounter(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "mvp", "Body.")
+    campaign.open_campaign(tmp_path, "mvp")
+    encounter.create_encounter(tmp_path, "mvp", "goblin-ambush", "Body.")
+    region.create_region(tmp_path, "default-region", "Body.", "Summary.")
+    encounter.assign_region(tmp_path, "mvp", "goblin-ambush", "default-region")
+    encounter.review_encounter(tmp_path, "mvp", "goblin-ambush", "ok")
+    encounter.open_encounter(tmp_path, "mvp", "goblin-ambush")
+    encounter.complete_encounter(tmp_path, "mvp", "goblin-ambush")
+    campaign.complete_campaign(tmp_path, "mvp", "Shipped.")
+
+
+def test_campaign_archive_moves_campaign_and_encounter(tmp_path: Path) -> None:
+    _complete_campaign_with_encounter(tmp_path)
+
+    result = mcp_campaign.campaign_archive("mvp")
+
+    assert result["archived"] is True
+    assert result["status"] == "completed"
+    assert result["archived_encounters"] == ["goblin-ambush"]
+    assert not (tmp_path / ".sourcebook" / "campaigns" / "mvp.md").exists()
+    assert (tmp_path / ".sourcebook" / "archive" / "campaigns" / "mvp.md").exists()
+
+
+def test_campaign_archive_missing_raises() -> None:
+    with pytest.raises(campaign.CampaignNotFoundError):
+        mcp_campaign.campaign_archive("missing")
+
+
+def test_campaign_archive_rejects_non_terminal(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "mvp", "Body.")
+
+    with pytest.raises(campaign.CampaignNotTerminalError):
+        mcp_campaign.campaign_archive("mvp")
+
+
+def test_campaign_archive_rejects_unfinished_encounters(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "mvp", "Body.")
+    campaign.open_campaign(tmp_path, "mvp")
+    encounter.create_encounter(tmp_path, "mvp", "dragon-hoard", "Body.")
+    campaign.complete_campaign(tmp_path, "mvp", "Shipped.")
+
+    with pytest.raises(campaign.CampaignHasUnfinishedEncountersError, match="dragon-hoard"):
+        mcp_campaign.campaign_archive("mvp")
+
+
+def test_campaign_archive_rejects_already_archived(tmp_path: Path) -> None:
+    _complete_campaign_with_encounter(tmp_path)
+    mcp_campaign.campaign_archive("mvp")
+
+    with pytest.raises(campaign.CampaignAlreadyArchivedError):
+        mcp_campaign.campaign_archive("mvp")
+
+
+def test_campaign_get_still_works_after_archiving(tmp_path: Path) -> None:
+    _complete_campaign_with_encounter(tmp_path)
+    mcp_campaign.campaign_archive("mvp")
+
+    result = mcp_campaign.campaign_get("mvp")
+
+    assert result["metadata"]["archived"] is True

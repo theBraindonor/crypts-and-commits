@@ -147,8 +147,15 @@ def test_delete_campaign_missing_raises(tmp_path: Path) -> None:
 
 
 def test_campaign_path_returns_on_disk_path(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+
     expected = tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md"
     assert campaign.campaign_path(tmp_path, "opening-gambit") == expected
+
+
+def test_campaign_path_missing_raises(tmp_path: Path) -> None:
+    with pytest.raises(campaign.CampaignNotFoundError):
+        campaign.campaign_path(tmp_path, "missing")
 
 
 def test_create_campaign_sets_created_and_updated_fields(tmp_path: Path) -> None:
@@ -526,3 +533,90 @@ def test_resolve_campaign_allows_terminal_when_mutable_not_required(tmp_path: Pa
         campaign.abandon_campaign(tmp_path, "closed", "Called off.")
 
     assert campaign.resolve_campaign(tmp_path, "closed", require_mutable=False) == "closed"
+
+
+# --- Archiving ---
+
+
+def _completed_campaign_with_encounter(tmp_path: Path, campaign_name: str = "opening-gambit") -> None:
+    campaign.create_campaign(tmp_path, campaign_name, "Body about the opening gambit.")
+    campaign.open_campaign(tmp_path, campaign_name)
+    _open_encounter(tmp_path, campaign_name, "goblin-ambush")
+    encounter.complete_encounter(tmp_path, campaign_name, "goblin-ambush")
+    campaign.complete_campaign(tmp_path, campaign_name, "Shipped.")
+
+
+def test_archive_campaign_rejects_non_terminal_status(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+
+    with pytest.raises(campaign.CampaignNotTerminalError):
+        campaign.archive_campaign(tmp_path, "opening-gambit")
+
+
+def test_archive_campaign_rejects_missing_campaign(tmp_path: Path) -> None:
+    with pytest.raises(campaign.CampaignNotFoundError):
+        campaign.archive_campaign(tmp_path, "missing")
+
+
+def test_archive_campaign_rejects_unfinished_encounters(tmp_path: Path) -> None:
+    campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
+    campaign.open_campaign(tmp_path, "opening-gambit")
+    encounter.create_encounter(tmp_path, "opening-gambit", "dragon-hoard", "Body.")
+    _open_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    encounter.complete_encounter(tmp_path, "opening-gambit", "goblin-ambush")
+    campaign.complete_campaign(tmp_path, "opening-gambit", "Shipped.")
+
+    with pytest.raises(campaign.CampaignHasUnfinishedEncountersError, match="dragon-hoard \\(draft\\)"):
+        campaign.archive_campaign(tmp_path, "opening-gambit")
+
+
+def test_archive_campaign_rejects_already_archived(tmp_path: Path) -> None:
+    _completed_campaign_with_encounter(tmp_path)
+    campaign.archive_campaign(tmp_path, "opening-gambit")
+
+    with pytest.raises(campaign.CampaignAlreadyArchivedError):
+        campaign.archive_campaign(tmp_path, "opening-gambit")
+
+
+def test_archive_campaign_moves_campaign_and_encounter_files(tmp_path: Path) -> None:
+    _completed_campaign_with_encounter(tmp_path)
+    live_campaign_path = tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md"
+    live_encounter_path = tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md"
+    assert live_campaign_path.exists()
+    assert live_encounter_path.exists()
+
+    result, archived_encounters = campaign.archive_campaign(tmp_path, "opening-gambit")
+
+    assert result.archived is True
+    assert result.status == "completed"
+    assert archived_encounters == ["goblin-ambush"]
+    assert not live_campaign_path.exists()
+    assert not live_encounter_path.exists()
+    archived_campaign_path = tmp_path / ".sourcebook" / "archive" / "campaigns" / "opening-gambit.md"
+    archived_encounter_path = (
+        tmp_path / ".sourcebook" / "archive" / "encounters" / "opening-gambit" / "goblin-ambush.md"
+    )
+    assert archived_campaign_path.exists()
+    assert archived_encounter_path.exists()
+    assert "archived: true" in archived_campaign_path.read_text(encoding="utf-8")
+    assert "archived: true" in archived_encounter_path.read_text(encoding="utf-8")
+
+
+def test_archive_campaign_read_access_still_works(tmp_path: Path) -> None:
+    _completed_campaign_with_encounter(tmp_path)
+    campaign.archive_campaign(tmp_path, "opening-gambit")
+
+    result = campaign.read_campaign(tmp_path, "opening-gambit")
+    assert result.archived is True
+    assert "Body about the opening gambit." in result.body
+    assert campaign.campaign_path(tmp_path, "opening-gambit") == (
+        tmp_path / ".sourcebook" / "archive" / "campaigns" / "opening-gambit.md"
+    )
+
+
+def test_archive_campaign_excluded_from_list(tmp_path: Path) -> None:
+    _completed_campaign_with_encounter(tmp_path)
+    campaign.archive_campaign(tmp_path, "opening-gambit")
+
+    assert campaign.list_campaigns(tmp_path) == []
+    assert campaign.list_campaigns_with_status(tmp_path) == []

@@ -1,6 +1,7 @@
 ---
 name: ""
 status: "draft"
+archived: false
 ---
 
 # Campaign
