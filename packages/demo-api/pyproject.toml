@@ -5,7 +5,7 @@ description = "A Coding Assistant Continuity Framework. Demonstration API"
 authors = [
     {name = "John Hoff",email = "john.hoff@braindonor.net"},
 ]
-dependencies = []
+dependencies = ["fastapi>=0.141.1", "uvicorn[standard]>=0.52.1"]
 requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "Apache-2.0"}
