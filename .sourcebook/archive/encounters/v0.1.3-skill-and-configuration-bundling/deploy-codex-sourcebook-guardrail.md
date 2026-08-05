@@ -1,4 +1,5 @@
 ---
+archived: true
 campaign: v0.1.3-skill-and-configuration-bundling
 created_by: John Hoff
 created_on: '2026-07-28T01:56:45Z'
@@ -8,7 +9,7 @@ regions:
 - crypts-and-commits
 status: completed
 updated_by: John Hoff
-updated_on: '2026-07-28T02:12:33Z'
+updated_on: '2026-08-04T06:47:13Z'
 ---
 
 ## Requirements

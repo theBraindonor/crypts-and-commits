@@ -1,4 +1,5 @@
 ---
+archived: true
 campaign: v0.1.4-formal-workflow-pipeline
 created_by: John Hoff
 created_on: '2026-07-28T04:41:59Z'
@@ -8,7 +9,7 @@ regions:
 - crypts-and-commits
 status: completed
 updated_by: John Hoff
-updated_on: '2026-07-28T05:02:17Z'
+updated_on: '2026-08-04T06:48:04Z'
 ---
 
 ## Requirements

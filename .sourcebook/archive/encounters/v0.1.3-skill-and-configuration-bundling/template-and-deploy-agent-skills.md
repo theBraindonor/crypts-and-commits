@@ -1,4 +1,5 @@
 ---
+archived: true
 campaign: v0.1.3-skill-and-configuration-bundling
 created_by: John Hoff
 created_on: '2026-07-28T00:41:22Z'
@@ -8,7 +9,7 @@ regions:
 - crypts-and-commits
 status: completed
 updated_by: John Hoff
-updated_on: '2026-07-28T01:44:32Z'
+updated_on: '2026-08-04T06:47:13Z'
 ---
 
 # Template And Deploy Agent Skills

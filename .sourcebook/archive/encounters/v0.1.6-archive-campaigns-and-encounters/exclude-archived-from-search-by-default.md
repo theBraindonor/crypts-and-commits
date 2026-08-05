@@ -1,5 +1,5 @@
 ---
-archived: false
+archived: true
 campaign: v0.1.6-archive-campaigns-and-encounters
 created_by: John Hoff
 created_on: '2026-08-02T22:33:14Z'
@@ -9,7 +9,7 @@ regions:
 - crypts-and-commits
 status: completed
 updated_by: John Hoff
-updated_on: '2026-08-02T22:48:12Z'
+updated_on: '2026-08-04T06:50:46Z'
 ---
 
 ## Requirements
