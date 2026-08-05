@@ -1,0 +1,39 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background-color: #1a1a2e;
+  color: #ffffff;
+}
+
+.app-header__title {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.app-header__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.app-header__status-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background-color: #9e9e9e;
+}
+
+.app-header__status[data-status='online'] .app-header__status-dot {
+  background-color: #2ecc71;
+}
+
+.app-header__status[data-status='offline'] .app-header__status-dot {
+  background-color: #e74c3c;
+}
+
+.app-header__status[data-status='checking'] .app-header__status-dot {
+  background-color: #f1c40f;
+}
