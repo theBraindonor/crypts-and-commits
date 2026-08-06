@@ -2,10 +2,11 @@ from pathlib import Path
 
 from langchain_core.tools import BaseTool
 
-from demo_api.chat.tools import campaigns, encounters, lore, region, search, world
+from demo_api.chat.tools import campaigns, docs, encounters, lore, region, search, world
 
 _BUILDERS = [
     campaigns.build_tools,
+    docs.build_tools,
     encounters.build_tools,
     lore.build_tools,
     region.build_tools,

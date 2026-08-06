@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from cac.core import campaign as campaign_core
+from cac.core import docs as docs_core
 from cac.core import encounter as encounter_core
 from cac.core import lore as lore_core
 from cac.core import region as region_core
@@ -9,6 +10,7 @@ from cac.core import search_index as search_index_core
 from cac.core import world as world_core
 from demo_api.chat.tools import build_tools
 from demo_api.chat.tools import campaigns as campaigns_tools
+from demo_api.chat.tools import docs as docs_tools
 from demo_api.chat.tools import encounters as encounters_tools
 from demo_api.chat.tools import lore as lore_tools
 from demo_api.chat.tools import region as region_tools
@@ -201,6 +203,33 @@ def test_search_sourcebook_empty_phrase_raises(tmp_path: Path) -> None:
         _tool_by_name(tools, "search_sourcebook").invoke({"phrase": ""})
 
 
+def test_list_docs_matches_core_registry(tmp_path: Path) -> None:
+    tools = docs_tools.build_tools(tmp_path)
+
+    result = _tool_by_name(tools, "list_docs").invoke({})
+
+    assert result == [{"name": name, "summary": summary} for name, summary in docs_core.list_docs()]
+
+
+def test_get_doc_returns_summary_and_body(tmp_path: Path) -> None:
+    tools = docs_tools.build_tools(tmp_path)
+
+    result = _tool_by_name(tools, "get_doc").invoke({"name": "workflow"})
+
+    assert result == {
+        "name": "workflow",
+        "summary": docs_core.doc_summary("workflow"),
+        "body": docs_core.read_doc("workflow"),
+    }
+
+
+def test_get_doc_missing_raises(tmp_path: Path) -> None:
+    tools = docs_tools.build_tools(tmp_path)
+
+    with pytest.raises(docs_core.DocNotFoundError):
+        _tool_by_name(tools, "get_doc").invoke({"name": "missing"})
+
+
 def test_build_tools_aggregates_every_domain(tmp_path: Path) -> None:
     tools = build_tools(tmp_path)
 
@@ -216,4 +245,6 @@ def test_build_tools_aggregates_every_domain(tmp_path: Path) -> None:
         "list_lore",
         "get_lore",
         "search_sourcebook",
+        "list_docs",
+        "get_doc",
     }
