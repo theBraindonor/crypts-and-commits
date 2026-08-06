@@ -1,6 +1,19 @@
 :root {
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
 
+  --color-ink: #14172a;
+  --color-ink-soft: #5a5f72;
+  --color-ink-muted: #787e8a;
+  --color-parchment: #f4f2eb;
+  --color-parchment-dim: #d2d0c2;
+  --color-brass: #c98a26;
+  --color-brass-dark: #8a5f18;
+  --color-verdigris: #3f8f7a;
+  --color-rust: #a13c2c;
+  --color-white: #ffffff;
+
+  --content-max-width: 720px;
+
   font: 16px/145% var(--sans);
   color-scheme: light dark;
   font-synthesis: none;
@@ -11,6 +24,8 @@
 
 body {
   margin: 0;
+  background-color: var(--color-parchment);
+  color: var(--color-ink);
 }
 
 #root {

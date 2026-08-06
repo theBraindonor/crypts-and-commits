@@ -1,9 +1,15 @@
 import { useState, type FormEvent } from 'react'
-import { useChat } from '../hooks/useChat'
+import type { ChatMessage } from '../hooks/useChat'
 import './Chat.css'
 
-export function Chat() {
-  const { messages, sending, error, sendMessage } = useChat()
+export interface ChatProps {
+  messages: ChatMessage[]
+  sending: boolean
+  error: string | null
+  sendMessage: (text: string) => void
+}
+
+export function Chat({ messages, sending, error, sendMessage }: ChatProps) {
   const [draft, setDraft] = useState('')
 
   const handleSubmit = (event: FormEvent) => {
@@ -17,7 +23,6 @@ export function Chat() {
   return (
     <section className="chat">
       <div className="chat__messages">
-        {messages.length === 0 && <p className="chat__note">Chat coming soon.</p>}
         {messages.map((message, index) => (
           <div key={index} className={`chat__message chat__message--${message.role}`}>
             {message.content}

@@ -12,6 +12,12 @@ export function useChat() {
   const [error, setError] = useState<string | null>(null)
   const threadIdRef = useRef<string | undefined>(undefined)
 
+  const resetChat = useCallback(() => {
+    setMessages([])
+    setError(null)
+    threadIdRef.current = undefined
+  }, [])
+
   const sendMessage = useCallback(async (text: string) => {
     setError(null)
     setMessages((prev) => [...prev, { role: 'user', content: text }, { role: 'assistant', content: '' }])
@@ -35,5 +41,5 @@ export function useChat() {
     }
   }, [])
 
-  return { messages, sending, error, sendMessage }
+  return { messages, sending, error, sendMessage, resetChat }
 }
