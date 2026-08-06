@@ -2,9 +2,16 @@ from pathlib import Path
 
 from langchain_core.tools import BaseTool
 
-from demo_api.chat.tools import campaigns, encounters
+from demo_api.chat.tools import campaigns, encounters, lore, region, search, world
 
-_BUILDERS = [campaigns.build_tools, encounters.build_tools]
+_BUILDERS = [
+    campaigns.build_tools,
+    encounters.build_tools,
+    lore.build_tools,
+    region.build_tools,
+    search.build_tools,
+    world.build_tools,
+]
 
 
 def build_tools(root: Path) -> list[BaseTool]:
