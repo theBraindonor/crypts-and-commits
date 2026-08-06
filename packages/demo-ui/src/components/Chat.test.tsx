@@ -54,4 +54,35 @@ describe('Chat', () => {
 
     expect(sendMessage).not.toHaveBeenCalled()
   })
+
+  it('renders markdown in assistant messages', () => {
+    const messages: ChatMessage[] = [
+      { role: 'assistant', content: '**bold** and a [link](https://example.com)' },
+    ]
+    render(<Chat messages={messages} sending={false} error={null} sendMessage={vi.fn()} />)
+
+    const strong = screen.getByText('bold')
+    expect(strong.tagName).toBe('STRONG')
+
+    const link = screen.getByRole('link', { name: 'link' }) as HTMLAnchorElement
+    expect(link.getAttribute('href')).toBe('https://example.com')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer')
+  })
+
+  it('does not parse markdown in user messages', () => {
+    const messages: ChatMessage[] = [{ role: 'user', content: '**not bold**' }]
+    render(<Chat messages={messages} sending={false} error={null} sendMessage={vi.fn()} />)
+
+    expect(screen.getByText('**not bold**')).toBeDefined()
+    expect(screen.queryByText('not bold')).toBeNull()
+  })
+
+  it('renders a partial, unterminated markdown chunk without throwing', () => {
+    const messages: ChatMessage[] = [{ role: 'assistant', content: 'Here is code:\n```js\nconst x = 1' }]
+
+    expect(() =>
+      render(<Chat messages={messages} sending={false} error={null} sendMessage={vi.fn()} />),
+    ).not.toThrow()
+  })
 })
