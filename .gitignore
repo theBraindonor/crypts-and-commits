@@ -10,3 +10,5 @@ htmlcov/
 .mcp.json
 .codex/config.toml
 .sourcebook/.index/
+.env
+packages/demo-api/.data/
