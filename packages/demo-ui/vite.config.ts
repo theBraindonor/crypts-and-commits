@@ -8,6 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/health': 'http://localhost:8000',
+      '/chat': 'http://localhost:8000',
     },
   },
   test: {

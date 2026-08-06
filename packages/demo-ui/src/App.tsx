@@ -1,12 +1,12 @@
 import { Header } from './components/Header'
-import { ChatPlaceholder } from './components/ChatPlaceholder'
+import { Chat } from './components/Chat'
 import './App.css'
 
 function App() {
   return (
     <div className="app">
       <Header />
-      <ChatPlaceholder />
+      <Chat />
     </div>
   )
 }
