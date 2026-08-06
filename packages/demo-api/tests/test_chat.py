@@ -1,18 +1,11 @@
 import json
 import uuid
+from collections.abc import Callable
 
 import pytest
-from demo_api.chat.graph import build_graph
 from demo_api.main import app, get_graph
 from fastapi.testclient import TestClient
-from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
-
-
-def _fake_graph(*replies: str) -> CompiledStateGraph:
-    model = GenericFakeChatModel(messages=iter(replies))
-    return build_graph(InMemorySaver(), model=model)
 
 
 @pytest.fixture
@@ -30,8 +23,8 @@ def _parse_stream(text: str) -> list[dict]:
     return [json.loads(line) for line in text.splitlines() if line]
 
 
-def test_chat_streams_multiple_chunks(client: TestClient) -> None:
-    app.dependency_overrides[get_graph] = lambda: _fake_graph("Hello there, friend!")
+def test_chat_streams_multiple_chunks(client: TestClient, fake_graph: Callable[..., CompiledStateGraph]) -> None:
+    app.dependency_overrides[get_graph] = lambda: fake_graph("Hello there, friend!")
 
     response = client.post("/chat", json={"message": "hi"})
 
@@ -41,8 +34,10 @@ def test_chat_streams_multiple_chunks(client: TestClient) -> None:
     assert "".join(chunk["content"] for chunk in chunks) == "Hello there, friend!"
 
 
-def test_chat_generates_thread_id_when_omitted(client: TestClient) -> None:
-    app.dependency_overrides[get_graph] = lambda: _fake_graph("Hi!")
+def test_chat_generates_thread_id_when_omitted(
+    client: TestClient, fake_graph: Callable[..., CompiledStateGraph]
+) -> None:
+    app.dependency_overrides[get_graph] = lambda: fake_graph("Hi!")
 
     response = client.post("/chat", json={"message": "hi"})
 
@@ -50,8 +45,10 @@ def test_chat_generates_thread_id_when_omitted(client: TestClient) -> None:
     assert uuid.UUID(thread_id).version == 7
 
 
-def test_chat_reused_thread_id_continues_conversation(client: TestClient) -> None:
-    graph = _fake_graph("First reply.", "Second reply.")
+def test_chat_reused_thread_id_continues_conversation(
+    client: TestClient, fake_graph: Callable[..., CompiledStateGraph]
+) -> None:
+    graph = fake_graph("First reply.", "Second reply.")
     app.dependency_overrides[get_graph] = lambda: graph
 
     first = client.post("/chat", json={"message": "hi"})
@@ -63,8 +60,8 @@ def test_chat_reused_thread_id_continues_conversation(client: TestClient) -> Non
     assert len(state.values["messages"]) == 4
 
 
-def test_chat_new_thread_id_starts_fresh(client: TestClient) -> None:
-    graph = _fake_graph("Reply one.", "Reply two.")
+def test_chat_new_thread_id_starts_fresh(client: TestClient, fake_graph: Callable[..., CompiledStateGraph]) -> None:
+    graph = fake_graph("Reply one.", "Reply two.")
     app.dependency_overrides[get_graph] = lambda: graph
 
     first = client.post("/chat", json={"message": "hi"})
