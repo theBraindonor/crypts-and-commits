@@ -5,7 +5,7 @@ description = "A Coding Assistant Continuity Framework. Demonstration API"
 authors = [
     {name = "John Hoff",email = "john.hoff@braindonor.net"},
 ]
-dependencies = ["fastapi>=0.141.1", "uvicorn[standard]>=0.52.1", "langgraph>=1.2.10", "langgraph-checkpoint-sqlite>=3.1.1", "langchain-openai>=1.4.1", "python-dotenv>=1.2.2", "uuid6>=2025.0.1"]
+dependencies = ["fastapi>=0.141.1", "uvicorn[standard]>=0.52.1", "langgraph>=1.2.10", "langgraph-checkpoint-sqlite>=3.1.1", "langchain-openai>=1.4.1", "python-dotenv>=1.2.2", "uuid6>=2025.0.1", "crypts-and-commits"]
 requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "Apache-2.0"}

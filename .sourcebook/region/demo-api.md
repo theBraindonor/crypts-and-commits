@@ -1,4 +1,6 @@
 ---
+assigned_lore:
+- demo-api-uses-cac-core-directly
 name: demo-api
 path: packages/demo-api
 summary: Backend region packages/demo-api. FastAPI shell (/, /health, /docs) and streaming
@@ -8,7 +10,7 @@ summary: Backend region packages/demo-api. FastAPI shell (/, /health, /docs) and
   checkpointer; ChatPromptTemplate, system prompt "You are a friendly assistant."
   RAG, tools, demo-ui integration unconfirmed.
 updated_by: John Hoff
-updated_on: '2026-08-06T04:24:22Z'
+updated_on: '2026-08-06T14:58:31Z'
 ---
 
 # Demo API (backend)

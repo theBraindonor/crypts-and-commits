@@ -4,6 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 DEMO_API_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+REPO_ROOT = DEMO_API_ROOT.parent.parent
 load_dotenv(DEMO_API_ROOT / ".env")
 
 DEFAULT_CHAT_MODEL = "google/gemma-4-31b-it"
