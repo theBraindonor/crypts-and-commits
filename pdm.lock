@@ -5,7 +5,7 @@
 groups = ["default", "dev", "lint", "test"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:46931e8c9dd45c993f99fe698ce8856b0ecc7e276023e64868ef60895629d097"
+content_hash = "sha256:bffda97e5e8cabf095e7ee782c08bbb4675c115227e8255fd477b5393e7abc41"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -75,7 +75,7 @@ name = "certifi"
 version = "2026.7.22"
 requires_python = ">=3.7"
 summary = "Python package for providing Mozilla's CA Bundle."
-groups = ["default", "dev"]
+groups = ["dev"]
 files = [
     {file = "certifi-2026.7.22-py3-none-any.whl", hash = "sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775"},
     {file = "certifi-2026.7.22.tar.gz", hash = "sha256:741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55"},
@@ -590,7 +590,7 @@ summary = "A Coding Assistant Continuity Framework. Crypts and Commits uses a ta
 groups = ["default", "dev"]
 dependencies = [
     "click",
-    "mcp<2.0.0",
+    "mcp>=2.0.0",
     "python-frontmatter",
     "rich",
     "tomlkit>=0.15.1",
@@ -661,7 +661,7 @@ name = "httpcore"
 version = "1.0.9"
 requires_python = ">=3.8"
 summary = "A minimal low-level HTTP client."
-groups = ["default", "dev"]
+groups = ["dev"]
 dependencies = [
     "certifi",
     "h11>=0.16",
@@ -669,6 +669,21 @@ dependencies = [
 files = [
     {file = "httpcore-1.0.9-py3-none-any.whl", hash = "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"},
     {file = "httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8"},
+]
+
+[[package]]
+name = "httpcore2"
+version = "2.9.1"
+requires_python = ">=3.10"
+summary = "A minimal low-level HTTP client."
+groups = ["default", "dev"]
+dependencies = [
+    "h11>=0.16",
+    "truststore>=0.10",
+]
+files = [
+    {file = "httpcore2-2.9.1-py3-none-any.whl", hash = "sha256:6182472379e855fe4221246a2bb7ecede403bc61c6798062ae1787d051ccde26"},
+    {file = "httpcore2-2.9.1.tar.gz", hash = "sha256:4d8acbf8b306f48c9d6046591fd5ba4037d1b1b1000d140fc2c3eab1e9a0c0e2"},
 ]
 
 [[package]]
@@ -721,7 +736,7 @@ name = "httpx"
 version = "0.28.1"
 requires_python = ">=3.8"
 summary = "The next generation HTTP client."
-groups = ["default", "dev"]
+groups = ["dev"]
 dependencies = [
     "anyio",
     "certifi",
@@ -734,14 +749,21 @@ files = [
 ]
 
 [[package]]
-name = "httpx-sse"
-version = "0.4.3"
-requires_python = ">=3.9"
-summary = "Consume Server-Sent Event (SSE) messages with HTTPX."
+name = "httpx2"
+version = "2.9.1"
+requires_python = ">=3.10"
+summary = "The next generation HTTP client."
 groups = ["default", "dev"]
+dependencies = [
+    "anyio>=4.10",
+    "httpcore2==2.9.1",
+    "idna>=3.18",
+    "truststore>=0.10",
+    "typing-extensions>=4.5.0; python_version < \"3.13\"",
+]
 files = [
-    {file = "httpx_sse-0.4.3-py3-none-any.whl", hash = "sha256:0ac1c9fe3c0afad2e0ebb25a934a59f4c7823b60792691f779fad2c5568830fc"},
-    {file = "httpx_sse-0.4.3.tar.gz", hash = "sha256:9b1ed0127459a66014aec3c56bebd93da3c1bc8bb6618c8082039a44889a755d"},
+    {file = "httpx2-2.9.1-py3-none-any.whl", hash = "sha256:1820fe14a9ab1107bfeff39259987429450b070ec0ff38cc87eb0d8c97fdc71a"},
+    {file = "httpx2-2.9.1.tar.gz", hash = "sha256:1932a768737e3666291582833da748cc4e563c337cf96706fccc04fa6e58764a"},
 ]
 
 [[package]]
@@ -1080,32 +1102,46 @@ files = [
 
 [[package]]
 name = "mcp"
-version = "1.28.1"
+version = "2.0.0"
 requires_python = ">=3.10"
 summary = "Model Context Protocol SDK"
 groups = ["default", "dev"]
 dependencies = [
-    "anyio>=4.5",
-    "httpx-sse>=0.4",
-    "httpx<1.0.0,>=0.27.1",
+    "anyio>=4.10; python_version >= \"3.14\"",
+    "anyio>=4.9; python_version < \"3.14\"",
+    "httpx2>=2.5.0",
     "jsonschema>=4.20.0",
-    "pydantic-settings>=2.5.2",
-    "pydantic<3.0.0,>=2.11.0; python_version < \"3.14\"",
-    "pydantic<3.0.0,>=2.12.0; python_version >= \"3.14\"",
+    "mcp-types==2.0.0",
+    "opentelemetry-api>=1.28.0",
+    "pydantic>=2.12.0",
     "pyjwt[crypto]>=2.10.1",
     "python-multipart>=0.0.9",
-    "pywin32>=310; sys_platform == \"win32\" and python_version < \"3.14\"",
-    "pywin32>=311; sys_platform == \"win32\" and python_version >= \"3.14\"",
-    "sse-starlette>=1.6.1",
+    "pywin32>=311; sys_platform == \"win32\"",
+    "sse-starlette>=3.0.0",
     "starlette>=0.27; python_version < \"3.14\"",
     "starlette>=0.48.0; python_version >= \"3.14\"",
-    "typing-extensions>=4.9.0",
+    "typing-extensions>=4.13.0",
     "typing-inspection>=0.4.1",
     "uvicorn>=0.31.1; sys_platform != \"emscripten\"",
 ]
 files = [
-    {file = "mcp-1.28.1-py3-none-any.whl", hash = "sha256:2726bca5e7193f61c5dde8b12500a6de2d9acf6d1a1c0be9e8c2e706437991df"},
-    {file = "mcp-1.28.1.tar.gz", hash = "sha256:d51e36a5f5644faea4f85ea649bfffa6bc6c26770d42798ad6a3de3d2ba69683"},
+    {file = "mcp-2.0.0-py3-none-any.whl", hash = "sha256:1cb4c75d2d2c7b8c1d756355e5d82a39f2822cc7f13e22a2051d7ca3592349d6"},
+    {file = "mcp-2.0.0.tar.gz", hash = "sha256:0f440e735c13ece8bb19bc62cf0b86f4313448432fbb77d35e14034f4e050728"},
+]
+
+[[package]]
+name = "mcp-types"
+version = "2.0.0"
+requires_python = ">=3.10"
+summary = "Model Context Protocol wire types"
+groups = ["default", "dev"]
+dependencies = [
+    "pydantic>=2.12.0",
+    "typing-extensions>=4.13.0",
+]
+files = [
+    {file = "mcp_types-2.0.0-py3-none-any.whl", hash = "sha256:6b2de797ca2797f568b79529e1b25948e34de511bcc0bd82fef1039a6d1b8eb0"},
+    {file = "mcp_types-2.0.0.tar.gz", hash = "sha256:d7d939b9285c9961ae8866ba75ef85da34d12bafe276efbf4eb6a131786d8379"},
 ]
 
 [[package]]
@@ -1138,6 +1174,20 @@ dependencies = [
 files = [
     {file = "openai-2.53.0-py3-none-any.whl", hash = "sha256:c694ffc747a3c4d1663ef2b07b811315a476164ee5efa3a993967349ebca7618"},
     {file = "openai-2.53.0.tar.gz", hash = "sha256:baf5802ad08980e1d9d561e1b996e800c8bcd14af5847c6d0e7a5cc59e4d4116"},
+]
+
+[[package]]
+name = "opentelemetry-api"
+version = "1.44.0"
+requires_python = ">=3.10"
+summary = "OpenTelemetry Python API"
+groups = ["default", "dev"]
+dependencies = [
+    "typing-extensions>=4.5.0",
+]
+files = [
+    {file = "opentelemetry_api-1.44.0-py3-none-any.whl", hash = "sha256:94b98c893a91b88657eaac1e3ba89618cdb85be6918196705354f34728b2cdef"},
+    {file = "opentelemetry_api-1.44.0.tar.gz", hash = "sha256:67647e5e9566edcf421166fdf022b3537f818635daa852b289e34604dc6fb33a"},
 ]
 
 [[package]]
@@ -1408,22 +1458,6 @@ files = [
 ]
 
 [[package]]
-name = "pydantic-settings"
-version = "2.14.2"
-requires_python = ">=3.10"
-summary = "Settings management using Pydantic"
-groups = ["default", "dev"]
-dependencies = [
-    "pydantic>=2.7.0",
-    "python-dotenv>=0.21.0",
-    "typing-inspection>=0.4.0",
-]
-files = [
-    {file = "pydantic_settings-2.14.2-py3-none-any.whl", hash = "sha256:a20c97b37910b6550d5ea50fbcc2d4187defe58cd57070b73863d069419c9440"},
-    {file = "pydantic_settings-2.14.2.tar.gz", hash = "sha256:c19dd64b19097f1de80184f0cc7b0272a13ae6e170cbf240a3e27e381ed14a5f"},
-]
-
-[[package]]
 name = "pygments"
 version = "2.20.0"
 requires_python = ">=3.9"
@@ -1505,7 +1539,7 @@ name = "python-dotenv"
 version = "1.2.2"
 requires_python = ">=3.10"
 summary = "Read key-value pairs from a .env file and set them as environment variables"
-groups = ["default", "dev"]
+groups = ["dev"]
 files = [
     {file = "python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a"},
     {file = "python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3"},
@@ -2093,6 +2127,17 @@ dependencies = [
 files = [
     {file = "tqdm-4.70.0-py3-none-any.whl", hash = "sha256:7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953"},
     {file = "tqdm-4.70.0.tar.gz", hash = "sha256:55b0b0dbd97462d06ebee91e4dac24ed4d4702be82b24f07e6c1d27e08cea220"},
+]
+
+[[package]]
+name = "truststore"
+version = "0.10.4"
+requires_python = ">=3.10"
+summary = "Verify certificates using native system trust stores"
+groups = ["default", "dev"]
+files = [
+    {file = "truststore-0.10.4-py3-none-any.whl", hash = "sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981"},
+    {file = "truststore-0.10.4.tar.gz", hash = "sha256:9d91bd436463ad5e4ee4aba766628dd6cd7010cf3e2461756b3303710eebc301"},
 ]
 
 [[package]]
