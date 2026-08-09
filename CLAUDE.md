@@ -37,6 +37,7 @@ This is a [PDM workspace](https://pdm-project.org/en/latest/usage/monorepo/) (`[
   - `pdm run pytest -q` — run the full test suite (configured via root `[tool.pytest.ini_options]`, `testpaths = ["packages"]`)
   - `pdm run pytest packages/crypts-and-commits/tests/core/test_lore.py -q` — run a single test file/module
   - `pdm run pytest --cov --cov-report=html -q` — run the full test suite plus an HTML coverage report for the `cac` package (`[tool.coverage.run]` in root `pyproject.toml`), written to `htmlcov/index.html` (gitignored); opt-in only, not part of the default `pdm run pytest -q` invocation
+  - `pdm run nox` — pre-release check: run the `crypts-and-commits` package's test suite under Python 3.11, 3.12, 3.13, and 3.14 (`noxfile.py`, uses the `uv` venv backend to auto-download any interpreter missing locally); manual/explicit only, never invoked by `pdm run pytest -q` or any other routine command
   - `pdm run ruff check .` / `pdm run ruff format .` — lint / format (root `[tool.ruff]`, `line-length = 120`; a single root config applies workspace-wide, since nested `pyproject.toml` files have no `[tool.ruff]` table of their own)
   - `pdm run cac <command> --help` — exercise the CLI directly against the current working directory
 - Python: requires `>=3.11`.

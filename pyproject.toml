@@ -26,6 +26,9 @@ test = [
 lint = [
     "ruff",
 ]
+nox = [
+    "nox",
+]
 
 [tool.pdm.workspace]
 members = ["packages/crypts-and-commits", "packages/demo-api"]
