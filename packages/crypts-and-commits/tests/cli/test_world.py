@@ -111,6 +111,21 @@ def test_set_body_fails_when_git_identity_unresolvable(
     assert result.exit_code == 1
 
 
+def test_get_from_a_subdirectory_finds_the_root_sourcebook(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, seed_world: Callable[[], None]
+) -> None:
+    seed_world()
+    nested = tmp_path / "packages" / "crypts-and-commits"
+    nested.mkdir(parents=True)
+    monkeypatch.chdir(nested)
+
+    result = runner.invoke(app, ["world", "get"])
+
+    assert result.exit_code == 0
+    assert "name" in result.output
+    assert not (nested / ".sourcebook").exists()
+
+
 def test_get_truncates_body_over_budget(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, seed_world: Callable[[], None]
 ) -> None:

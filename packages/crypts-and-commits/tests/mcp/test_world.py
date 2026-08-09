@@ -34,3 +34,18 @@ def test_world_set_body_replaces_body(tmp_path: Path) -> None:
     result = mcp_world.world_set_body("Replaced body.")
 
     assert result["body"].strip() == "Replaced body."
+
+
+def test_world_get_from_a_subdirectory_finds_the_root_sourcebook(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world.initialize_world(tmp_path)
+    world.update_body(tmp_path, "The world body.")
+    nested = tmp_path / "packages" / "crypts-and-commits"
+    nested.mkdir(parents=True)
+    monkeypatch.chdir(nested)
+
+    result = mcp_world.world_get()
+
+    assert result["body"].strip() == "The world body."
+    assert not (nested / ".sourcebook").exists()

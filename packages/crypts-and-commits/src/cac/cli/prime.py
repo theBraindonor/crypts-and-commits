@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import typer
 from rich.console import Console
 
@@ -9,6 +7,7 @@ from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
 from cac.core import prime as prime_core
 from cac.core import world as world_core
+from cac.core.paths import resolve_project_root
 
 app = typer.Typer(
     help=(
@@ -24,7 +23,7 @@ _CAMPAIGN_HELP = "Campaign the encounter belongs to. Defaults to the active (ope
 
 def _resolve_campaign(campaign: str | None) -> str:
     try:
-        return campaign_core.resolve_campaign(Path.cwd(), campaign, require_mutable=False)
+        return campaign_core.resolve_campaign(resolve_project_root(), campaign, require_mutable=False)
     except (campaign_core.NoActiveCampaignError, campaign_core.CampaignNotFoundError) as exc:
         fail(console, str(exc))
 
@@ -34,7 +33,7 @@ def get_prime() -> None:
     """Show the global prime bundle: world (full) + world-assigned lore (summaries) +
     region map (summary + path + assigned-lore edges) + active campaign (full body)."""
     try:
-        bundle = prime_core.assemble_prime(Path.cwd())
+        bundle = prime_core.assemble_prime(resolve_project_root())
     except world_core.WorldNotFoundError as exc:
         fail(console, str(exc))
 
@@ -42,7 +41,7 @@ def get_prime() -> None:
     for key, value in bundle.world.metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
     console.print()
-    world_body = budget_core.truncate_body(bundle.world.body, world_core.world_path(Path.cwd()))
+    world_body = budget_core.truncate_body(bundle.world.body, world_core.world_path(resolve_project_root()))
     console.print(world_body, markup=False, soft_wrap=True)
 
     console.print()
@@ -71,7 +70,7 @@ def get_prime() -> None:
         console.print(f"[bold]{bundle.active_campaign}[/bold]")
         console.print()
         campaign_body = budget_core.truncate_body(
-            bundle.campaign_body, campaign_core.campaign_path(Path.cwd(), bundle.active_campaign)
+            bundle.campaign_body, campaign_core.campaign_path(resolve_project_root(), bundle.active_campaign)
         )
         console.print(campaign_body, markup=False, soft_wrap=True)
 
@@ -86,7 +85,7 @@ def applicable_lore(
     lore assigned to the encounter's region(s). Paged under the response budget."""
     resolved_campaign = _resolve_campaign(campaign)
     try:
-        entries = prime_core.applicable_lore(Path.cwd(), resolved_campaign, name)
+        entries = prime_core.applicable_lore(resolve_project_root(), resolved_campaign, name)
     except encounter_core.EncounterNotFoundError as exc:
         fail(console, str(exc))
 

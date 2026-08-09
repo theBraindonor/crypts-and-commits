@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import typer
 from rich.console import Console
 
@@ -10,6 +8,7 @@ from cac.core import region as region_core
 from cac.core import world as world_core
 from cac.core.config import SUMMARY_KEY
 from cac.core.git_utils import GitIdentityError
+from cac.core.paths import resolve_project_root
 
 app = typer.Typer(
     help=(
@@ -28,8 +27,8 @@ def get_lore(
 ) -> None:
     """Show a lore file's frontmatter and body."""
     try:
-        metadata, body = lore_core.read_metadata(Path.cwd(), name)
-        summary = lore_core.read_summary(Path.cwd(), name)
+        metadata, body = lore_core.read_metadata(resolve_project_root(), name)
+        summary = lore_core.read_summary(resolve_project_root(), name)
     except lore_core.LoreNotFoundError as exc:
         fail(console, str(exc))
 
@@ -41,7 +40,7 @@ def get_lore(
     console.print("[bold]summary[/bold]:", end=" ")
     console.print(summary, markup=False)
     console.print()
-    body = budget_core.truncate_body(body, lore_core.lore_path(Path.cwd(), name))
+    body = budget_core.truncate_body(body, lore_core.lore_path(resolve_project_root(), name))
     console.print(body, markup=False, soft_wrap=True)
 
 
@@ -50,7 +49,7 @@ def list_lore(
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
 ) -> None:
     """List the lore files in .sourcebook/lore, paged under the response budget."""
-    names = lore_core.list_lore(Path.cwd())
+    names = lore_core.list_lore(resolve_project_root())
     if not names:
         console.print("No lore files found.")
         return
@@ -81,7 +80,7 @@ def create_lore(
     content = body if body is not None else edit_markdown(lore_core.template_body())
 
     try:
-        path = lore_core.create_lore(Path.cwd(), name, content, summary)
+        path = lore_core.create_lore(resolve_project_root(), name, content, summary)
     except (
         lore_core.InvalidLoreNameError,
         lore_core.LoreAlreadyExistsError,
@@ -106,14 +105,14 @@ def update_lore(
         fail(console, "A summary is required: pass --summary/-s so the edited body is stored with a current summary.")
 
     try:
-        current = lore_core.read_lore(Path.cwd(), name)
+        current = lore_core.read_lore(resolve_project_root(), name)
     except lore_core.LoreNotFoundError as exc:
         fail(console, str(exc))
 
     content = body if body is not None else edit_markdown(current.body)
 
     try:
-        path = lore_core.update_lore(Path.cwd(), name, content, summary)
+        path = lore_core.update_lore(resolve_project_root(), name, content, summary)
     except (lore_core.SummaryTooLongError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -130,7 +129,7 @@ def delete_lore(
         typer.confirm(f"Delete lore {name!r}?", abort=True)
 
     try:
-        path = lore_core.delete_lore(Path.cwd(), name)
+        path = lore_core.delete_lore(resolve_project_root(), name)
     except lore_core.LoreNotFoundError as exc:
         fail(console, str(exc))
 
@@ -144,7 +143,7 @@ def set_summary(
 ) -> None:
     """Set a lore file's summary."""
     try:
-        lore_core.set_summary(Path.cwd(), name, summary)
+        lore_core.set_summary(resolve_project_root(), name, summary)
     except (lore_core.LoreNotFoundError, lore_core.SummaryTooLongError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -157,7 +156,7 @@ def assign_world(
 ) -> None:
     """Assign a lore file to the world."""
     try:
-        world_core.assign_lore(Path.cwd(), name)
+        world_core.assign_lore(resolve_project_root(), name)
     except (world_core.WorldNotFoundError, lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -170,7 +169,7 @@ def unassign_world(
 ) -> None:
     """Unassign a lore file from the world."""
     try:
-        world_core.unassign_lore(Path.cwd(), name)
+        world_core.unassign_lore(resolve_project_root(), name)
     except (world_core.WorldNotFoundError, lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -184,7 +183,7 @@ def assign_region(
 ) -> None:
     """Assign a lore file to a region."""
     try:
-        region_core.assign_lore(Path.cwd(), region, name)
+        region_core.assign_lore(resolve_project_root(), region, name)
     except (region_core.RegionNotFoundError, lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -198,7 +197,7 @@ def unassign_region(
 ) -> None:
     """Unassign a lore file from a region."""
     try:
-        region_core.unassign_lore(Path.cwd(), region, name)
+        region_core.unassign_lore(resolve_project_root(), region, name)
     except (region_core.RegionNotFoundError, lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -211,7 +210,7 @@ def enable_lore(
 ) -> None:
     """Enable a lore file."""
     try:
-        lore_core.set_enabled(Path.cwd(), name, True)
+        lore_core.set_enabled(resolve_project_root(), name, True)
     except (lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -224,7 +223,7 @@ def disable_lore(
 ) -> None:
     """Disable a lore file."""
     try:
-        lore_core.set_enabled(Path.cwd(), name, False)
+        lore_core.set_enabled(resolve_project_root(), name, False)
     except (lore_core.LoreNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 

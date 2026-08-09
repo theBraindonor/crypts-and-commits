@@ -1,7 +1,7 @@
-from pathlib import Path
 from typing import Any
 
 from cac.core import search_index as search_index_core
+from cac.core.paths import resolve_project_root
 from cac.mcp.instance import mcp
 
 
@@ -24,7 +24,7 @@ def index_status() -> dict[str, Any]:
     """Show how many items are indexed, by object type. `built` is False if the index has never
     been built - run `index_rebuild` via the `cac` CLI to build one (index rebuild is
     developer-only and not exposed over MCP)."""
-    counts = search_index_core.index_counts(Path.cwd())
+    counts = search_index_core.index_counts(resolve_project_root())
     if counts is None:
         return {"built": False, "counts": {}}
     return {"built": True, "counts": counts}
@@ -44,7 +44,7 @@ def index_search(
     them. `built` is False if the index has never been built - run `index_rebuild` via the `cac`
     CLI to build one (index rebuild is developer-only and not exposed over MCP)."""
     hits = search_index_core.search(
-        Path.cwd(),
+        resolve_project_root(),
         phrase,
         object_type=object_type,
         limit=max_results,

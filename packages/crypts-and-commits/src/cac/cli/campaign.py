@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import typer
 from rich.console import Console
 
@@ -7,6 +5,7 @@ from cac.cli.common import edit_markdown, fail
 from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
 from cac.core.git_utils import GitIdentityError
+from cac.core.paths import resolve_project_root
 
 app = typer.Typer(
     help=(
@@ -36,14 +35,14 @@ def get_campaign(
 ) -> None:
     """Show a campaign file's frontmatter and body."""
     try:
-        metadata, body = campaign_core.read_metadata(Path.cwd(), name)
+        metadata, body = campaign_core.read_metadata(resolve_project_root(), name)
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
 
     for key, value in metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
     console.print()
-    body = budget_core.truncate_body(body, campaign_core.campaign_path(Path.cwd(), name))
+    body = budget_core.truncate_body(body, campaign_core.campaign_path(resolve_project_root(), name))
     console.print(body, markup=False, soft_wrap=True)
 
 
@@ -53,7 +52,7 @@ def list_campaigns(
 ) -> None:
     """List the campaign files in .sourcebook/campaigns, with their current status, paged under
     the response budget."""
-    entries = campaign_core.list_campaigns_with_status(Path.cwd())
+    entries = campaign_core.list_campaigns_with_status(resolve_project_root())
     if not entries:
         console.print("No campaign files found.")
         return
@@ -78,7 +77,7 @@ def create_campaign(
     content = body if body is not None else edit_markdown(campaign_core.template_body())
 
     try:
-        path = campaign_core.create_campaign(Path.cwd(), name, content)
+        path = campaign_core.create_campaign(resolve_project_root(), name, content)
     except (campaign_core.InvalidCampaignNameError, campaign_core.CampaignAlreadyExistsError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -93,13 +92,13 @@ def update_campaign(
     """Update an existing campaign file's body. Fails once the campaign is 'completed' or
     'abandoned' - its body is locked once its postmortem is recorded."""
     try:
-        current = campaign_core.read_campaign(Path.cwd(), name)
+        current = campaign_core.read_campaign(resolve_project_root(), name)
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
 
     content = body if body is not None else edit_markdown(current.body)
     try:
-        path = campaign_core.update_campaign(Path.cwd(), name, content)
+        path = campaign_core.update_campaign(resolve_project_root(), name, content)
     except (campaign_core.CampaignNotMutableError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -116,7 +115,7 @@ def delete_campaign(
         typer.confirm(f"Delete campaign {name!r}?", abort=True)
 
     try:
-        path = campaign_core.delete_campaign(Path.cwd(), name)
+        path = campaign_core.delete_campaign(resolve_project_root(), name)
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
 
@@ -130,7 +129,7 @@ def open_campaign(
     """Move a campaign from 'draft' or 'paused' to 'open'. Only one campaign may be open at a
     time."""
     try:
-        campaign_core.open_campaign(Path.cwd(), name)
+        campaign_core.open_campaign(resolve_project_root(), name)
     except (
         campaign_core.CampaignNotFoundError,
         campaign_core.InvalidCampaignTransitionError,
@@ -148,7 +147,7 @@ def pause_campaign(
 ) -> None:
     """Move a campaign from 'open' to 'paused'. Fails if it has an open encounter."""
     try:
-        campaign_core.pause_campaign(Path.cwd(), name)
+        campaign_core.pause_campaign(resolve_project_root(), name)
     except (
         campaign_core.CampaignNotFoundError,
         campaign_core.InvalidCampaignTransitionError,
@@ -169,7 +168,7 @@ def complete_campaign(
     The required message is recorded as the campaign's postmortem and its body is locked
     thereafter."""
     try:
-        campaign_core.complete_campaign(Path.cwd(), name, message)
+        campaign_core.complete_campaign(resolve_project_root(), name, message)
     except (
         campaign_core.CampaignNotFoundError,
         campaign_core.InvalidCampaignTransitionError,
@@ -191,7 +190,7 @@ def abandon_campaign(
     encounter. The required message is recorded as the campaign's postmortem and its body is
     locked thereafter."""
     try:
-        campaign_core.abandon_campaign(Path.cwd(), name, message)
+        campaign_core.abandon_campaign(resolve_project_root(), name, message)
     except (
         campaign_core.CampaignNotFoundError,
         campaign_core.InvalidCampaignTransitionError,
@@ -213,7 +212,7 @@ def archive_campaign(
     campaign and its encounters into .sourcebook/archive/, mirroring their live layout, and sets
     archived: true on each - status is preserved, not replaced."""
     try:
-        campaign, archived_encounters = campaign_core.archive_campaign(Path.cwd(), name)
+        campaign, archived_encounters = campaign_core.archive_campaign(resolve_project_root(), name)
     except (
         campaign_core.CampaignNotFoundError,
         campaign_core.CampaignNotTerminalError,

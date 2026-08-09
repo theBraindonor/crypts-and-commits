@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Any
 
 import typer
@@ -10,6 +9,7 @@ from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
 from cac.core import region as region_core
 from cac.core.git_utils import GitIdentityError
+from cac.core.paths import resolve_project_root
 
 app = typer.Typer(
     help=(
@@ -43,7 +43,7 @@ def _resolve_campaign(campaign: str | None, *, require_mutable: bool) -> str:
     """Resolve the campaign to act on, failing with a clear message if none is active, the named
     campaign does not exist, or (when mutating) it is completed/abandoned."""
     try:
-        return campaign_core.resolve_campaign(Path.cwd(), campaign, require_mutable=require_mutable)
+        return campaign_core.resolve_campaign(resolve_project_root(), campaign, require_mutable=require_mutable)
     except (
         campaign_core.NoActiveCampaignError,
         campaign_core.CampaignNotFoundError,
@@ -60,14 +60,14 @@ def get_encounter(
     """Show an encounter file's frontmatter and body."""
     campaign = _resolve_campaign(campaign, require_mutable=False)
     try:
-        metadata, body = encounter_core.read_metadata(Path.cwd(), campaign, name)
+        metadata, body = encounter_core.read_metadata(resolve_project_root(), campaign, name)
     except encounter_core.EncounterNotFoundError as exc:
         fail(console, str(exc))
 
     for key, value in metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
     console.print()
-    body = budget_core.truncate_body(body, encounter_core.encounter_path(Path.cwd(), campaign, name))
+    body = budget_core.truncate_body(body, encounter_core.encounter_path(resolve_project_root(), campaign, name))
     console.print(body, markup=False, soft_wrap=True)
 
 
@@ -79,7 +79,7 @@ def list_encounters(
     """List the encounter files in a campaign, oldest-updated first, paged under the response
     budget."""
     campaign = _resolve_campaign(campaign, require_mutable=False)
-    names = encounter_core.list_encounters(Path.cwd(), campaign)
+    names = encounter_core.list_encounters(resolve_project_root(), campaign)
     if not names:
         console.print("No encounter files found.")
         return
@@ -102,7 +102,7 @@ def order_encounters(
     """Show every campaign encounter in deterministic dependency order."""
     campaign = _resolve_campaign(campaign, require_mutable=False)
     try:
-        ordered = encounter_core.order_encounters(Path.cwd(), campaign)
+        ordered = encounter_core.order_encounters(resolve_project_root(), campaign)
     except encounter_core.EncounterDependencyError as exc:
         fail(console, str(exc))
     if not ordered:
@@ -135,7 +135,7 @@ def create_encounter(
         fail(console, str(exc))
 
     try:
-        path = encounter_core.create_encounter(Path.cwd(), campaign, name, content, kind=kind)
+        path = encounter_core.create_encounter(resolve_project_root(), campaign, name, content, kind=kind)
     except (
         campaign_core.CampaignNotFoundError,
         encounter_core.InvalidEncounterNameError,
@@ -157,7 +157,7 @@ def update_encounter(
     """Update an existing encounter file's body. Only permitted while status is 'draft'."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        current = encounter_core.read_encounter(Path.cwd(), campaign, name)
+        current = encounter_core.read_encounter(resolve_project_root(), campaign, name)
     except encounter_core.EncounterNotFoundError as exc:
         fail(console, str(exc))
 
@@ -170,7 +170,7 @@ def update_encounter(
 
     content = body if body is not None else edit_markdown(current.body)
     try:
-        path = encounter_core.update_encounter(Path.cwd(), campaign, name, content)
+        path = encounter_core.update_encounter(resolve_project_root(), campaign, name, content)
     except (encounter_core.EncounterNotDraftError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -189,7 +189,7 @@ def delete_encounter(
         typer.confirm(f"Delete encounter {name!r}?", abort=True)
 
     try:
-        path = encounter_core.delete_encounter(Path.cwd(), campaign, name)
+        path = encounter_core.delete_encounter(resolve_project_root(), campaign, name)
     except (encounter_core.EncounterNotFoundError, encounter_core.EncounterDependencyError) as exc:
         fail(console, str(exc))
 
@@ -206,7 +206,7 @@ def review_encounter(
     assigned region. Locks its content."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        encounter_core.review_encounter(Path.cwd(), campaign, name, message)
+        encounter_core.review_encounter(resolve_project_root(), campaign, name, message)
     except (
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
@@ -228,7 +228,7 @@ def open_encounter(
     """Move an encounter from 'reviewed' to 'open' and begin execution."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        encounter_core.open_encounter(Path.cwd(), campaign, name, message)
+        encounter_core.open_encounter(resolve_project_root(), campaign, name, message)
     except (
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
@@ -249,7 +249,7 @@ def record_message(
     """Append a message to an encounter without changing its status. Valid while 'reviewed' or 'open'."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        encounter_core.record_message(Path.cwd(), campaign, name, message)
+        encounter_core.record_message(resolve_project_root(), campaign, name, message)
     except (
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
@@ -270,7 +270,7 @@ def complete_encounter(
     """Move an encounter from 'open' to 'completed' once verification passes."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        encounter_core.complete_encounter(Path.cwd(), campaign, name, message)
+        encounter_core.complete_encounter(resolve_project_root(), campaign, name, message)
     except (
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
@@ -290,7 +290,7 @@ def abandon_encounter(
     """Abandon an encounter from 'draft', 'reviewed', or 'open'. Not available once 'completed'."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        encounter_core.abandon_encounter(Path.cwd(), campaign, name, message)
+        encounter_core.abandon_encounter(resolve_project_root(), campaign, name, message)
     except (
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterTransitionError,
@@ -311,7 +311,7 @@ def assign_region(
     """Assign an encounter to a region. An encounter may be assigned to one or more regions."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        encounter_core.assign_region(Path.cwd(), campaign, name, region)
+        encounter_core.assign_region(resolve_project_root(), campaign, name, region)
     except (
         encounter_core.EncounterNotFoundError,
         region_core.RegionNotFoundError,
@@ -332,7 +332,7 @@ def unassign_region(
     """Unassign an encounter from a region."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        encounter_core.unassign_region(Path.cwd(), campaign, name, region)
+        encounter_core.unassign_region(resolve_project_root(), campaign, name, region)
     except (
         encounter_core.EncounterNotFoundError,
         encounter_core.EncounterRegionMutationError,
@@ -352,7 +352,7 @@ def assign_dependency(
     """Assign a direct prerequisite while the dependent encounter is draft."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        encounter_core.assign_dependency(Path.cwd(), campaign, name, dependency)
+        encounter_core.assign_dependency(resolve_project_root(), campaign, name, dependency)
     except (
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterNameError,
@@ -373,7 +373,7 @@ def unassign_dependency(
     """Unassign a direct prerequisite while the dependent encounter is draft."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
-        encounter_core.unassign_dependency(Path.cwd(), campaign, name, dependency)
+        encounter_core.unassign_dependency(resolve_project_root(), campaign, name, dependency)
     except (
         encounter_core.EncounterNotFoundError,
         encounter_core.InvalidEncounterNameError,

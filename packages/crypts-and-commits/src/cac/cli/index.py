@@ -1,10 +1,9 @@
-from pathlib import Path
-
 import typer
 from rich.console import Console
 
 from cac.cli.common import fail
 from cac.core import search_index as search_index_core
+from cac.core.paths import resolve_project_root
 
 app = typer.Typer(
     help=(
@@ -19,7 +18,7 @@ console = Console()
 @app.command("status")
 def status() -> None:
     """Show how many items are indexed, by type."""
-    counts = search_index_core.index_counts(Path.cwd())
+    counts = search_index_core.index_counts(resolve_project_root())
     if counts is None:
         console.print("No index has been built yet. Run [bold]cac index rebuild[/bold] to build one.")
         return
@@ -32,7 +31,7 @@ def status() -> None:
 @app.command("rebuild")
 def rebuild() -> None:
     """Fully rebuild the index from .sourcebook content on disk."""
-    count = search_index_core.rebuild_index(Path.cwd())
+    count = search_index_core.rebuild_index(resolve_project_root())
     console.print(f"Rebuilt index: [bold]{count}[/bold] item(s) indexed.")
 
 
@@ -59,7 +58,7 @@ def search(
     Archived campaigns/encounters are excluded by default - pass --include-archived to include them."""
     try:
         hits = search_index_core.search(
-            Path.cwd(),
+            resolve_project_root(),
             phrase,
             object_type=object_type,
             limit=max_results,

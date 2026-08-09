@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import typer
 from rich.console import Console
 
@@ -8,6 +6,7 @@ from cac.core import budget as budget_core
 from cac.core import region as region_core
 from cac.core.config import SUMMARY_KEY
 from cac.core.git_utils import GitIdentityError
+from cac.core.paths import resolve_project_root
 
 app = typer.Typer(
     help=(
@@ -26,8 +25,8 @@ def get_region(
 ) -> None:
     """Show a region file's frontmatter and body."""
     try:
-        metadata, body = region_core.read_metadata(Path.cwd(), name)
-        summary = region_core.read_summary(Path.cwd(), name)
+        metadata, body = region_core.read_metadata(resolve_project_root(), name)
+        summary = region_core.read_summary(resolve_project_root(), name)
     except region_core.RegionNotFoundError as exc:
         fail(console, str(exc))
 
@@ -39,7 +38,7 @@ def get_region(
     console.print("[bold]summary[/bold]:", end=" ")
     console.print(summary, markup=False)
     console.print()
-    body = budget_core.truncate_body(body, region_core.region_path(Path.cwd(), name))
+    body = budget_core.truncate_body(body, region_core.region_path(resolve_project_root(), name))
     console.print(body, markup=False, soft_wrap=True)
 
 
@@ -48,7 +47,7 @@ def list_regions(
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
 ) -> None:
     """List the region files in .sourcebook/region, paged under the response budget."""
-    names = region_core.list_regions(Path.cwd())
+    names = region_core.list_regions(resolve_project_root())
     if not names:
         console.print("No region files found.")
         return
@@ -80,7 +79,7 @@ def create_region(
     content = body if body is not None else edit_markdown(region_core.template_body())
 
     try:
-        path = region_core.create_region(Path.cwd(), name, content, summary, path_value)
+        path = region_core.create_region(resolve_project_root(), name, content, summary, path_value)
     except (
         region_core.InvalidRegionNameError,
         region_core.RegionAlreadyExistsError,
@@ -105,14 +104,14 @@ def update_region(
         fail(console, "A summary is required: pass --summary/-s so the edited body is stored with a current summary.")
 
     try:
-        current = region_core.read_region(Path.cwd(), name)
+        current = region_core.read_region(resolve_project_root(), name)
     except region_core.RegionNotFoundError as exc:
         fail(console, str(exc))
 
     content = body if body is not None else edit_markdown(current.body)
 
     try:
-        path = region_core.update_region(Path.cwd(), name, content, summary)
+        path = region_core.update_region(resolve_project_root(), name, content, summary)
     except (region_core.SummaryTooLongError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -129,7 +128,7 @@ def delete_region(
         typer.confirm(f"Delete region {name!r}?", abort=True)
 
     try:
-        path = region_core.delete_region(Path.cwd(), name)
+        path = region_core.delete_region(resolve_project_root(), name)
     except region_core.RegionNotFoundError as exc:
         fail(console, str(exc))
 
@@ -143,7 +142,7 @@ def set_summary(
 ) -> None:
     """Set a region's summary."""
     try:
-        region_core.set_summary(Path.cwd(), name, summary)
+        region_core.set_summary(resolve_project_root(), name, summary)
     except (region_core.RegionNotFoundError, region_core.SummaryTooLongError, GitIdentityError) as exc:
         fail(console, str(exc))
 
@@ -157,7 +156,7 @@ def set_path(
 ) -> None:
     """Set a region's path."""
     try:
-        region_core.set_path(Path.cwd(), name, path_value)
+        region_core.set_path(resolve_project_root(), name, path_value)
     except (region_core.RegionNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
