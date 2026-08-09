@@ -1,5 +1,5 @@
 ---
-archived: false
+archived: true
 campaign: v0.1.7-rag-demo-application
 created_by: John Hoff
 created_on: '2026-08-06T14:49:55Z'
@@ -9,7 +9,7 @@ regions:
 - demo-api
 status: completed
 updated_by: John Hoff
-updated_on: '2026-08-06T15:47:55Z'
+updated_on: '2026-08-09T14:09:04Z'
 ---
 
 # Add chat persona and context priming

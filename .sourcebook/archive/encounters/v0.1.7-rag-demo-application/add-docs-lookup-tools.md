@@ -1,5 +1,5 @@
 ---
-archived: false
+archived: true
 campaign: v0.1.7-rag-demo-application
 created_by: John Hoff
 created_on: '2026-08-06T21:56:21Z'
@@ -10,7 +10,7 @@ regions:
 - demo-api
 status: completed
 updated_by: John Hoff
-updated_on: '2026-08-06T22:25:59Z'
+updated_on: '2026-08-09T14:09:04Z'
 ---
 
 ## Requirements
