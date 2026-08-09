@@ -70,7 +70,20 @@ def test_encounter_create_returns_new_encounter() -> None:
     assert result["name"] == "goblin-ambush"
     assert result["campaign"] == "opening-gambit"
     assert result["status"] == "draft"
+    assert result["kind"] == "scripted"
     assert result["body"].strip() == "Encounter body."
+
+
+def test_encounter_create_accepts_unscripted_kind() -> None:
+    result = mcp_encounter.encounter_create("hotfix", "## Requirements\n\nFixed it.", kind="unscripted")
+
+    assert result["kind"] == "unscripted"
+    assert result["body"].strip() == "## Requirements\n\nFixed it."
+
+
+def test_encounter_create_rejects_invalid_kind() -> None:
+    with pytest.raises(encounter.InvalidEncounterKindError):
+        mcp_encounter.encounter_create("goblin-ambush", "Body.", kind="sideways")
 
 
 def test_encounter_update_replaces_body(tmp_path: Path) -> None:

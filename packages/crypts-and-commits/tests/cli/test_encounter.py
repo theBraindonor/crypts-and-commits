@@ -108,6 +108,50 @@ def test_create_rejects_invalid_name() -> None:
     assert "invalid" in result.output
 
 
+def test_create_defaults_kind_to_scripted(tmp_path: Path) -> None:
+    _create_campaign()
+
+    result = runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "-b", "text"])
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").read_text(encoding="utf-8")
+    assert "kind: scripted" in text
+
+
+def test_create_accepts_unscripted_kind(tmp_path: Path) -> None:
+    _create_campaign()
+
+    result = runner.invoke(
+        app,
+        [
+            "encounter",
+            "create",
+            "hotfix",
+            "--campaign",
+            "opening-gambit",
+            "--kind",
+            "unscripted",
+            "-b",
+            "## Requirements\n\nFixed it.",
+        ],
+    )
+
+    assert result.exit_code == 0
+    text = (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "hotfix.md").read_text(encoding="utf-8")
+    assert "kind: unscripted" in text
+
+
+def test_create_rejects_invalid_kind() -> None:
+    _create_campaign()
+
+    result = runner.invoke(
+        app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "-k", "sideways", "-b", "text"]
+    )
+
+    assert result.exit_code == 1
+    assert "invalid" in result.output
+
+
 def test_create_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
     _create_campaign()
     _break_git_identity(monkeypatch)

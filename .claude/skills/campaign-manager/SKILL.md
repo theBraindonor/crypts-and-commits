@@ -1,6 +1,6 @@
 ---
 name: campaign-manager
-description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work with Requirements/Rationale/Plan/Verification sections) - through the crypts-and-commits MCP server, falling back to the cac CLI when the server is unavailable. Use when asked to start a new initiative, move a campaign through its draft/open/paused/completed/abandoned lifecycle, plan a new unit of work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
+description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work, either 'scripted' with Requirements/Rationale/Plan/Verification sections or 'unscripted' with just Requirements/Rationale, recording manual work done outside the plan-first flow) - through the crypts-and-commits MCP server, falling back to the cac CLI when the server is unavailable. Use when asked to start a new initiative, move a campaign through its draft/open/paused/completed/abandoned lifecycle, plan a new unit of work, record already-done manual work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
 allowed-tools: Bash(cac *), Task, mcp__crypts-and-commits
 ---
 
@@ -51,7 +51,12 @@ A campaign is a long-running initiative, similar to an "Epic" in Jira-style work
 
 ## Encounters
 
-An encounter is a concrete unit of work within a campaign: a plan the agent is expected to execute, with `Requirements`, `Rationale`, `Plan`, and `Verification` sections in its body.
+An encounter is a concrete unit of work within a campaign, in one of two `kind`s, fixed at creation and never changed afterward:
+
+- **`scripted`** (the default) — a plan the agent is expected to execute, with `Requirements`, `Rationale`, `Plan`, and `Verification` sections in its body.
+- **`unscripted`** — a record of manual work the developer or the agent already did outside the plan-first flow (direct edits, quick fixes, exploratory changes), captured after the fact so a later session can recover the intent behind it. Only `Requirements` (what was done) and `Rationale` (why) apply — there is no `Plan` or `Verification` to write. Use this kind when asked to record or document a change that's already been made, rather than to plan one.
+
+Both kinds go through the identical status lifecycle below, including the independent-reviewer gate and the three explicit user gates — see "Encounter Lifecycle" for where the two kinds' handling diverges.
 
 ### Choosing the campaign
 
@@ -65,8 +70,8 @@ In the tool forms below, `campaign` is shown explicitly, but omit it to use the 
 
 - `mcp__crypts-and-commits__encounter_list(campaign, cursor)` — list encounter names within a campaign, ordered oldest-updated first (ascending by `updated_on`). CLI fallback: `cac encounter list --help`.
 - `mcp__crypts-and-commits__encounter_order(campaign)` — show every campaign encounter in deterministic dependency order, with status and direct dependencies. CLI fallback: `cac encounter order --help`.
-- `mcp__crypts-and-commits__encounter_get(name, campaign)` — show an encounter's frontmatter (`status`, `regions`) and body. CLI fallback: `cac encounter get --help`.
-- `mcp__crypts-and-commits__encounter_create(name, body, campaign)` — create a new encounter. The campaign must already exist and not be completed/abandoned. CLI fallback: `cac encounter create --help`.
+- `mcp__crypts-and-commits__encounter_get(name, campaign)` — show an encounter's frontmatter (`status`, `kind`, `regions`) and body. CLI fallback: `cac encounter get --help`.
+- `mcp__crypts-and-commits__encounter_create(name, body, campaign, kind)` — create a new encounter. `kind` is optional, defaulting to `scripted`; pass `"unscripted"` to record already-done manual work instead. The campaign must already exist and not be completed/abandoned. CLI fallback: `cac encounter create --help` (`--kind`/`-k`).
 - `mcp__crypts-and-commits__encounter_update(name, body, campaign)` — replace an encounter's body. Only works while status is `draft`. CLI fallback: `cac encounter update --help`.
 - `mcp__crypts-and-commits__encounter_review(name, message, campaign)` — move `draft` → `reviewed` after a lore review. Requires at least one region already assigned. Message is required and permanently locks the content. CLI fallback: `cac encounter review --help`.
 - `mcp__crypts-and-commits__encounter_open(name, campaign, message)` — move `reviewed` → `open` and begin execution. Message is optional. CLI fallback: `cac encounter open --help`.
@@ -79,17 +84,17 @@ In the tool forms below, `campaign` is shown explicitly, but omit it to use the 
 
 ## Encounter Lifecycle
 
-**`draft`** — the encounter is being documented and planned. Write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. This is the only status in which `mcp__crypts-and-commits__encounter_update` can replace the body. Also assign at least one region (`mcp__crypts-and-commits__encounter_assign_region`) before requesting review — `encounter_review` will refuse to run without one.
+**`draft`** — the encounter is being documented. For a `scripted` encounter, write the `Requirements`, `Rationale`, and `Plan` sections; leave `Verification` describing how the work will be checked once it's done. For an `unscripted` encounter, write only `Requirements` (what was done) and `Rationale` (why) — there is no `Plan`/`Verification` to write, and the template created by `encounter_create(..., kind="unscripted")` doesn't include those headings. This is the only status in which `mcp__crypts-and-commits__encounter_update` can replace the body. Also assign at least one region (`mcp__crypts-and-commits__encounter_assign_region`) before requesting review — `encounter_review` will refuse to run without one, for either kind.
 
 Region and dependency assignment are both only permitted while an encounter is `draft`, not after it moves to `reviewed`. Dependency assignments must reference a non-abandoned encounter in the same campaign and cannot introduce a self-dependency or cycle. An abandoned existing prerequisite remains an unsatisfied blocker until it is removed or replaced.
 
-**`draft` → `reviewed`** — this gate is performed by an **independent, fresh reviewer subagent**, never inline by the agent that authored the plan. An agent reviewing its own plan just re-checks it against the priors that produced it — a rubber stamp — so **do not review the Plan yourself**.
+**`draft` → `reviewed`** — this gate is performed by an **independent, fresh reviewer subagent**, never inline by the agent that authored the draft. An agent reviewing its own draft just re-checks it against the priors that produced it — a rubber stamp — so **do not review the encounter yourself**, whatever its `kind`.
 
 1. **Get the user's explicit approval before spawning.** Do not launch the reviewer subagent just because an encounter reached `draft` — drafting is not itself approval to review. Stop and ask the user directly whether to proceed with the independent review, and wait for an explicit yes. This is a separate approval from the later `reviewed` → `open` approval, and it applies every time this step is reached, including a re-review after a **REJECT**/**NOT-REVIEWABLE** verdict and a follow-up `mcp__crypts-and-commits__encounter_update` — not just the first pass over a fresh draft.
 2. **Spawn a fresh reviewer.** Use the `Task` tool with `subagent_type: "general-purpose"` — a fresh agent, **never a fork** (a fork inherits the authoring conversation and reproduces its bias). Hand it the [reviewer prompt template](#reviewer-subagent-prompt-template) below, filling in only the encounter and campaign names. Pass nothing else — no lore, no analysis of your own — so the review stays independent and also tests whether the encounter is self-contained enough to survive a context reset.
-3. **Let it review within bounds.** The subagent primes the world/lore itself, checks the Plan against applicable lore within a bounded reading surface, and returns findings, a verdict (**PASS-WITH-NOTES** / **REJECT** / **NOT-REVIEWABLE**), and a *proposed* review message. It does **not** run any mutating `cac` operation — the transition is scripted by this skill, per the verdict, as described next.
-4. **Auto-transition on PASS-WITH-NOTES — no separate approval pause.** As soon as the reviewer returns a **PASS-WITH-NOTES** verdict, run `mcp__crypts-and-commits__encounter_review(name, message)` yourself, from the main thread, immediately, with `message` set to the reviewer's proposed message — the message content is the reviewer's independent findings (its proposed message, verbatim or faithfully transcribed), never a self-summary. This permanently locks the Requirements, Rationale, Plan, and Verification sections — they can no longer be replaced with `encounter_update`, only appended to. Then relay the reviewer's findings, verdict, and the fact that the encounter is now `reviewed` to the user. This step's auto-transition has no separate approval pause of its own — the approval this gate requires already happened at step 1, before the reviewer was spawned.
-5. **Feedback after the fact is a logged message, not a re-draft.** If the user has feedback or requested changes in response to a PASS-WITH-NOTES review, capture it with `mcp__crypts-and-commits__encounter_record_message(name, message)` — do not attempt to reopen or re-draft the Plan; the content is already locked, and `encounter_update` no longer applies once status has moved past `draft`.
+3. **Let it review within bounds.** The subagent primes the world/lore itself, checks the encounter's `Plan` (for `scripted`) or its `Requirements`/`Rationale` (for `unscripted`, standing in for a Plan since none exists) against applicable lore within a bounded reading surface, and returns findings, a verdict (**PASS-WITH-NOTES** / **REJECT** / **NOT-REVIEWABLE**), and a *proposed* review message. It does **not** run any mutating `cac` operation — the transition is scripted by this skill, per the verdict, as described next.
+4. **Auto-transition on PASS-WITH-NOTES — no separate approval pause.** As soon as the reviewer returns a **PASS-WITH-NOTES** verdict, run `mcp__crypts-and-commits__encounter_review(name, message)` yourself, from the main thread, immediately, with `message` set to the reviewer's proposed message — the message content is the reviewer's independent findings (its proposed message, verbatim or faithfully transcribed), never a self-summary. This permanently locks the encounter's body sections (Requirements/Rationale, plus Plan/Verification for `scripted`) — they can no longer be replaced with `encounter_update`, only appended to. Then relay the reviewer's findings, verdict, and the fact that the encounter is now `reviewed` to the user. This step's auto-transition has no separate approval pause of its own — the approval this gate requires already happened at step 1, before the reviewer was spawned.
+5. **Feedback after the fact is a logged message, not a re-draft.** If the user has feedback or requested changes in response to a PASS-WITH-NOTES review, capture it with `mcp__crypts-and-commits__encounter_record_message(name, message)` — do not attempt to reopen or re-draft the encounter's sections; the content is already locked, and `encounter_update` no longer applies once status has moved past `draft`.
 
 On **REJECT** or **NOT-REVIEWABLE**, the auto-transition does not apply: do not run `mcp__crypts-and-commits__encounter_review`, relay the reviewer's reasons to the user, revise the draft with `mcp__crypts-and-commits__encounter_update` (still allowed while `draft`), and return to step 1 — get the user's explicit approval again — before spawning a fresh reviewer.
 
@@ -99,9 +104,11 @@ Spawn with `subagent_type: "general-purpose"` (fresh, not a fork). Replace `<ENC
 
 ```
 You are an independent reviewer for a Crypts and Commits (CAC) "encounter" — a
-planned unit of work. Review it critically against the project's lore
-(standards and conventions). You did not write this plan; do not assume it is
-sound, and you are expected to reject it if it does not hold up.
+unit of work, either a plan for future work ('scripted' kind) or a record of
+work already done outside the plan-first flow ('unscripted' kind). Review it
+critically against the project's lore (standards and conventions). You did not
+write this encounter; do not assume it is sound, and you are expected to
+reject it if it does not hold up.
 
 Encounter: <ENCOUNTER>
 Campaign:  <CAMPAIGN>
@@ -113,7 +120,7 @@ server isn't available in your session:
 - `mcp__crypts-and-commits__world_get()` / `cac world get` — read the world summary.
 - `mcp__crypts-and-commits__encounter_get(name="<ENCOUNTER>", campaign="<CAMPAIGN>")` /
   `cac encounter get <ENCOUNTER> -c <CAMPAIGN>` — read the encounter and note
-  its `regions`. For each region, `mcp__crypts-and-commits__region_get(name=<region>)` /
+  its `kind` and its `regions`. For each region, `mcp__crypts-and-commits__region_get(name=<region>)` /
   `cac region get <region>` for its documented `path`.
 - `mcp__crypts-and-commits__prime_applicable_lore(encounter="<ENCOUNTER>", campaign="<CAMPAIGN>")`
   / `cac prime applicable-lore <ENCOUNTER> -c <CAMPAIGN>` — resolve the exact
@@ -121,28 +128,34 @@ server isn't available in your session:
   encounter is assigned to), returned as `name` + `summary` + `ref`. Then, for
   each `ref` returned, `mcp__crypts-and-commits__lore_get(name=ref)` / `cac lore get <ref>`
   to hydrate its full body — the summary is only a routing signal; the body
-  is what you check the Plan against.
+  is what you check against.
 
-Check the Plan against each applicable lore item.
+If `kind` is `scripted`, check the `Plan` against each applicable lore item. If
+`kind` is `unscripted`, there is no `Plan` or `Verification` — that is expected,
+not a defect — so instead check the recorded `Requirements`/`Rationale` (the
+intent behind work already done) against each applicable lore item.
 
 Bounded reading surface — you may READ only:
 - the encounter body,
 - the applicable lore bodies (including any paths or globs the lore names),
 - the assigned regions' documented `path`s,
-- files the Plan explicitly names.
+- files the encounter explicitly names.
 This bound is an instruction, not a technical sandbox — nothing stops you
 reading elsewhere, so honor it deliberately. If you suspect a lore-relevant area
-the Plan did NOT cite, FLAG it as unverifiable / possibly out of scope — do not
-go read it or reverse-engineer intent from the wider repo. Catching such sins of
-omission is valuable; chasing them is not.
+the encounter did NOT cite, FLAG it as unverifiable / possibly out of scope —
+do not go read it or reverse-engineer intent from the wider repo. Catching such
+sins of omission is valuable; chasing them is not.
 
 Return this and nothing more:
-1. Findings — for each applicable lore item, whether the Plan honors it, with any
-   conflict or gap. List "flagged but unverified" concerns separately.
+1. Findings — for each applicable lore item, whether the encounter honors it, with
+   any conflict or gap. List "flagged but unverified" concerns separately.
 2. Verdict — exactly one of:
    - PASS-WITH-NOTES — reviewable and consistent with lore;
-   - REJECT — the Plan conflicts with lore;
-   - NOT-REVIEWABLE — too underspecified to review within the cited surface.
+   - REJECT — the encounter conflicts with lore;
+   - NOT-REVIEWABLE — too underspecified to review within the cited surface. For
+     an `unscripted` encounter, an absent `Plan`/`Verification` is never itself
+     grounds for this verdict — only vague or missing `Requirements`/`Rationale`
+     content is.
 3. A proposed one-paragraph `encounter_review` message string capturing your
    findings.
 
@@ -153,8 +166,8 @@ files. You are reviewing only.
 
 **`reviewed` → `open`** — get explicit approval from the user, then run `mcp__crypts-and-commits__encounter_open(name, message)`. A message is optional here. Opening fails until every direct dependency is `completed`, reporting all unsatisfied prerequisites and their statuses.
 
-**`open`** — execute the Plan. If the Plan or Verification needs to change based on what's found during implementation, do not attempt to edit them directly — use `mcp__crypts-and-commits__encounter_record_message(name, message)` to record the deviation and why (also usable between `review` and `open`, i.e. while `reviewed`).
+**`open`** — for a `scripted` encounter, execute the `Plan`. If the `Plan` or `Verification` needs to change based on what's found during implementation, do not attempt to edit them directly — use `mcp__crypts-and-commits__encounter_record_message(name, message)` to record the deviation and why (also usable between `review` and `open`, i.e. while `reviewed`). For an `unscripted` encounter, the recorded work is already done — there's nothing to execute — so this is where the agent makes any follow-up changes the review's findings called for; if the review raised nothing actionable, there's nothing further to do here.
 
-**`open` → `completed`** — once all work is finished, run the steps described in Verification. Once verification passes, confirm with the user before marking it complete — do not do this unilaterally — then run `mcp__crypts-and-commits__encounter_complete(name, message)`. A message is optional.
+**`open` → `completed`** — for a `scripted` encounter, once all work is finished, run the steps described in `Verification`. For an `unscripted` encounter (no `Verification` section), confirm the recorded `Requirements`/`Rationale` are still accurate and any follow-up changes from `open` are done. Either way, confirm with the user before marking it complete — do not do this unilaterally — then run `mcp__crypts-and-commits__encounter_complete(name, message)`. A message is optional.
 
 **`draft`/`reviewed`/`open` → `abandoned`** — on request from the user, run `mcp__crypts-and-commits__encounter_abandon(name, message)` (message required). Not available once an encounter is `completed`.

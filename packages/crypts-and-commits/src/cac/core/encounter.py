@@ -12,8 +12,11 @@ from cac.core.config import (
     ARCHIVE_DIR_NAME,
     ARCHIVED_KEY,
     CREATED_ON_KEY,
+    DEFAULT_ENCOUNTER_KIND,
     DEFAULT_ENCOUNTER_STATUS,
     ENCOUNTER_DIR_NAME,
+    ENCOUNTER_KIND_KEY,
+    ENCOUNTER_KINDS,
     NAME_PATTERN,
     RESERVED_NAMES,
     UPDATED_ON_KEY,
@@ -22,7 +25,7 @@ from cac.core.frontmatter_utils import toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
 
 _TEMPLATE_PACKAGE = "sourcebook"
-_TEMPLATE_FILENAME = "encounter.md"
+_TEMPLATE_FILENAMES = {"scripted": "encounter.md", "unscripted": "encounter_unscripted.md"}
 REGIONS_KEY = "regions"
 DEPENDS_ON_KEY = "depends_on"
 _LOG_SECTION = "Log"
@@ -42,6 +45,10 @@ _TERMINAL_STATUSES = frozenset({"completed", "abandoned"})
 
 class InvalidEncounterNameError(ValueError):
     """Raised when an encounter name contains characters other than letters, numbers, underscores, and hyphens."""
+
+
+class InvalidEncounterKindError(ValueError):
+    """Raised when an encounter kind isn't one of ENCOUNTER_KINDS."""
 
 
 class InvalidEncounterTransitionError(ValueError):
@@ -114,6 +121,7 @@ class Encounter:
     name: str
     campaign: str
     status: str
+    kind: str
     regions: list[str]
     depends_on: list[str]
     archived: bool
@@ -164,8 +172,16 @@ def list_archived_encounters(root: Path, campaign: str) -> list[str]:
     return [path.stem for path in sorted(paths, key=lambda p: frontmatter.load(p).get(UPDATED_ON_KEY, ""))]
 
 
-def template_body() -> str:
-    return frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME)).content
+def _validate_kind(kind: str) -> None:
+    if kind not in ENCOUNTER_KINDS:
+        raise InvalidEncounterKindError(
+            f"Encounter kind {kind!r} is invalid: must be one of {', '.join(ENCOUNTER_KINDS)}."
+        )
+
+
+def template_body(kind: str = DEFAULT_ENCOUNTER_KIND) -> str:
+    _validate_kind(kind)
+    return frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAMES[kind])).content
 
 
 def read_encounter(root: Path, campaign: str, name: str) -> Encounter:
@@ -185,16 +201,18 @@ def encounter_path(root: Path, campaign: str, name: str) -> Path:
     return _existing_encounter_path(root, campaign, name)
 
 
-def create_encounter(root: Path, campaign: str, name: str, body: str) -> Path:
+def create_encounter(root: Path, campaign: str, name: str, body: str, kind: str = DEFAULT_ENCOUNTER_KIND) -> Path:
+    _validate_kind(kind)
     if not campaign_core.exists(root, campaign):
         raise campaign_core.CampaignNotFoundError(f"Campaign {campaign!r} does not exist.")
     path = _encounter_path(root, campaign, name)
     if path.exists():
         raise EncounterAlreadyExistsError(f"Encounter {name!r} already exists in campaign {campaign!r}.")
     path.parent.mkdir(parents=True, exist_ok=True)
-    post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
+    post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAMES[kind]))
     post["name"] = name
     post["campaign"] = campaign
+    post[ENCOUNTER_KIND_KEY] = kind
     post.content = body
     frontmatter_utils.stamp_created(post, root)
     write_post(root, path, post)
@@ -453,6 +471,7 @@ def _to_encounter(post: frontmatter.Post, campaign: str, name: str) -> Encounter
         name=post.get("name", name),
         campaign=post.get("campaign", campaign),
         status=post.get("status", DEFAULT_ENCOUNTER_STATUS),
+        kind=post.get(ENCOUNTER_KIND_KEY, DEFAULT_ENCOUNTER_KIND),
         regions=post.get("regions", []),
         depends_on=post.get(DEPENDS_ON_KEY, []),
         archived=post.get(ARCHIVED_KEY, False),

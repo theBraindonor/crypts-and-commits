@@ -307,21 +307,24 @@ A concrete unit of work within a campaign: a plan the agent is expected to
 execute, with fixed body sections.
 
 - **Frontmatter**: `name`, `campaign` (parent campaign name), `status`,
-  `regions` (list), `depends_on` (list of direct prerequisite encounter names
-  within the same campaign), `archived` (bool, default `false` - see the
-  Campaign section's "Archiving" below; an encounter is never archived
-  standalone, only as a cascade of its campaign being archived), plus the
-  common stamps.
-- **Body**: four fixed sections - `Requirements`, `Rationale`, `Plan`,
-  `Verification` - plus an appended `Log` section once any transition or
-  message carries a message. The four fixed sections may only be *replaced*
-  while status is `draft`; every later change is an append (via a
-  transition's message, or `encounter_record_message`), never a rewrite.
-- **Status lifecycle**:
+  `kind` (`scripted` or `unscripted`, default `scripted` - see "Kind: scripted
+  vs. unscripted" below), `regions` (list), `depends_on` (list of direct
+  prerequisite encounter names within the same campaign), `archived` (bool,
+  default `false` - see the Campaign section's "Archiving" below; an
+  encounter is never archived standalone, only as a cascade of its campaign
+  being archived), plus the common stamps.
+- **Body**: for a `scripted` encounter, four fixed sections - `Requirements`,
+  `Rationale`, `Plan`, `Verification`; for an `unscripted` encounter, only
+  `Requirements` and `Rationale` - plus, for either kind, an appended `Log`
+  section once any transition or message carries a message. The fixed
+  sections may only be *replaced* while status is `draft`; every later change
+  is an append (via a transition's message, or `encounter_record_message`),
+  never a rewrite.
+- **Status lifecycle**: identical for both kinds.
 
   | From | To | Trigger | Notes |
   |---|---|---|---|
-  | `draft` | `reviewed` | `encounter_review` | Message required. Requires at least one assigned region. Performed by an independent reviewer (see the `campaign-manager` skill), never the plan's author. Permanently locks the four fixed sections. |
+  | `draft` | `reviewed` | `encounter_review` | Message required. Requires at least one assigned region. Performed by an independent reviewer (see the `campaign-manager` skill), never the plan's author. Permanently locks the fixed sections (Requirements/Rationale, plus Plan/Verification for `scripted` kind). |
   | `draft` | `abandoned` | `encounter_abandon` | Message required. |
   | `reviewed` | `open` | `encounter_open` | Message optional. Fails, listing every unsatisfied prerequisite and its status, until all direct `depends_on` entries are `completed`. |
   | `reviewed` | `abandoned` | `encounter_abandon` | Message required. |
@@ -354,12 +357,32 @@ execute, with fixed body sections.
   (one-directional storage within the same campaign; no self-dependency, no
   cycles, and an abandoned encounter cannot be a prerequisite).
 
+### Kind: scripted vs. unscripted
+
+`kind` is set once, at creation, and is not changed afterward - there is no
+setter/assign operation for it.
+
+- **`scripted`** (the default): a plan for future work. All four body
+  sections apply; the reviewer checks the `Plan` against applicable lore
+  before `draft` -> `reviewed`.
+- **`unscripted`**: a record of manual work the developer or the agent
+  already did outside the plan-first flow (direct edits, quick fixes,
+  exploratory changes), captured after the fact so a later session can
+  recover the intent behind it. Only `Requirements` (what was done) and
+  `Rationale` (why) apply - there is no `Plan` or `Verification` to write,
+  and their absence is not itself a defect. The status lifecycle, the
+  independent-reviewer gate, and the three explicit user gates (see "Explicit
+  user gates" below) are otherwise identical to a `scripted` encounter: the
+  reviewer checks the recorded `Requirements`/`Rationale` against applicable
+  lore in place of a `Plan`, giving the same after-the-fact lore check and
+  follow-up opportunity that review provides for planned work.
+
 | Operation | MCP tool | CLI fallback |
 |---|---|---|
 | Read | `encounter_get` | `cac encounter get` |
 | List (oldest-updated first) | `encounter_list` | `cac encounter list` |
 | Show in dependency order | `encounter_order` | `cac encounter order` |
-| Create (starts `draft`) | `encounter_create` | `cac encounter create` |
+| Create (starts `draft`; `kind` optional, defaults `scripted`) | `encounter_create` | `cac encounter create` |
 | Replace body (only while `draft`) | `encounter_update` | `cac encounter update` |
 | Delete (fails if depended on) | `encounter_delete` | `cac encounter delete` |
 | Review (`draft` -> `reviewed`) | `encounter_review` | `cac encounter review` |

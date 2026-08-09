@@ -2,7 +2,7 @@
 name: ""
 campaign: ""
 status: "draft"
-kind: "scripted"
+kind: "unscripted"
 regions: []
 depends_on: []
 archived: false
@@ -17,11 +17,3 @@ Requirements have not been described yet.
 ## Rationale
 
 Rationale has not been described yet.
-
-## Plan
-
-Plan has not been described yet.
-
-## Verification
-
-Verification has not been described yet.

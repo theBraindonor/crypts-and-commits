@@ -153,6 +153,20 @@ def test_template_body_contains_all_sections() -> None:
     assert "## Verification" in body
 
 
+def test_template_body_unscripted_omits_plan_and_verification() -> None:
+    body = encounter.template_body("unscripted")
+
+    assert "## Requirements" in body
+    assert "## Rationale" in body
+    assert "## Plan" not in body
+    assert "## Verification" not in body
+
+
+def test_template_body_rejects_invalid_kind() -> None:
+    with pytest.raises(encounter.InvalidEncounterKindError):
+        encounter.template_body("sideways")
+
+
 def test_exists_reflects_created_encounter(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     assert encounter.exists(tmp_path, "opening-gambit", "goblin-ambush") is False
@@ -176,9 +190,41 @@ def test_read_encounter_returns_metadata_and_body(tmp_path: Path) -> None:
     assert result.name == "goblin-ambush"
     assert result.campaign == "opening-gambit"
     assert result.status == "draft"
+    assert result.kind == "scripted"
     assert result.regions == []
     assert result.depends_on == []
     assert result.body.strip() == "Body text."
+
+
+def test_create_encounter_defaults_kind_to_scripted(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+
+    path = encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
+
+    assert "kind: scripted" in path.read_text(encoding="utf-8")
+    assert encounter.read_encounter(tmp_path, "opening-gambit", "goblin-ambush").kind == "scripted"
+
+
+def test_create_encounter_accepts_unscripted_kind(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+
+    path = encounter.create_encounter(
+        tmp_path, "opening-gambit", "hotfix", "## Requirements\n\nFixed it.", kind="unscripted"
+    )
+
+    assert "kind: unscripted" in path.read_text(encoding="utf-8")
+    result = encounter.read_encounter(tmp_path, "opening-gambit", "hotfix")
+    assert result.kind == "unscripted"
+    assert result.body.strip() == "## Requirements\n\nFixed it."
+
+
+def test_create_encounter_rejects_invalid_kind(tmp_path: Path) -> None:
+    _make_campaign(tmp_path)
+
+    with pytest.raises(encounter.InvalidEncounterKindError):
+        encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.", kind="sideways")
+
+    assert not encounter.exists(tmp_path, "opening-gambit", "goblin-ambush")
 
 
 def test_read_legacy_encounter_without_depends_on_defaults_to_empty_list(tmp_path: Path) -> None:

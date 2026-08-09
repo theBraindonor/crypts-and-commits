@@ -24,6 +24,9 @@ app = typer.Typer(
         "the 'review'/'abandon'/'open'/'complete' messages or 'record-message'. Regions and "
         "dependencies may only be changed while an encounter is 'draft'; all dependencies must be "
         "completed before it can open. "
+        "Every encounter also has a 'kind', fixed at creation via --kind: 'scripted' (default; a "
+        "plan for future work, all four sections apply) or 'unscripted' (a record of work already "
+        "done outside the plan-first flow; only Requirements/Rationale apply). "
         "The campaign defaults to the active (open) campaign; use --campaign to target another one."
     )
 )
@@ -116,16 +119,27 @@ def create_encounter(
     name: str = typer.Argument(..., help="Encounter name (letters, numbers, underscores, hyphens, periods)."),
     campaign: str | None = _campaign_option(),
     body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    kind: str = typer.Option(
+        "scripted",
+        "--kind",
+        "-k",
+        help="Encounter subtype: 'scripted' (default; Plan/Verification apply) or 'unscripted' (records "
+        "already-done work; only Requirements/Rationale apply).",
+    ),
 ) -> None:
     """Create a new encounter file."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
-    content = body if body is not None else edit_markdown(encounter_core.template_body())
+    try:
+        content = body if body is not None else edit_markdown(encounter_core.template_body(kind))
+    except encounter_core.InvalidEncounterKindError as exc:
+        fail(console, str(exc))
 
     try:
-        path = encounter_core.create_encounter(Path.cwd(), campaign, name, content)
+        path = encounter_core.create_encounter(Path.cwd(), campaign, name, content, kind=kind)
     except (
         campaign_core.CampaignNotFoundError,
         encounter_core.InvalidEncounterNameError,
+        encounter_core.InvalidEncounterKindError,
         encounter_core.EncounterAlreadyExistsError,
         GitIdentityError,
     ) as exc:

@@ -12,6 +12,7 @@ def encounter_to_dict(encounter: encounter_core.Encounter) -> dict[str, Any]:
         "name": encounter.name,
         "campaign": encounter.campaign,
         "status": encounter.status,
+        "kind": encounter.kind,
         "regions": encounter.regions,
         "depends_on": encounter.depends_on,
         "archived": encounter.archived,
@@ -26,9 +27,9 @@ def _resolve_campaign(campaign: str | None, *, require_mutable: bool) -> str:
 @mcp.tool()
 def encounter_get(name: str, campaign: str | None = None) -> dict[str, Any]:
     """Show an encounter's frontmatter attributes and body - a concrete unit of work within a
-    campaign, with Requirements/Rationale/Plan/Verification sections. Body is truncated under the
-    response budget; read the file directly at the reported path if truncated. campaign defaults to
-    the active (open) campaign when omitted."""
+    campaign, with Requirements/Rationale sections (plus Plan/Verification for 'scripted' kind - see
+    the 'kind' attribute). Body is truncated under the response budget; read the file directly at the
+    reported path if truncated. campaign defaults to the active (open) campaign when omitted."""
     root = Path.cwd()
     resolved = _resolve_campaign(campaign, require_mutable=False)
     metadata, body = encounter_core.read_metadata(root, resolved, name)
@@ -56,12 +57,14 @@ def encounter_order(campaign: str | None = None) -> list[dict[str, Any]]:
 
 
 @mcp.tool()
-def encounter_create(name: str, body: str, campaign: str | None = None) -> dict[str, Any]:
+def encounter_create(name: str, body: str, campaign: str | None = None, kind: str = "scripted") -> dict[str, Any]:
     """Create a new encounter, starting in 'draft' status. campaign defaults to the active (open)
-    campaign when omitted; it must already exist and not be completed/abandoned."""
+    campaign when omitted; it must already exist and not be completed/abandoned. kind is 'scripted'
+    (default; a plan for future work, all four sections apply) or 'unscripted' (a record of work
+    already done outside the plan-first flow; only Requirements/Rationale apply) - fixed at creation."""
     root = Path.cwd()
     resolved = _resolve_campaign(campaign, require_mutable=True)
-    encounter_core.create_encounter(root, resolved, name, body)
+    encounter_core.create_encounter(root, resolved, name, body, kind=kind)
     return encounter_to_dict(encounter_core.read_encounter(root, resolved, name))
 
 
@@ -85,8 +88,8 @@ def encounter_delete(name: str, campaign: str | None = None) -> dict[str, str]:
 @mcp.tool()
 def encounter_review(name: str, message: str, campaign: str | None = None) -> dict[str, Any]:
     """Move an encounter from 'draft' to 'reviewed' after a lore review. Requires at least one
-    assigned region. message is required and permanently locks its
-    Requirements/Rationale/Plan/Verification sections against further replacement."""
+    assigned region. message is required and permanently locks its body sections (Requirements/
+    Rationale, plus Plan/Verification for 'scripted' kind) against further replacement."""
     resolved = _resolve_campaign(campaign, require_mutable=True)
     return encounter_to_dict(encounter_core.review_encounter(Path.cwd(), resolved, name, message))
 
