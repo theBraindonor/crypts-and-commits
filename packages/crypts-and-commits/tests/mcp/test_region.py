@@ -1,18 +1,8 @@
 from pathlib import Path
 
 import pytest
-from cac.core import git_utils, region
+from cac.core import region
 from cac.mcp import region as mcp_region
-
-
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-
-
-@pytest.fixture(autouse=True)
-def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(git_utils, "current_git_user", lambda root: "John Hoff")
 
 
 def test_region_get_returns_metadata_summary_and_body(tmp_path: Path) -> None:

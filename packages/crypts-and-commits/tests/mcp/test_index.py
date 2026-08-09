@@ -5,11 +5,6 @@ from cac.core import campaign, encounter, search_index
 from cac.mcp import index as mcp_index
 
 
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-
-
 def _make_campaign_with_encounter(tmp_path: Path) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Body.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins in the cave.")

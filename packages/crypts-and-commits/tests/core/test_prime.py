@@ -1,20 +1,7 @@
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from cac.core import campaign, encounter, frontmatter_utils, git_utils, lore, prime, region, world
-
-_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
-
-
-def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
-    monkeypatch.setattr(git_utils, "current_git_user", lambda root: user)
-    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: when)
-
-
-@pytest.fixture(autouse=True)
-def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    _set_identity(monkeypatch)
+from cac.core import campaign, encounter, lore, prime, region, world
 
 
 def test_assemble_prime_missing_world_raises(tmp_path: Path) -> None:

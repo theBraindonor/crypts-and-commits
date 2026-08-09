@@ -4,11 +4,21 @@ from pathlib import Path
 import pytest
 from cac.core import git_utils
 
+_real_current_git_user = git_utils.current_git_user
+
 
 class _Result:
     def __init__(self, returncode: int, stdout: str) -> None:
         self.returncode = returncode
         self.stdout = stdout
+
+
+@pytest.fixture(autouse=True)
+def _real_identity_implementation(monkeypatch: pytest.MonkeyPatch) -> None:
+    # This module tests current_git_user's own subprocess-based logic, so the
+    # tree-wide default identity mock (which replaces this exact function)
+    # must be undone here, not exercised.
+    monkeypatch.setattr(git_utils, "current_git_user", _real_current_git_user)
 
 
 def test_current_git_user_returns_configured_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

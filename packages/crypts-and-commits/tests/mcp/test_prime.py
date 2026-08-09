@@ -1,18 +1,8 @@
 from pathlib import Path
 
 import pytest
-from cac.core import campaign, encounter, git_utils, lore, region, world
+from cac.core import campaign, encounter, lore, region, world
 from cac.mcp import prime as mcp_prime
-
-
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-
-
-@pytest.fixture(autouse=True)
-def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(git_utils, "current_git_user", lambda root: "John Hoff")
 
 
 def test_prime_get_assembles_bundle(tmp_path: Path) -> None:

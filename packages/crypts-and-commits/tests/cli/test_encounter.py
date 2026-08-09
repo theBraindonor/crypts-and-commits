@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -16,19 +17,6 @@ def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(git_utils, "current_git_user", _raise)
 
 
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-
-
-def _create_campaign(name: str = "opening-gambit") -> None:
-    runner.invoke(app, ["campaign", "create", name, "--body", "text"])
-
-
-def _open_campaign(name: str = "opening-gambit") -> None:
-    runner.invoke(app, ["campaign", "open", name])
-
-
 def _review(
     name: str = "goblin-ambush",
     campaign: str = "opening-gambit",
@@ -41,16 +29,16 @@ def _review(
     return runner.invoke(app, ["encounter", "review", name, "--campaign", campaign, "-m", message])
 
 
-def test_get_missing_encounter_fails() -> None:
-    _create_campaign()
+def test_get_missing_encounter_fails(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(app, ["encounter", "get", "missing", "--campaign", "opening-gambit"])
 
     assert result.exit_code == 1
 
 
-def test_get_shows_metadata_and_body() -> None:
-    _create_campaign()
+def test_get_shows_metadata_and_body(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "Body text."])
 
     result = runner.invoke(app, ["encounter", "get", "goblin-ambush", "--campaign", "opening-gambit"])
@@ -61,8 +49,8 @@ def test_get_shows_metadata_and_body() -> None:
     assert "Body text." in result.output
 
 
-def test_get_preserves_bracketed_body_text() -> None:
-    _create_campaign()
+def test_get_preserves_bracketed_body_text(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(
         app,
         ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "See [tool.pdm.workspace]."],
@@ -74,8 +62,8 @@ def test_get_preserves_bracketed_body_text() -> None:
     assert "[tool.pdm.workspace]" in result.output
 
 
-def test_list_reports_no_encounter_files() -> None:
-    _create_campaign()
+def test_list_reports_no_encounter_files(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(app, ["encounter", "list", "--campaign", "opening-gambit"])
 
@@ -90,8 +78,8 @@ def test_create_requires_existing_campaign() -> None:
     assert "does not exist" in result.output
 
 
-def test_create_with_body_option(tmp_path: Path) -> None:
-    _create_campaign()
+def test_create_with_body_option(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "-b", "# Go"])
 
@@ -99,8 +87,8 @@ def test_create_with_body_option(tmp_path: Path) -> None:
     assert (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").exists()
 
 
-def test_create_rejects_invalid_name() -> None:
-    _create_campaign()
+def test_create_rejects_invalid_name(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(app, ["encounter", "create", "bad name", "--campaign", "opening-gambit", "--body", "text"])
 
@@ -108,8 +96,8 @@ def test_create_rejects_invalid_name() -> None:
     assert "invalid" in result.output
 
 
-def test_create_defaults_kind_to_scripted(tmp_path: Path) -> None:
-    _create_campaign()
+def test_create_defaults_kind_to_scripted(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "-b", "text"])
 
@@ -118,8 +106,8 @@ def test_create_defaults_kind_to_scripted(tmp_path: Path) -> None:
     assert "kind: scripted" in text
 
 
-def test_create_accepts_unscripted_kind(tmp_path: Path) -> None:
-    _create_campaign()
+def test_create_accepts_unscripted_kind(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(
         app,
@@ -141,8 +129,8 @@ def test_create_accepts_unscripted_kind(tmp_path: Path) -> None:
     assert "kind: unscripted" in text
 
 
-def test_create_rejects_invalid_kind() -> None:
-    _create_campaign()
+def test_create_rejects_invalid_kind(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(
         app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "-k", "sideways", "-b", "text"]
@@ -152,8 +140,10 @@ def test_create_rejects_invalid_kind() -> None:
     assert "invalid" in result.output
 
 
-def test_create_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
-    _create_campaign()
+def test_create_fails_when_git_identity_unresolvable(
+    monkeypatch: pytest.MonkeyPatch, create_campaign: Callable[..., None]
+) -> None:
+    create_campaign()
     _break_git_identity(monkeypatch)
 
     result = runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "-b", "text"])
@@ -162,8 +152,10 @@ def test_create_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyP
     assert "git user.name is not configured" in result.output
 
 
-def test_review_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
-    _create_campaign()
+def test_review_fails_when_git_identity_unresolvable(
+    monkeypatch: pytest.MonkeyPatch, create_campaign: Callable[..., None]
+) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["region", "create", "default-region", "--body", "text", "--summary", "Summary."])
     runner.invoke(
@@ -177,8 +169,10 @@ def test_review_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyP
     assert "git user.name is not configured" in result.output
 
 
-def test_create_opens_editor_when_body_omitted(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    _create_campaign()
+def test_create_opens_editor_when_body_omitted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, create_campaign: Callable[..., None]
+) -> None:
+    create_campaign()
     monkeypatch.setattr(cli_common.click, "edit", lambda *_args, **_kwargs: "## Requirements\n\nEdited body")
 
     result = runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit"])
@@ -188,8 +182,8 @@ def test_create_opens_editor_when_body_omitted(monkeypatch: pytest.MonkeyPatch, 
     assert "Edited body" in text
 
 
-def test_list_shows_created_encounter() -> None:
-    _create_campaign()
+def test_list_shows_created_encounter(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(app, ["encounter", "list", "--campaign", "opening-gambit"])
@@ -197,8 +191,8 @@ def test_list_shows_created_encounter() -> None:
     assert "goblin-ambush" in result.output
 
 
-def test_update_replaces_body(tmp_path: Path) -> None:
-    _create_campaign()
+def test_update_replaces_body(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "Original"])
 
     result = runner.invoke(
@@ -211,16 +205,16 @@ def test_update_replaces_body(tmp_path: Path) -> None:
     assert "Original" not in text
 
 
-def test_update_missing_encounter_fails() -> None:
-    _create_campaign()
+def test_update_missing_encounter_fails(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(app, ["encounter", "update", "missing", "--campaign", "opening-gambit", "--body", "text"])
 
     assert result.exit_code == 1
 
 
-def test_update_rejects_once_not_draft(tmp_path: Path) -> None:
-    _create_campaign()
+def test_update_rejects_once_not_draft(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "Original"])
     _review()
 
@@ -234,8 +228,8 @@ def test_update_rejects_once_not_draft(tmp_path: Path) -> None:
     assert "Updated" not in text
 
 
-def test_delete_with_yes_flag(tmp_path: Path) -> None:
-    _create_campaign()
+def test_delete_with_yes_flag(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(app, ["encounter", "delete", "goblin-ambush", "--campaign", "opening-gambit", "--yes"])
@@ -244,16 +238,16 @@ def test_delete_with_yes_flag(tmp_path: Path) -> None:
     assert not (tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md").exists()
 
 
-def test_delete_missing_encounter_fails() -> None:
-    _create_campaign()
+def test_delete_missing_encounter_fails(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(app, ["encounter", "delete", "missing", "--campaign", "opening-gambit", "--yes"])
 
     assert result.exit_code == 1
 
 
-def test_set_status_command_removed() -> None:
-    _create_campaign()
+def test_set_status_command_removed(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(app, ["encounter", "set-status", "goblin-ambush", "abandoned"])
@@ -261,8 +255,8 @@ def test_set_status_command_removed() -> None:
     assert result.exit_code != 0
 
 
-def test_review_appends_message_and_updates_status(tmp_path: Path) -> None:
-    _create_campaign()
+def test_review_appends_message_and_updates_status(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = _review(message="Lore.")
@@ -273,8 +267,8 @@ def test_review_appends_message_and_updates_status(tmp_path: Path) -> None:
     assert "Lore." in text
 
 
-def test_review_requires_region() -> None:
-    _create_campaign()
+def test_review_requires_region(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(app, ["encounter", "review", "goblin-ambush", "--campaign", "opening-gambit", "-m", "Lore."])
@@ -282,8 +276,8 @@ def test_review_requires_region() -> None:
     assert result.exit_code != 0
 
 
-def test_review_requires_message() -> None:
-    _create_campaign()
+def test_review_requires_message(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["region", "create", "default-region", "--body", "text", "--summary", "Summary."])
     runner.invoke(
@@ -295,8 +289,8 @@ def test_review_requires_message() -> None:
     assert result.exit_code != 0
 
 
-def test_review_rejects_wrong_status() -> None:
-    _create_campaign()
+def test_review_rejects_wrong_status(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review(message="First.")
 
@@ -305,8 +299,8 @@ def test_review_rejects_wrong_status() -> None:
     assert result.exit_code == 1
 
 
-def test_open_without_message_succeeds(tmp_path: Path) -> None:
-    _create_campaign()
+def test_open_without_message_succeeds(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
 
@@ -317,8 +311,8 @@ def test_open_without_message_succeeds(tmp_path: Path) -> None:
     assert "status: open" in text
 
 
-def test_open_with_message_appends_entry(tmp_path: Path) -> None:
-    _create_campaign()
+def test_open_with_message_appends_entry(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
 
@@ -329,8 +323,8 @@ def test_open_with_message_appends_entry(tmp_path: Path) -> None:
     assert "Go." in text
 
 
-def test_open_rejects_from_draft() -> None:
-    _create_campaign()
+def test_open_rejects_from_draft(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
@@ -338,8 +332,8 @@ def test_open_rejects_from_draft() -> None:
     assert result.exit_code == 1
 
 
-def test_record_message_succeeds_when_reviewed(tmp_path: Path) -> None:
-    _create_campaign()
+def test_record_message_succeeds_when_reviewed(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
 
@@ -352,8 +346,8 @@ def test_record_message_succeeds_when_reviewed(tmp_path: Path) -> None:
     assert "Noted." in text
 
 
-def test_record_message_succeeds_when_open(tmp_path: Path) -> None:
-    _create_campaign()
+def test_record_message_succeeds_when_open(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
@@ -367,8 +361,8 @@ def test_record_message_succeeds_when_open(tmp_path: Path) -> None:
     assert "Noted." in text
 
 
-def test_record_message_rejects_when_draft() -> None:
-    _create_campaign()
+def test_record_message_rejects_when_draft(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(
@@ -378,8 +372,8 @@ def test_record_message_rejects_when_draft() -> None:
     assert result.exit_code == 1
 
 
-def test_record_message_requires_message() -> None:
-    _create_campaign()
+def test_record_message_requires_message(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
 
@@ -388,8 +382,8 @@ def test_record_message_requires_message() -> None:
     assert result.exit_code != 0
 
 
-def test_complete_without_message_succeeds(tmp_path: Path) -> None:
-    _create_campaign()
+def test_complete_without_message_succeeds(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
@@ -401,8 +395,8 @@ def test_complete_without_message_succeeds(tmp_path: Path) -> None:
     assert "status: completed" in text
 
 
-def test_complete_with_message_appends_entry(tmp_path: Path) -> None:
-    _create_campaign()
+def test_complete_with_message_appends_entry(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
@@ -416,8 +410,8 @@ def test_complete_with_message_appends_entry(tmp_path: Path) -> None:
     assert "All verified." in text
 
 
-def test_complete_rejects_from_reviewed() -> None:
-    _create_campaign()
+def test_complete_rejects_from_reviewed(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
 
@@ -426,8 +420,8 @@ def test_complete_rejects_from_reviewed() -> None:
     assert result.exit_code == 1
 
 
-def test_abandon_from_open_succeeds(tmp_path: Path) -> None:
-    _create_campaign()
+def test_abandon_from_open_succeeds(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
@@ -441,8 +435,8 @@ def test_abandon_from_open_succeeds(tmp_path: Path) -> None:
     assert "status: abandoned" in text
 
 
-def test_abandon_rejects_from_completed() -> None:
-    _create_campaign()
+def test_abandon_rejects_from_completed(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     _review()
     runner.invoke(app, ["encounter", "open", "goblin-ambush", "--campaign", "opening-gambit"])
@@ -455,8 +449,8 @@ def test_abandon_rejects_from_completed() -> None:
     assert result.exit_code == 1
 
 
-def test_abandon_requires_message() -> None:
-    _create_campaign()
+def test_abandon_requires_message(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(app, ["encounter", "abandon", "goblin-ambush", "--campaign", "opening-gambit"])
@@ -464,8 +458,8 @@ def test_abandon_requires_message() -> None:
     assert result.exit_code != 0
 
 
-def test_assign_region_sets_region(tmp_path: Path) -> None:
-    _create_campaign()
+def test_assign_region_sets_region(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
@@ -481,8 +475,8 @@ def test_assign_region_sets_region(tmp_path: Path) -> None:
     assert "goblin-ambush" not in region_text
 
 
-def test_assign_region_allows_multiple_regions(tmp_path: Path) -> None:
-    _create_campaign()
+def test_assign_region_allows_multiple_regions(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["region", "create", "southlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
@@ -498,8 +492,8 @@ def test_assign_region_allows_multiple_regions(tmp_path: Path) -> None:
     assert "southlands" in text
 
 
-def test_assign_region_missing_region_fails() -> None:
-    _create_campaign()
+def test_assign_region_missing_region_fails(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(
@@ -509,8 +503,8 @@ def test_assign_region_missing_region_fails() -> None:
     assert result.exit_code == 1
 
 
-def test_assign_region_rejected_once_open() -> None:
-    _create_campaign()
+def test_assign_region_rejected_once_open(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["region", "create", "southlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
@@ -525,8 +519,8 @@ def test_assign_region_rejected_once_open() -> None:
     assert result.exit_code == 1
 
 
-def test_unassign_region_clears_region(tmp_path: Path) -> None:
-    _create_campaign()
+def test_unassign_region_clears_region(tmp_path: Path, create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["region", "create", "northlands", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["encounter", "assign-region", "goblin-ambush", "northlands", "--campaign", "opening-gambit"])
@@ -543,9 +537,11 @@ def test_unassign_region_clears_region(tmp_path: Path) -> None:
 # --- Campaign resolution (optional --campaign, defaulting to the active campaign) ---
 
 
-def test_create_defaults_to_active_campaign(tmp_path: Path) -> None:
-    _create_campaign("live")
-    _open_campaign("live")
+def test_create_defaults_to_active_campaign(
+    tmp_path: Path, create_campaign: Callable[..., None], open_campaign: Callable[..., None]
+) -> None:
+    create_campaign("live")
+    open_campaign("live")
 
     result = runner.invoke(app, ["encounter", "create", "goblin-ambush", "--body", "text"])
 
@@ -553,9 +549,11 @@ def test_create_defaults_to_active_campaign(tmp_path: Path) -> None:
     assert (tmp_path / ".sourcebook" / "encounters" / "live" / "goblin-ambush.md").exists()
 
 
-def test_get_defaults_to_active_campaign() -> None:
-    _create_campaign("live")
-    _open_campaign("live")
+def test_get_defaults_to_active_campaign(
+    create_campaign: Callable[..., None], open_campaign: Callable[..., None]
+) -> None:
+    create_campaign("live")
+    open_campaign("live")
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--body", "Body text."])
 
     result = runner.invoke(app, ["encounter", "get", "goblin-ambush"])
@@ -564,9 +562,11 @@ def test_get_defaults_to_active_campaign() -> None:
     assert "Body text." in result.output
 
 
-def test_list_defaults_to_active_campaign() -> None:
-    _create_campaign("live")
-    _open_campaign("live")
+def test_list_defaults_to_active_campaign(
+    create_campaign: Callable[..., None], open_campaign: Callable[..., None]
+) -> None:
+    create_campaign("live")
+    open_campaign("live")
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--body", "text"])
 
     result = runner.invoke(app, ["encounter", "list"])
@@ -575,8 +575,8 @@ def test_list_defaults_to_active_campaign() -> None:
     assert "goblin-ambush" in result.output
 
 
-def test_create_without_campaign_and_none_active_fails() -> None:
-    _create_campaign()  # draft, never opened -> no active campaign
+def test_create_without_campaign_and_none_active_fails(create_campaign: Callable[..., None]) -> None:
+    create_campaign()  # draft, never opened -> no active campaign
 
     result = runner.invoke(app, ["encounter", "create", "goblin-ambush", "--body", "text"])
 
@@ -584,8 +584,8 @@ def test_create_without_campaign_and_none_active_fails() -> None:
     assert "No campaign is currently open" in result.output
 
 
-def test_list_without_campaign_and_none_active_fails() -> None:
-    _create_campaign()
+def test_list_without_campaign_and_none_active_fails(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
 
     result = runner.invoke(app, ["encounter", "list"])
 
@@ -594,9 +594,11 @@ def test_list_without_campaign_and_none_active_fails() -> None:
 
 
 @pytest.mark.parametrize("terminal_action", ["complete", "abandon"])
-def test_create_rejects_terminal_campaign(terminal_action: str) -> None:
-    _create_campaign("closed")
-    _open_campaign("closed")
+def test_create_rejects_terminal_campaign(
+    terminal_action: str, create_campaign: Callable[..., None], open_campaign: Callable[..., None]
+) -> None:
+    create_campaign("closed")
+    open_campaign("closed")
     runner.invoke(app, ["campaign", terminal_action, "closed", "--message", "Postmortem."])
 
     result = runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "closed", "--body", "text"])
@@ -605,9 +607,9 @@ def test_create_rejects_terminal_campaign(terminal_action: str) -> None:
     assert "no longer be created or modified" in " ".join(result.output.split())
 
 
-def test_get_allows_terminal_campaign() -> None:
-    _create_campaign("closed")
-    _open_campaign("closed")
+def test_get_allows_terminal_campaign(create_campaign: Callable[..., None], open_campaign: Callable[..., None]) -> None:
+    create_campaign("closed")
+    open_campaign("closed")
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "closed", "--body", "Body text."])
     runner.invoke(app, ["campaign", "complete", "closed", "--message", "Postmortem."])
 
@@ -617,9 +619,11 @@ def test_get_allows_terminal_campaign() -> None:
     assert "Body text." in result.output
 
 
-def test_list_allows_terminal_campaign() -> None:
-    _create_campaign("closed")
-    _open_campaign("closed")
+def test_list_allows_terminal_campaign(
+    create_campaign: Callable[..., None], open_campaign: Callable[..., None]
+) -> None:
+    create_campaign("closed")
+    open_campaign("closed")
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "closed", "--body", "text"])
     runner.invoke(app, ["campaign", "abandon", "closed", "--message", "Postmortem."])
 
@@ -629,8 +633,10 @@ def test_list_allows_terminal_campaign() -> None:
     assert "goblin-ambush" in result.output
 
 
-def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    _create_campaign()
+def test_get_truncates_body_over_budget(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, create_campaign: Callable[..., None]
+) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "x" * 200])
     monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
 
@@ -642,8 +648,8 @@ def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert str(expected_path) in result.output
 
 
-def test_list_rejects_invalid_cursor() -> None:
-    _create_campaign()
+def test_list_rejects_invalid_cursor(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(app, ["encounter", "list", "--campaign", "opening-gambit", "--cursor", "not-a-number"])
@@ -651,8 +657,8 @@ def test_list_rejects_invalid_cursor() -> None:
     assert result.exit_code == 1
 
 
-def test_assign_and_unassign_dependency_commands() -> None:
-    _create_campaign()
+def test_assign_and_unassign_dependency_commands(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     for name in ("foundation", "feature"):
         runner.invoke(app, ["encounter", "create", name, "--campaign", "opening-gambit", "--body", "text"])
 
@@ -671,8 +677,8 @@ def test_assign_and_unassign_dependency_commands() -> None:
     assert "depends_on: []" in get_unassigned.output
 
 
-def test_assign_dependency_reports_validation_failure() -> None:
-    _create_campaign()
+def test_assign_dependency_reports_validation_failure(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "feature", "--campaign", "opening-gambit", "--body", "text"])
 
     result = runner.invoke(
@@ -683,9 +689,11 @@ def test_assign_dependency_reports_validation_failure() -> None:
     assert "does not exist" in result.output
 
 
-def test_dependency_commands_default_to_active_campaign() -> None:
-    _create_campaign("live")
-    _open_campaign("live")
+def test_dependency_commands_default_to_active_campaign(
+    create_campaign: Callable[..., None], open_campaign: Callable[..., None]
+) -> None:
+    create_campaign("live")
+    open_campaign("live")
     for name in ("foundation", "feature"):
         runner.invoke(app, ["encounter", "create", name, "--body", "text"])
 
@@ -695,8 +703,8 @@ def test_dependency_commands_default_to_active_campaign() -> None:
     assert "foundation" in runner.invoke(app, ["encounter", "get", "feature"]).output
 
 
-def test_order_prints_status_and_dependencies_without_stripping_brackets() -> None:
-    _create_campaign()
+def test_order_prints_status_and_dependencies_without_stripping_brackets(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     for name in ("foundation", "feature"):
         runner.invoke(app, ["encounter", "create", name, "--campaign", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["encounter", "assign-dependency", "feature", "foundation", "--campaign", "opening-gambit"])
@@ -710,9 +718,11 @@ def test_order_prints_status_and_dependencies_without_stripping_brackets() -> No
     ]
 
 
-def test_order_defaults_to_active_campaign_and_allows_terminal_campaign() -> None:
-    _create_campaign("live")
-    _open_campaign("live")
+def test_order_defaults_to_active_campaign_and_allows_terminal_campaign(
+    create_campaign: Callable[..., None], open_campaign: Callable[..., None]
+) -> None:
+    create_campaign("live")
+    open_campaign("live")
     runner.invoke(app, ["encounter", "create", "feature", "--body", "text"])
 
     active_result = runner.invoke(app, ["encounter", "order"])
@@ -725,8 +735,8 @@ def test_order_defaults_to_active_campaign_and_allows_terminal_campaign() -> Non
     assert "feature [draft]" in terminal_result.output
 
 
-def test_open_reports_all_incomplete_dependency_statuses() -> None:
-    _create_campaign()
+def test_open_reports_all_incomplete_dependency_statuses(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     for name in ("foundation", "feature"):
         runner.invoke(app, ["encounter", "create", name, "--campaign", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["encounter", "assign-dependency", "feature", "foundation", "--campaign", "opening-gambit"])
@@ -738,8 +748,8 @@ def test_open_reports_all_incomplete_dependency_statuses() -> None:
     assert "foundation (draft)" in result.output
 
 
-def test_delete_reports_dependent_encounters() -> None:
-    _create_campaign()
+def test_delete_reports_dependent_encounters(create_campaign: Callable[..., None]) -> None:
+    create_campaign()
     for name in ("foundation", "feature"):
         runner.invoke(app, ["encounter", "create", name, "--campaign", "opening-gambit", "--body", "text"])
     runner.invoke(app, ["encounter", "assign-dependency", "feature", "foundation", "--campaign", "opening-gambit"])

@@ -144,7 +144,11 @@ def test_append_log_entry_includes_user() -> None:
     assert "- Jane Doe" in post.content
 
 
-def test_append_log_entry_uses_real_utc_timestamp_by_default() -> None:
+def test_append_log_entry_uses_real_utc_timestamp_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The tree-wide default identity fixture mocks frontmatter_utils.utcnow to a
+    # fixed time, so this test (which checks the real, unmocked default) must
+    # undo it explicitly.
+    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: datetime.now(UTC))
     post = frontmatter.loads("---\nname: test\n---\n\nBody.")
 
     append_log_entry(post, section="Log", heading="Review", message="Looks good.", user="John Hoff")

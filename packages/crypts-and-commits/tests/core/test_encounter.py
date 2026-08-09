@@ -1,21 +1,10 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 import frontmatter
 import pytest
 from cac.core import campaign, encounter, frontmatter_utils, git_utils, region
-
-_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
-
-
-def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
-    monkeypatch.setattr(git_utils, "current_git_user", lambda root: user)
-    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: when)
-
-
-@pytest.fixture(autouse=True)
-def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    _set_identity(monkeypatch)
 
 
 def _make_campaign(tmp_path: Path, name: str = "opening-gambit") -> None:
@@ -107,27 +96,27 @@ def test_encounters_are_scoped_per_campaign(tmp_path: Path) -> None:
     assert encounter.read_encounter(tmp_path, "campaign-two", "shared-name").body.strip() == "second"
 
 
-def test_list_encounters_orders_by_updated_on_ascending(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_list_encounters_orders_by_updated_on_ascending(tmp_path: Path, identity: Callable[..., None]) -> None:
     _make_campaign(tmp_path)
-    _set_identity(monkeypatch, when=datetime(2026, 7, 3, tzinfo=UTC))
+    identity(when=datetime(2026, 7, 3, tzinfo=UTC))
     encounter.create_encounter(tmp_path, "opening-gambit", "middle", "m")
-    _set_identity(monkeypatch, when=datetime(2026, 7, 1, tzinfo=UTC))
+    identity(when=datetime(2026, 7, 1, tzinfo=UTC))
     encounter.create_encounter(tmp_path, "opening-gambit", "oldest", "o")
-    _set_identity(monkeypatch, when=datetime(2026, 7, 5, tzinfo=UTC))
+    identity(when=datetime(2026, 7, 5, tzinfo=UTC))
     encounter.create_encounter(tmp_path, "opening-gambit", "newest", "n")
 
     assert encounter.list_encounters(tmp_path, "opening-gambit") == ["oldest", "middle", "newest"]
 
 
-def test_list_encounters_orders_by_updated_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_list_encounters_orders_by_updated_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     _make_campaign(tmp_path)
-    _set_identity(monkeypatch, when=datetime(2026, 7, 1, tzinfo=UTC))
+    identity(when=datetime(2026, 7, 1, tzinfo=UTC))
     encounter.create_encounter(tmp_path, "opening-gambit", "created-first", "a")
-    _set_identity(monkeypatch, when=datetime(2026, 7, 2, tzinfo=UTC))
+    identity(when=datetime(2026, 7, 2, tzinfo=UTC))
     encounter.create_encounter(tmp_path, "opening-gambit", "created-second", "b")
 
     # Touch the first-created encounter so its updated_on is the most recent.
-    _set_identity(monkeypatch, when=datetime(2026, 7, 3, tzinfo=UTC))
+    identity(when=datetime(2026, 7, 3, tzinfo=UTC))
     encounter.update_encounter(tmp_path, "opening-gambit", "created-first", "a2")
 
     assert encounter.list_encounters(tmp_path, "opening-gambit") == ["created-second", "created-first"]
@@ -677,14 +666,12 @@ def test_create_encounter_sets_created_and_updated_fields(tmp_path: Path) -> Non
     assert metadata["updated_on"] == "2026-07-23T18:04:12Z"
 
 
-def test_touching_an_encounter_refreshes_updated_but_not_created(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_touching_an_encounter_refreshes_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     _review(tmp_path, "opening-gambit", "goblin-ambush", "Looks good.")
 
     metadata, _ = encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")
@@ -694,13 +681,13 @@ def test_touching_an_encounter_refreshes_updated_but_not_created(
     assert metadata["updated_on"] == "2026-08-01T09:00:00Z"
 
 
-def test_assign_region_refreshes_updated_fields(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_assign_region_refreshes_updated_fields(tmp_path: Path, identity: Callable[..., None]) -> None:
     _make_campaign(tmp_path)
     region.create_region(tmp_path, "northlands", "Body.", "Summary.")
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Body.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     encounter.assign_region(tmp_path, "opening-gambit", "goblin-ambush", "northlands")
 
     metadata, _ = encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")
@@ -879,15 +866,15 @@ def test_delete_rejects_encounter_with_dependents(tmp_path: Path) -> None:
 
 
 def test_order_encounters_is_topological_and_uses_created_on_then_name(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, identity: Callable[..., None]
 ) -> None:
     _make_campaign(tmp_path)
-    _set_identity(monkeypatch, when=datetime(2026, 7, 1, tzinfo=UTC))
+    identity(when=datetime(2026, 7, 1, tzinfo=UTC))
     encounter.create_encounter(tmp_path, "opening-gambit", "foundation", "Body.")
-    _set_identity(monkeypatch, when=datetime(2026, 7, 2, tzinfo=UTC))
+    identity(when=datetime(2026, 7, 2, tzinfo=UTC))
     encounter.create_encounter(tmp_path, "opening-gambit", "docs", "Body.")
     encounter.create_encounter(tmp_path, "opening-gambit", "api", "Body.")
-    _set_identity(monkeypatch, when=datetime(2026, 7, 3, tzinfo=UTC))
+    identity(when=datetime(2026, 7, 3, tzinfo=UTC))
     encounter.create_encounter(tmp_path, "opening-gambit", "release", "Body.")
     encounter.assign_dependency(tmp_path, "opening-gambit", "api", "foundation")
     encounter.assign_dependency(tmp_path, "opening-gambit", "docs", "foundation")
@@ -901,7 +888,7 @@ def test_order_encounters_is_topological_and_uses_created_on_then_name(
         "release",
     ]
 
-    _set_identity(monkeypatch, when=datetime(2026, 8, 1, tzinfo=UTC))
+    identity(when=datetime(2026, 8, 1, tzinfo=UTC))
     encounter.update_encounter(tmp_path, "opening-gambit", "api", "Updated.")
     assert [item.name for item in encounter.order_encounters(tmp_path, "opening-gambit")] == [
         "foundation",

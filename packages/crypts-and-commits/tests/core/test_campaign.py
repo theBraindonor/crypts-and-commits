@@ -1,20 +1,9 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from cac.core import campaign, encounter, frontmatter_utils, git_utils, region
-
-_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
-
-
-def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
-    monkeypatch.setattr(git_utils, "current_git_user", lambda root: user)
-    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: when)
-
-
-@pytest.fixture(autouse=True)
-def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    _set_identity(monkeypatch)
+from cac.core import campaign, encounter, git_utils, region
 
 
 def _open_encounter(tmp_path: Path, campaign_name: str, encounter_name: str) -> None:
@@ -169,11 +158,11 @@ def test_create_campaign_sets_created_and_updated_fields(tmp_path: Path) -> None
     assert metadata["updated_on"] == "2026-07-23T18:04:12Z"
 
 
-def test_update_campaign_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_update_campaign_refreshes_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     campaign.create_campaign(tmp_path, "opening-gambit", "Original.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     campaign.update_campaign(tmp_path, "opening-gambit", "Updated.")
 
     metadata, _ = campaign.read_metadata(tmp_path, "opening-gambit")

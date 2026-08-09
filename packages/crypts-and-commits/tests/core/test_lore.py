@@ -1,20 +1,9 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from cac.core import frontmatter_utils, git_utils, lore, region, world
-
-_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
-
-
-def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
-    monkeypatch.setattr(git_utils, "current_git_user", lambda root: user)
-    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: when)
-
-
-@pytest.fixture(autouse=True)
-def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    _set_identity(monkeypatch)
 
 
 def test_list_lore_returns_empty_when_no_directory(tmp_path: Path) -> None:
@@ -175,11 +164,11 @@ def test_update_lore_regenerates_summary(tmp_path: Path) -> None:
     assert lore.read_summary(tmp_path, "conventions") == "Updated summary."
 
 
-def test_update_lore_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_update_lore_refreshes_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     lore.create_lore(tmp_path, "conventions", "Original.", "Summary.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     lore.update_lore(tmp_path, "conventions", "Updated.", "Summary.")
 
     metadata, _ = lore.read_metadata(tmp_path, "conventions")
@@ -239,11 +228,11 @@ def test_set_summary_round_trips(tmp_path: Path) -> None:
     assert lore.read_summary(tmp_path, "conventions") == "A brief routing signal."
 
 
-def test_set_summary_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_set_summary_refreshes_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     lore.set_summary(tmp_path, "conventions", "A brief routing signal.")
 
     metadata, _ = lore.read_metadata(tmp_path, "conventions")
@@ -308,11 +297,11 @@ def test_set_enabled_toggles_flag(tmp_path: Path) -> None:
     assert "enabled: false" in text
 
 
-def test_set_enabled_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_set_enabled_refreshes_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     lore.set_enabled(tmp_path, "conventions", False)
 
     metadata, _ = lore.read_metadata(tmp_path, "conventions")
@@ -336,13 +325,11 @@ def test_set_assigned_to_world_toggles_flag(tmp_path: Path) -> None:
     assert "assigned_to_world: true" in text
 
 
-def test_set_assigned_to_world_refreshes_updated_but_not_created(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_set_assigned_to_world_refreshes_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     lore.set_assigned_to_world(tmp_path, "conventions", True)
 
     metadata, _ = lore.read_metadata(tmp_path, "conventions")
@@ -353,13 +340,13 @@ def test_set_assigned_to_world_refreshes_updated_but_not_created(
 
 
 def test_world_assign_lore_refreshes_lores_updated_but_not_created(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, identity: Callable[..., None]
 ) -> None:
     world.initialize_world(tmp_path)
     lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     world.assign_lore(tmp_path, "conventions")
 
     metadata, _ = lore.read_metadata(tmp_path, "conventions")
@@ -394,11 +381,11 @@ def test_add_assigned_region_is_idempotent(tmp_path: Path) -> None:
     assert result.name == "conventions"
 
 
-def test_add_assigned_region_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_add_assigned_region_refreshes_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     lore.add_assigned_region(tmp_path, "conventions", "northlands")
 
     metadata, _ = lore.read_metadata(tmp_path, "conventions")
@@ -409,13 +396,13 @@ def test_add_assigned_region_refreshes_updated_but_not_created(tmp_path: Path, m
 
 
 def test_region_assign_lore_refreshes_lores_updated_but_not_created(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, identity: Callable[..., None]
 ) -> None:
     region.create_region(tmp_path, "northlands", "Body.", "Summary.")
     lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     region.assign_lore(tmp_path, "northlands", "conventions")
 
     metadata, _ = lore.read_metadata(tmp_path, "conventions")

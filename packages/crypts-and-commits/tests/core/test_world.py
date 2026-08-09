@@ -1,20 +1,9 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from cac.core import frontmatter_utils, git_utils, lore, world
-
-_FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
-
-
-def _set_identity(monkeypatch: pytest.MonkeyPatch, *, user: str = "John Hoff", when: datetime = _FIXED_TIME) -> None:
-    monkeypatch.setattr(git_utils, "current_git_user", lambda root: user)
-    monkeypatch.setattr(frontmatter_utils, "utcnow", lambda: when)
-
-
-@pytest.fixture(autouse=True)
-def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    _set_identity(monkeypatch)
+from cac.core import git_utils, lore, world
 
 
 def test_initialize_world_creates_file_from_template(tmp_path: Path) -> None:
@@ -91,11 +80,11 @@ def test_set_attribute_updates_metadata(tmp_path: Path) -> None:
     assert world.read_world(tmp_path).metadata["name"] == "my-project"
 
 
-def test_set_attribute_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_set_attribute_refreshes_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     world.initialize_world(tmp_path)
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     world.set_attribute(tmp_path, "name", "my-project")
 
     metadata = world.read_world(tmp_path).metadata
@@ -140,11 +129,11 @@ def test_update_body_preserves_metadata(tmp_path: Path) -> None:
     assert world.read_world(tmp_path).metadata["name"] == "my-project"
 
 
-def test_update_body_refreshes_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_update_body_refreshes_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     world.initialize_world(tmp_path)
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     world.update_body(tmp_path, "New content.")
 
     metadata = world.read_world(tmp_path).metadata
@@ -183,12 +172,12 @@ def test_assign_lore_updates_world_and_lore(tmp_path: Path) -> None:
     assert "assigned_to_world: true" in lore_text
 
 
-def test_assign_lore_refreshes_worlds_updated_but_not_created(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_assign_lore_refreshes_worlds_updated_but_not_created(tmp_path: Path, identity: Callable[..., None]) -> None:
     world.initialize_world(tmp_path)
     lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
 
     later = datetime(2026, 8, 1, 9, 0, 0, tzinfo=UTC)
-    _set_identity(monkeypatch, user="Jane Doe", when=later)
+    identity(user="Jane Doe", when=later)
     world.assign_lore(tmp_path, "conventions")
 
     metadata = world.read_world(tmp_path).metadata

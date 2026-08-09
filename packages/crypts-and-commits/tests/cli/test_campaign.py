@@ -16,11 +16,6 @@ def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(git_utils, "current_git_user", _raise)
 
 
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-
-
 def test_get_missing_campaign_fails() -> None:
     result = runner.invoke(app, ["campaign", "get", "missing"])
 

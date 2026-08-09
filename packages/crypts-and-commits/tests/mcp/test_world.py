@@ -1,18 +1,8 @@
 from pathlib import Path
 
 import pytest
-from cac.core import git_utils, world
+from cac.core import world
 from cac.mcp import world as mcp_world
-
-
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-
-
-@pytest.fixture(autouse=True)
-def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(git_utils, "current_git_user", lambda root: "John Hoff")
 
 
 def test_world_get_returns_metadata_and_body(tmp_path: Path) -> None:

@@ -1,15 +1,9 @@
-from pathlib import Path
+from collections.abc import Callable
 
-import pytest
 from cac.cli.app import app
 from typer.testing import CliRunner
 
 runner = CliRunner()
-
-
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
 
 
 def test_status_before_rebuild_reports_no_index() -> None:
@@ -19,9 +13,9 @@ def test_status_before_rebuild_reports_no_index() -> None:
     assert "No index has been built yet" in result.output
 
 
-def test_rebuild_reports_indexed_count() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+def test_rebuild_reports_indexed_count(seed_world: Callable[[], None], create_campaign: Callable[..., None]) -> None:
+    seed_world()
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "-c", "opening-gambit", "--body", "Fight goblins."])
 
     result = runner.invoke(app, ["index", "rebuild"])
@@ -30,9 +24,11 @@ def test_rebuild_reports_indexed_count() -> None:
     assert "3" in result.output
 
 
-def test_status_after_rebuild_reports_counts_by_type() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+def test_status_after_rebuild_reports_counts_by_type(
+    seed_world: Callable[[], None], create_campaign: Callable[..., None]
+) -> None:
+    seed_world()
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "-c", "opening-gambit", "--body", "Fight goblins."])
     runner.invoke(app, ["index", "rebuild"])
 
@@ -45,8 +41,8 @@ def test_status_after_rebuild_reports_counts_by_type() -> None:
     assert "campaign: 1" in result.output
 
 
-def test_search_finds_matching_lore() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
+def test_search_finds_matching_lore(seed_world: Callable[[], None]) -> None:
+    seed_world()
     runner.invoke(app, ["lore", "create", "clean-code", "--body", "Keep functions short.", "--summary", "Summary."])
     runner.invoke(app, ["index", "rebuild"])
 
@@ -58,8 +54,8 @@ def test_search_finds_matching_lore() -> None:
     assert "enabled" in result.output
 
 
-def test_search_finds_matching_region() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
+def test_search_finds_matching_region(seed_world: Callable[[], None]) -> None:
+    seed_world()
     runner.invoke(app, ["region", "create", "backend", "--body", "FastAPI service internals.", "--summary", "Summary."])
     runner.invoke(app, ["index", "rebuild"])
 
@@ -70,9 +66,9 @@ def test_search_finds_matching_region() -> None:
     assert "backend" in result.output
 
 
-def test_search_finds_matching_campaign() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Recover the distinctive-campaign-hoard."])
+def test_search_finds_matching_campaign(seed_world: Callable[[], None], create_campaign: Callable[..., None]) -> None:
+    seed_world()
+    create_campaign(body="Recover the distinctive-campaign-hoard.")
     runner.invoke(app, ["index", "rebuild"])
 
     result = runner.invoke(app, ["index", "search", "distinctive-campaign-hoard", "--type", "campaign"])
@@ -82,8 +78,8 @@ def test_search_finds_matching_campaign() -> None:
     assert "opening-gambit" in result.output
 
 
-def test_search_finds_matching_world() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
+def test_search_finds_matching_world(seed_world: Callable[[], None]) -> None:
+    seed_world()
     runner.invoke(app, ["world", "set-body", "--body", "This world is about distinctive-world-phrase content."])
     runner.invoke(app, ["index", "rebuild"])
 
@@ -100,9 +96,9 @@ def test_search_before_rebuild_reports_no_index() -> None:
     assert "No index has been built yet" in result.output
 
 
-def test_search_finds_matching_encounter() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+def test_search_finds_matching_encounter(seed_world: Callable[[], None], create_campaign: Callable[..., None]) -> None:
+    seed_world()
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "-c", "opening-gambit", "--body", "Fight goblins."])
     runner.invoke(app, ["index", "rebuild"])
 
@@ -116,9 +112,11 @@ def test_search_finds_matching_encounter() -> None:
     assert "draft" in result.output
 
 
-def test_search_no_match_reports_no_results() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+def test_search_no_match_reports_no_results(
+    seed_world: Callable[[], None], create_campaign: Callable[..., None]
+) -> None:
+    seed_world()
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "-c", "opening-gambit", "--body", "Fight goblins."])
     runner.invoke(app, ["index", "rebuild"])
 
@@ -128,9 +126,11 @@ def test_search_no_match_reports_no_results() -> None:
     assert "No results" in result.output
 
 
-def test_search_max_results_and_skip_narrow_the_page() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+def test_search_max_results_and_skip_narrow_the_page(
+    seed_world: Callable[[], None], create_campaign: Callable[..., None]
+) -> None:
+    seed_world()
+    create_campaign()
     for i in range(3):
         runner.invoke(
             app, ["encounter", "create", f"goblin-ambush-{i}", "-c", "opening-gambit", "--body", "Fight goblins."]
@@ -143,9 +143,11 @@ def test_search_max_results_and_skip_narrow_the_page() -> None:
     assert "#2" in result.output
 
 
-def test_search_invalid_type_exits_nonzero() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+def test_search_invalid_type_exits_nonzero(
+    seed_world: Callable[[], None], create_campaign: Callable[..., None]
+) -> None:
+    seed_world()
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "-c", "opening-gambit", "--body", "Fight goblins."])
     runner.invoke(app, ["index", "rebuild"])
 
@@ -155,9 +157,11 @@ def test_search_invalid_type_exits_nonzero() -> None:
     assert "Unknown document type" in result.output
 
 
-def test_search_snippet_tokens_narrows_excerpt() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+def test_search_snippet_tokens_narrows_excerpt(
+    seed_world: Callable[[], None], create_campaign: Callable[..., None]
+) -> None:
+    seed_world()
+    create_campaign()
     body = "goblins " + " ".join(f"word{i}" for i in range(40))
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "-c", "opening-gambit", "--body", body])
     runner.invoke(app, ["index", "rebuild"])
@@ -171,9 +175,11 @@ def test_search_snippet_tokens_narrows_excerpt() -> None:
     assert "word39" in long_result.output
 
 
-def test_search_invalid_snippet_tokens_exits_nonzero() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Body."])
+def test_search_invalid_snippet_tokens_exits_nonzero(
+    seed_world: Callable[[], None], create_campaign: Callable[..., None]
+) -> None:
+    seed_world()
+    create_campaign()
     runner.invoke(app, ["encounter", "create", "goblin-ambush", "-c", "opening-gambit", "--body", "Fight goblins."])
     runner.invoke(app, ["index", "rebuild"])
 
@@ -183,10 +189,12 @@ def test_search_invalid_snippet_tokens_exits_nonzero() -> None:
     assert "snippet_tokens" in result.output
 
 
-def test_search_excludes_archived_campaign_by_default_and_includes_with_flag() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "Recover the goblin hoard."])
-    runner.invoke(app, ["campaign", "open", "opening-gambit"])
+def test_search_excludes_archived_campaign_by_default_and_includes_with_flag(
+    seed_world: Callable[[], None], create_campaign: Callable[..., None], open_campaign: Callable[..., None]
+) -> None:
+    seed_world()
+    create_campaign(body="Recover the goblin hoard.")
+    open_campaign()
     runner.invoke(app, ["campaign", "complete", "opening-gambit", "--message", "Shipped."])
     runner.invoke(app, ["campaign", "archive", "opening-gambit"])
     runner.invoke(app, ["index", "rebuild"])

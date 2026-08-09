@@ -1,18 +1,8 @@
 from pathlib import Path
 
 import pytest
-from cac.core import git_utils, lore, region, world
+from cac.core import lore, region, world
 from cac.mcp import lore as mcp_lore
-
-
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-
-
-@pytest.fixture(autouse=True)
-def _default_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(git_utils, "current_git_user", lambda root: "John Hoff")
 
 
 def test_lore_get_returns_metadata_summary_and_body(tmp_path: Path) -> None:

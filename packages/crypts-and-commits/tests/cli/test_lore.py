@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -14,11 +15,6 @@ def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
         raise git_utils.GitIdentityError("git user.name is not configured.")
 
     monkeypatch.setattr(git_utils, "current_git_user", _raise)
-
-
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
 
 
 def test_get_missing_lore_fails() -> None:
@@ -258,8 +254,8 @@ def test_delete_missing_lore_fails() -> None:
     assert result.exit_code == 1
 
 
-def test_assign_links_lore_to_world(tmp_path: Path) -> None:
-    runner.invoke(app, ["bootstrap", "init"])
+def test_assign_links_lore_to_world(tmp_path: Path, seed_world: Callable[[], None]) -> None:
+    seed_world()
     runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
 
     result = runner.invoke(app, ["lore", "assign-world", "conventions"])
@@ -271,8 +267,10 @@ def test_assign_links_lore_to_world(tmp_path: Path) -> None:
     assert "assigned_to_world: true" in lore_text
 
 
-def test_assign_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
-    runner.invoke(app, ["bootstrap", "init"])
+def test_assign_fails_when_git_identity_unresolvable(
+    monkeypatch: pytest.MonkeyPatch, seed_world: Callable[[], None]
+) -> None:
+    seed_world()
     runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
     _break_git_identity(monkeypatch)
 
@@ -281,8 +279,8 @@ def test_assign_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyP
     assert result.exit_code == 1
 
 
-def test_assign_missing_lore_fails() -> None:
-    runner.invoke(app, ["bootstrap", "init"])
+def test_assign_missing_lore_fails(seed_world: Callable[[], None]) -> None:
+    seed_world()
 
     result = runner.invoke(app, ["lore", "assign-world", "missing"])
 
@@ -297,8 +295,8 @@ def test_assign_without_world_fails() -> None:
     assert result.exit_code == 1
 
 
-def test_unassign_clears_link(tmp_path: Path) -> None:
-    runner.invoke(app, ["bootstrap", "init"])
+def test_unassign_clears_link(tmp_path: Path, seed_world: Callable[[], None]) -> None:
+    seed_world()
     runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["lore", "assign-world", "conventions"])
 
@@ -309,8 +307,10 @@ def test_unassign_clears_link(tmp_path: Path) -> None:
     assert "assigned_to_world: false" in lore_text
 
 
-def test_unassign_fails_when_git_identity_unresolvable(monkeypatch: pytest.MonkeyPatch) -> None:
-    runner.invoke(app, ["bootstrap", "init"])
+def test_unassign_fails_when_git_identity_unresolvable(
+    monkeypatch: pytest.MonkeyPatch, seed_world: Callable[[], None]
+) -> None:
+    seed_world()
     runner.invoke(app, ["lore", "create", "conventions", "--body", "text", "--summary", "Summary."])
     runner.invoke(app, ["lore", "assign-world", "conventions"])
     _break_git_identity(monkeypatch)

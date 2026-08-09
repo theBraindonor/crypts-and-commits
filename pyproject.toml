@@ -36,6 +36,9 @@ members = ["packages/crypts-and-commits", "packages/demo-api"]
 [tool.pytest.ini_options]
 testpaths = ["packages"]
 addopts = "--import-mode=importlib"
+markers = [
+    "integration: genuinely cross-module/real-I/O tests; still runs by default under `pdm run pytest -q` (no addopts exclusion) per explicit GM decision",
+]
 
 [tool.ruff]
 line-length = 120

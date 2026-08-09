@@ -11,11 +11,6 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
-@pytest.fixture(autouse=True)
-def _use_tmp_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-
-
 def test_init_fails_cleanly_when_git_identity_unresolvable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(root: Path) -> str:
         raise git_utils.GitIdentityError("git user.name is not configured.")

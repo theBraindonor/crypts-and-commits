@@ -8,6 +8,8 @@ import pytest
 from cac.core import campaign, encounter, lore, region, search_index, world
 from cac.core.paths import search_index_db_path
 
+pytestmark = pytest.mark.integration
+
 
 def _make_campaign(tmp_path: Path, name: str = "opening-gambit") -> None:
     campaign.create_campaign(tmp_path, name, "Body.")
