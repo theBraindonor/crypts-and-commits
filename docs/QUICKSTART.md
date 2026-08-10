@@ -8,11 +8,8 @@ are all deployed for you by the last step below).
 
 ## 1. Install the package
 
-`crypts-and-commits` isn't published to PyPI yet, so install it straight from
-this repository:
-
 ```bash
-pip install "git+https://github.com/theBraindonor/crypts-and-commits.git#subdirectory=packages/crypts-and-commits"
+pip install crypts-and-commits
 ```
 
 This installs the `cac` CLI and the `cac-mcp` MCP server console script.

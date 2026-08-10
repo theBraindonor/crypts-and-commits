@@ -607,7 +607,7 @@ files = [
 
 [[package]]
 name = "crypts-and-commits"
-version = "0.1.0"
+version = "0.2.0"
 requires_python = ">=3.11"
 editable = true
 path = "./packages/crypts-and-commits"

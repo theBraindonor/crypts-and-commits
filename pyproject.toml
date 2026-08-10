@@ -1,6 +1,6 @@
 [project]
 name = "crypts-and-commits-workspace"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Coding Assistant Continuity Framework. Crypts and Commits uses a tabletop-gaming metaphor to describe collaboration between a developer and an AI coding assistant. The developer acts as the Game Master: establishing context, making decisions, and retaining final authority."
 authors = [
     {name = "John Hoff",email = "john.hoff@braindonor.net"},
