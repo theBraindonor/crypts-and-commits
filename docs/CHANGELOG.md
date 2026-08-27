@@ -3,7 +3,7 @@
 All notable changes to Crypts and Commits (CAC) are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.2.0] - 2026-08-09
+## [0.2.0] - 2026-08-25
 
 The first public release: `crypts-and-commits` is now installable from PyPI,
 and this repository is open to the public. Everything below is the
