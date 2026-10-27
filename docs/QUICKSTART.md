@@ -78,3 +78,54 @@ without being rewritten, so no migration or bootstrap rerun is needed. Existing
 explicit values are preserved. New worlds record both defaults at initialization.
 These settings configure intended branch names; setting them does not create or
 switch branches or enforce a branching workflow.
+
+### Capture future goals as bosses
+
+Boss records capture goals before choosing a campaign:
+
+```bash
+cac boss create b001-improve-planning --body-file "notes/goal.md" --summary "Simplify planning."
+cac boss get b001-improve-planning
+cac boss update b001-improve-planning --body "Simplify planning." --summary "Simplify planning."
+cac boss make-available b001-improve-planning
+cac boss create b002-document-planning --body "Document the workflow." --summary "Document planning."
+cac boss assign-dependency b002-document-planning b001-improve-planning
+cac boss list
+cac boss unassign-dependency b002-document-planning b001-improve-planning
+cac boss withdraw b002-document-planning
+cac boss reactivate b002-document-planning
+cac boss withdraw b002-document-planning
+cac boss archive b002-document-planning
+cac boss list --include-archived
+```
+
+Create/update require a summary (at most 500 characters) and accept inline body,
+`--body-file`, or an editor if neither body option is supplied. Use full names;
+numbered names are optional and short refs are deferred. Make-available records
+readiness even if prerequisites remain unsatisfied. Unassigned proposed/available
+goals can be edited; available goals stay available. Linked, vanquished, withdrawn,
+and archived goals cannot have their designs edited.
+
+Archive accepts only unassigned withdrawn bosses. Archived names are retained;
+get still reads them. There is no deletion/restoration operation. Missing storage
+is empty; first create provisions it without migrating existing records.
+All commands have matching `boss_*` MCP tools. See `cac docs get workflow` for
+state guards, dependency validation, paging, and response contracts. Assignment,
+campaign coupling, rumors operations, boss search/prime integration,
+and automated numbering remain future work.
+
+### Discover the next goal
+
+Run `cac boss candidates` (MCP: `boss_candidates`) for a read-only JSON page of
+summaries, eligibility, prerequisite states, and integrity diagnostics. Resume
+with `cac boss candidates --cursor TOKEN` using the returned `next_cursor`.
+
+Available, unassigned goals with vanquished direct prerequisites are eligible
+when their reachable graph is sound. Proposed goals are `not_ready`; unsatisfied
+available goals are `blocked`. Assigned/retired/archived goals are excluded roots,
+but archived vanquished prerequisites still count. Numeric ordering is not priority.
+Counts distinguish an empty collection from blocked or not-ready goals. Check
+`healthy` and diagnostic/omission fields before treating the inventory as sound.
+Hydrate named records with `cac boss get` or `cac campaign get`; discovery omits
+bodies and bounds explanation lists. It neither selects work nor proves a goal's
+implementation merged; confirm integration through your normal Git workflow.

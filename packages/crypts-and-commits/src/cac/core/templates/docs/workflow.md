@@ -17,7 +17,7 @@ time. `.sourcebook/` is where that context and work history live.
 ### This document
 
 This guide is the single source of truth for the structure of the `.sourcebook`
-domain model: the five content types it holds, the attributes and body shape
+domain model: the six content types it holds, the attributes and body shape
 of each, the workflow/status lifecycle each one follows (where it has one),
 and how the types connect to one another. It exists so that implementation-
 specific agent skills (Claude Code, Codex, and any future assistant flavor)
@@ -44,7 +44,7 @@ not step-by-step usage instructions - those live in the `world-manager` and
 ## CLI body input
 
 All CLI operations with `--body/-b` also accept `--body-file PATH`: world
-`set-body`, and lore, region, campaign, and encounter `create`/`update`.
+`set-body`, and lore, region, boss, campaign, and encounter `create`/`update`.
 These options are mutually exclusive, even when the inline body is empty.
 
 The shared CLI resolver reads file input as UTF-8, preserving newline characters
@@ -67,7 +67,7 @@ no domain operation and does not change response budgets or literal body output.
 
 ## Domain model at a glance
 
-Five content types, each stored as a markdown file with YAML frontmatter
+Six content types, each stored as a markdown file with YAML frontmatter
 under `.sourcebook/`:
 
 | Type      | Cardinality           | Has a status lifecycle? |
@@ -75,6 +75,7 @@ under `.sourcebook/`:
 | World     | Singleton              | No                       |
 | Lore      | Many                   | No (simple enabled/disabled flag, not a guarded lifecycle) |
 | Region    | Many                   | No                       |
+| Boss      | Many                   | Yes: proposed -> available -> withdrawn; reactivate -> proposed |
 | Campaign  | Many (one active/`open` at a time) | Yes: `draft` -> `open` -> `paused`/`completed`/`abandoned` |
 | Encounter | Many, nested under a campaign | Yes: `draft` -> `reviewed` -> `open` -> `completed`/`abandoned` |
 
@@ -563,9 +564,130 @@ Examples (use actual names and include the full encounter reference):
   fix is unidentified. I recommend clarifying which change was made before
   fresh review." An unscripted documentation gap does not imply redoing work.
 
+## Boss planning records
+
+Bosses capture goals before campaign selection. Records live at
+`.sourcebook/bosses/<name>.md`; archives at
+`.sourcebook/archive/bosses/<name>.md`. The nested `bosses/rumors/` namespace
+is reserved and excluded from enumeration; rumors operations are deferred.
+
+Frontmatter contains `name`, required `summary` (maximum 500 characters),
+`status`, `archived`, `depends_on` (direct canonical names), optional
+`campaign`, and the common creation/update stamps. Creation sets proposed,
+unarchived, no campaign, and an empty dependency list. Suggested body headings
+are Goal, Rationale, Success Criteria, Design Notes, and Open Questions;
+none are required. Body text cannot set frontmatter or bypass guards.
+
+| Operation | MCP tool | CLI command |
+| --- | --- | --- |
+| Capture body and summary | `boss_create` | `cac boss create NAME --summary TEXT` |
+| Read metadata, summary, bounded body | `boss_get` | `cac boss get NAME` |
+| Page canonical names | `boss_list` | `cac boss list` |
+| Replace body and summary together | `boss_update` | `cac boss update NAME --summary TEXT` |
+| Mark proposed goal ready | `boss_make_available` | `cac boss make-available NAME` |
+| Withdraw proposed/available goal | `boss_withdraw` | `cac boss withdraw NAME` |
+| Return withdrawn goal to proposed | `boss_reactivate` | `cac boss reactivate NAME` |
+| Archive unassigned withdrawn goal | `boss_archive` | `cac boss archive NAME` |
+| Add direct prerequisite | `boss_assign_dependency` | `cac boss assign-dependency NAME DEPENDENCY` |
+| Remove direct prerequisite | `boss_unassign_dependency` | `cac boss unassign-dependency NAME DEPENDENCY` |
+
+Create/update require body and summary together. CLI accepts `--body/-b`,
+`--body-file`, or an editor initialized with template/current body when neither
+body option is supplied. MCP requires explicit body and summary strings.
+Both surfaces preserve literal markdown, page lists with `cursor`/`--cursor`,
+and budget get bodies. MCP mutation results use the same bounded
+`{metadata, summary, body}` shape as get. Lists return canonical names and a
+next cursor; deterministic ordering does not express priority.
+
+Body/summary/dependency edits require unarchived, unassigned proposed/available
+status. Available edits retain available status. Make-available requires proposed
+status; prerequisites need not be satisfied. Withdraw requires unassigned
+proposed/available status and never changes campaigns or incoming dependencies.
+Reactivate requires unarchived, unassigned withdrawn status. Linked and vanquished
+records are frozen. Every archived mutation is rejected. State changes preserve
+the design body.
+
+Standalone archive accepts only unassigned withdrawn bosses, preserves status
+and body, updates audit stamps, and moves the record while setting archived.
+Destination collisions are rejected; persistence/move failures restore the live
+record and remove the incomplete archive. Get and canonical resolution read live
+and archived records. Default lists exclude archives; use `include_archived=True`
+/ `--include-archived` to inventory retained allocations. Names cannot be reused.
+Live/archive ambiguity is an error. There is no delete, rename, restoration,
+arbitrary metadata setter, or public vanquish operation.
+
+Dependencies persist full canonical names under existing permissive validation.
+Numbered names are optional; short refs and allocation are deferred. Adding edges
+rejects self references, duplicates, unknown/withdrawn targets, and cycles.
+Graph changes validate stored dependency types, missing references, live/archive
+ambiguity, and cycles before writes. Existing edges to later-withdrawn bosses
+remain visible, including after archival. Archived vanquished prerequisites
+resolve normally. Explicit removal can repair missing references or break cycles
+if the resulting entire graph is valid; unrelated damage still blocks changes.
+Dependents are never rewritten, and changes do not reset availability.
+
+Schema compatibility: this is additive storage within schema version 1. Missing
+storage is empty in an existing bootstrapped project; reads create nothing and
+first create provisions directories lazily. No existing world/campaign is
+rewritten, no historical bosses are inferred, and no migration/bootstrap rerun
+is needed. Upgrade the library to use these interfaces; older libraries do not
+manage bosses. Storage links and namespace/path collisions are rejected rather
+than followed outside record locations.
+
+The four statuses include vanquished for future campaign coupling; reads preserve
+optional campaign links. Assignment, campaign coupling,
+short refs, number allocation, rumors operations, active-boss priming, and boss
+search indexing remain deferred. Boss endpoints perform no branch inspection,
+switching, or merge automation; world settings do not change endpoint behavior.
+
+### Candidate discovery
+
+`boss_candidates(cursor=None)` / `cac boss candidates --cursor TOKEN` return
+read-only local-record discovery as compact JSON. They do not prove integration.
+Numeric bNNN-slug names sort by integer, then name; legacy names follow lexically.
+Numeric ties retain distinct names. Order is not priority.
+
+The pool contains live, unassigned proposed/available goals. Proposed goals are
+not_ready; available goals are eligible only when all direct prerequisites are
+recorded vanquished and their reachable graph has no integrity defects; otherwise
+they are blocked. Archived vanquished prerequisites still satisfy the status rule.
+Assigned/withdrawn/vanquished/archived roots are excluded. Readiness is unchanged.
+Optional campaign links must resolve, reciprocate the boss, and agree on state:
+available with draft/open/paused; vanquished with completed. Linked campaign
+statuses are reported, including abandoned/paused.
+
+Page fields: items, next_cursor, counts, healthy, diagnostics,
+diagnostics_omitted, diagnostics_ref. Counts are collection-wide before paging:
+total_live, total_archived, pool, eligible, blocked, not_ready, excluded, invalid.
+Invalid counts unreadable live records; archived defects affect health.
+Counts distinguish empty storage, no pool, not-ready goals, and blocked work.
+Healthy means no integrity diagnostics. Unrelated damage remains visible without
+hiding healthy choices; unsafe/ambiguous storage raises a domain error.
+
+Items carry name, summary, status, classification, eligible, reason_codes,
+prerequisite_count, unsatisfied_count, diagnostic_count, prerequisites,
+diagnostics, and ref: boss_get. Prerequisite details carry name, status, archived,
+satisfied, and optional campaign/campaign_status. Top reason codes: not_ready,
+prerequisite_unsatisfied, integrity_error. Diagnostic codes: invalid_record,
+invalid_summary, invalid_dependencies, duplicate_dependency, self_dependency,
+missing_prerequisite, dependency_cycle, dependency_integrity, invalid_campaign_link,
+campaign_not_found, ambiguous_campaign, invalid_campaign_record,
+campaign_boss_mismatch, campaign_state_mismatch. Entries carry name/code/message
+and optional prerequisite/campaign names. Reachable defects block dependents;
+cycle diagnostics do not imply cycle membership.
+
+Compact JSON for the whole page fits the shared response budget. Details and
+diagnostics show at most 16 entries per list, reduced further as needed; global
+diagnostics use at most one quarter of the budget. Fields prerequisites_omitted,
+diagnostics_omitted, and summary_truncated disclose cuts; counts and eligibility
+remain intact. Hydrate names with boss_get/campaign_get; collection
+diagnostics_ref: boss_list routes omitted problems to inventory and reads.
+Bodies are never included. If required fields/identifiers cannot fit, return an
+explicit budget error. Cursors assume an unchanged store; no snapshot is saved.
+
 ## Cross-cutting: priming, search, and docs
 
-Three auxiliary capabilities sit on top of the five content types above -
+Three auxiliary capabilities sit on top of the six content types above -
 none of them is a content type itself:
 
 - **Prime** (`prime_get` / `cac prime get`, `prime_applicable_lore` /
@@ -576,7 +698,8 @@ none of them is a content type itself:
   applies to it (world-assigned union its assigned regions' lore).
 - **Search index** (`index_status` / `cac index status`, `index_search` /
   `cac index search`) is a full-text index over `.sourcebook` content kept in
-  sync automatically as content changes through `cac`. Rebuilding it
+  sync automatically for world, lore, region, campaign, and encounter records
+  as content changes through `cac`. Boss indexing is deferred. Rebuilding it
   (`cac index rebuild`) is developer-only and intentionally not exposed over
   MCP. `index_search` excludes archived campaigns/encounters by default -
   see the Campaign section's "Archiving" above for the `include_archived`

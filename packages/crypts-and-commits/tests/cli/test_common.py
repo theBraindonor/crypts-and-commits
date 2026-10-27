@@ -8,7 +8,7 @@ import typer
 from cac.cli import common as cli_common
 from cac.cli.app import app
 from cac.cli.common import configure_output_encoding, resolve_body_input
-from cac.core import campaign, encounter, lore, region, world
+from cac.core import boss, campaign, encounter, lore, region, world
 from typer.testing import CliRunner
 
 runner = CliRunner()
@@ -17,26 +17,36 @@ runner = CliRunner()
 @pytest.fixture(
     params=[
         ("world", "set-body"),
-        *[(d, op) for d in ("lore", "region", "campaign", "encounter") for op in ("create", "update")],
+        *[(d, op) for d in ("lore", "region", "campaign", "encounter", "boss") for op in ("create", "update")],
     ]
 )
 def body_command(
     request: pytest.FixtureRequest, tmp_path: Path, seed_world: Callable[[], None]
 ) -> tuple[list[str], Callable[[], str], str]:
     domain, operation = request.param
-    module = {"world": world, "lore": lore, "region": region, "campaign": campaign, "encounter": encounter}[domain]
+    module = {
+        "world": world,
+        "lore": lore,
+        "region": region,
+        "campaign": campaign,
+        "encounter": encounter,
+        "boss": boss,
+    }[domain]
     args = [domain, operation]
     if domain == "world":
         seed_world()
         reader = lambda: world.read_world(tmp_path).body
     else:
         args.append("file-input")
-        if domain in ("lore", "region"):
+        if domain in ("lore", "region", "boss"):
             args.extend(["--summary", "Summary."])
         if domain == "encounter":
             campaign.create_campaign(tmp_path, "opening-gambit", "Campaign.")
             campaign.open_campaign(tmp_path, "opening-gambit")
             reader = lambda: encounter.read_encounter(tmp_path, "opening-gambit", "file-input").body
+        elif domain == "boss":
+            seed_world()
+            reader = lambda: boss.read_metadata(tmp_path, "file-input")[1]
         else:
             read = getattr(module, f"read_{domain}")
             reader = lambda: read(tmp_path, "file-input").body

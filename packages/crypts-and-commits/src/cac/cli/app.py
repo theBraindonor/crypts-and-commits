@@ -1,6 +1,7 @@
 import typer
 
 from cac.cli.bootstrap import app as bootstrap_app
+from cac.cli.boss import app as boss_app
 from cac.cli.campaign import app as campaign_app
 from cac.cli.common import configure_output_encoding
 from cac.cli.docs import app as docs_app
@@ -17,6 +18,7 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 app.add_typer(bootstrap_app, name="bootstrap")
+app.add_typer(boss_app, name="boss")
 app.add_typer(campaign_app, name="campaign")
 app.add_typer(docs_app, name="docs")
 app.add_typer(encounter_app, name="encounter")

@@ -1,7 +1,16 @@
 # Boss Edition: goals before campaigns
 
-Status: design draft for the next release. This document proposes behavior; it
-does not describe shipped commands or approve implementation encounters.
+Status: design for the next release. The boundary below distinguishes implemented
+behavior from future proposals; this document does not approve encounter execution.
+
+Implementation boundary (e006/e007): boss planning storage, lifecycle, archive,
+dependencies, and candidate discovery now have core/CLI/MCP implementations in the
+packaged Workflow Reference Guide. Other sections describe the intended full
+release, including deferred campaign coupling, short refs, rumors,
+prime/search, and skills. The additive collection retains schema version 1:
+missing storage is empty and created lazily, without rewriting old records or
+requiring bootstrap migration. Boss inputs currently accept full canonical
+names only; endpoints do not allocate numbers.
 
 ## Problem
 
@@ -60,8 +69,8 @@ boss's requirements. Boss dependencies are optional hard prerequisites referenci
 other bosses. Planning has a dedicated skill, and merge-policy enforcement is
 skill-based; CI validation is entirely the developer's choice.
 
-Accepted implementation choices and remaining proposals are distinguished in
-the e001 decision record below. All describe future behavior, not shipped APIs.
+Accepted choices and remaining proposals are distinguished in the e001 decision
+record below. Implementation status follows the boundary above.
 
 ## Scope and boundaries
 
@@ -624,7 +633,8 @@ the blockers. No automatic promotion or automatic campaign opening is implied.
 
 ## Proposed interfaces and implementation surfaces
 
-Names below are proposals, not available commands:
+The table spans the full release design. Boss planning and candidate commands
+are implemented; assignment/coupling and other deferred families remain proposals:
 
 | MCP tool family | CLI equivalent | Purpose |
 | --- | --- | --- |

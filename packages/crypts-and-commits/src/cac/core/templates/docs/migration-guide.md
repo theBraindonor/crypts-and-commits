@@ -91,6 +91,14 @@ and exited deliberately:
 
 ## Version-specific migrations
 
+Boss planning storage is additive within schema version 1. Upgrading the library
+provides boss create/read/update, planning transitions, withdrawn-boss archive,
+and dependency operations. Missing boss storage is empty and directories are
+created lazily. Existing worlds, campaigns, and encounters are not rewritten;
+no record migration, guardrail suspension, or bootstrap rerun is needed for
+these operations. Older libraries do not manage the new collection. Campaign
+coupling and workflow adoption remain separate future work.
+
 There are no migrations documented yet - the sourcebook schema is at
 version 1, the version this document itself introduces, and no format
 change has happened since. When `SOURCEBOOK_SCHEMA_VERSION` is next bumped,
