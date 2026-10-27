@@ -91,6 +91,12 @@ In the tool forms below, `campaign` is shown explicitly, but omit it to use the 
 
 Region and dependency assignment are both only permitted while an encounter is `draft`, not after it moves to `reviewed`. Dependency assignments must reference a non-abandoned encounter in the same campaign and cannot introduce a self-dependency or cycle. An abandoned existing prerequisite remains an unsatisfied blocker until it is removed or replaced.
 
+### Draft handoff
+
+After drafting an encounter, give the developer a brief summary before asking for approval to launch the independent review. Include the encounter's name and `draft` status, intended outcome, scope, main planned changes, and how completion will be verified. For an `unscripted` encounter, summarize what was already done and why, rather than inventing a Plan or Verification section. Include a link or reference to the full encounter so the developer can decide whether to inspect it.
+
+Use a short paragraph or a few bullets; summarize the substance rather than pasting the encounter. After revising a rejected or non-reviewable draft, summarize what changed and any unresolved questions before requesting renewed review approval. A draft summary does not authorize a reviewer or execution.
+
 **`draft` → `reviewed`** — this gate is performed by an **independent, fresh reviewer subagent**, never inline by the agent that authored the draft. An agent reviewing its own draft just re-checks it against the priors that produced it — a rubber stamp — so **do not review the encounter yourself**, whatever its `kind`.
 
 1. **Get the user's explicit approval before spawning.** Do not launch the reviewer subagent just because an encounter reached `draft` — drafting is not itself approval to review. Stop and ask the user directly whether to proceed with the independent review, and wait for an explicit yes. This is a separate approval from the later `reviewed` → `open` approval, and it applies every time this step is reached, including a re-review after a **REJECT**/**NOT-REVIEWABLE** verdict and a follow-up `encounter_update` — not just the first pass over a fresh draft.
@@ -100,6 +106,20 @@ Region and dependency assignment are both only permitted while an encounter is `
 5. **Feedback after the fact is a logged message, not a re-draft.** If the user has feedback or requested changes in response to a PASS-WITH-NOTES review, capture it with `encounter_record_message(name, message)` — do not attempt to reopen or re-draft the encounter's sections; the content is already locked, and `encounter_update` no longer applies once status has moved past `draft`.
 
 On **REJECT** or **NOT-REVIEWABLE**, the auto-transition does not apply: do not run `encounter_review`, relay the reviewer's reasons to the user, revise the draft with `encounter_update` (still allowed while `draft`), and return to step 1 — get the user's explicit approval again — before spawning a fresh reviewer.
+
+### Review handoff
+
+After every independent review, give the developer a brief summary of the review and its practical impact, with a link or reference to the full encounter. Include:
+
+- The verdict and material findings, explicitly saying when there are no blocking issues or actionable notes.
+- What the findings mean for scope, approach, risks, verification, or readiness. Distinguish recommended or proposed changes from revisions or other actions actually taken.
+- The resulting encounter status and an explicit recommendation to **proceed** or **revise**, with a short reason and any remaining conditions.
+
+For **PASS-WITH-NOTES**, first perform the automatic `encounter_review` transition using the reviewer's proposed message as required above, then summarize the findings and impact. State that the encounter is `reviewed` and its sections are locked. Recommend proceeding when the notes can be handled under the approved plan; if they instead call for changes, explain the needed follow-up and record it with `encounter_record_message`, without attempting to replace locked sections. Ask for separate approval before opening; a recommendation is not approval.
+
+For **REJECT** or **NOT-REVIEWABLE**, keep the encounter `draft`, summarize the review's reasons and impact, and recommend revision or clarification before a fresh review. After updating the draft, state which changes were actually made and which concerns remain, provide the revised draft summary, and ask for renewed review approval. Never imply that revisions alone have passed review. For `unscripted` encounters, explain the impact on the accuracy of the recorded work and any follow-up needed rather than implying that the recorded work awaits execution.
+
+This conversational summary supplements the independent reviewer's recorded message; do not replace or rewrite that message with your own summary. Keep summaries concise and specific enough to support the developer's decision about reading the full encounter.
 
 #### Reviewer subagent prompt template
 

@@ -471,6 +471,66 @@ already covers it. Campaign-level transitions (`open`/`pause`/`complete`/
 gate of their own in this model; they take effect as soon as the
 corresponding mutating tool is called.
 
+## Codex encounter handoffs
+
+The Codex `campaign-manager` skill makes two decision points explicit in
+conversation. These handoffs supplement the encounter record and preserve
+all three approval gates above. This guidance targets the Codex skill;
+Claude's existing skill procedure is unchanged.
+
+After drafting, and before asking to launch the independent reviewer, give
+a short summary of the encounter's name, `draft` status, intended outcome,
+scope, main planned changes, and verification approach. Include a link or
+reference to the full encounter so the developer can choose whether to read
+it. For an `unscripted` encounter, summarize work already done and why;
+there is no Plan or Verification section to invent. After revising a
+rejected or non-reviewable draft, summarize the changes and remaining
+questions before requesting renewed review approval.
+
+After every independent review, summarize the verdict, material findings
+(or their absence), and their practical impact on scope, approach, risks,
+verification, or readiness. Distinguish proposed changes from actions
+actually taken, state the resulting encounter status, and include a link or
+reference to the full encounter. Give an explicit recommendation to proceed
+or revise, with reasons and any remaining conditions:
+
+- **PASS-WITH-NOTES:** first auto-transition using the reviewer's proposed
+  message, then give the summary. State that the encounter is `reviewed`
+  and its sections are locked. Explain whether notes can be handled under
+  the plan or need follow-up recorded with `encounter_record_message`;
+  locked sections cannot be replaced. Request separate approval to open.
+- **REJECT / NOT-REVIEWABLE:** keep the encounter `draft`, explain the
+  blockers or missing information and their impact, and recommend revision
+  or clarification before a fresh review. After revising, distinguish
+  changes actually made from outstanding concerns and request renewed
+  approval to launch a fresh reviewer. Revision alone is not a passing
+  review.
+
+For unscripted reviews, describe the findings' impact on the recorded
+work's accuracy and any follow-up needed, rather than presenting work
+already done as future execution. Keep each handoff to a short paragraph or
+a few bullets. The conversational summary must not replace or rewrite the
+independent reviewer's message recorded by `encounter_review`, and a
+recommendation never authorizes a reviewer, opening, or completion.
+
+Examples (use actual names and include the full encounter reference):
+
+- **Draft:** "`e005` is draft: add Codex summaries to the packaged skill
+  and guide; check review outcomes and gates, then pytest and Ruff.
+  May I launch independent review?" For an unscripted record, summarize
+  the change already made and its rationale instead.
+- **Pass:** "PASS-WITH-NOTES; now reviewed and locked. No blockers.
+  The reviewer requests clearer examples, already covered by the plan,
+  so scope is unchanged. I recommend proceeding. May I open it?"
+  If there are no actionable notes, say so and explain readiness.
+- **Reject:** "REJECT; still draft. Editing deployed skills would lose
+  changes on redeployment. I recommend targeting packaged templates."
+  After updating: "The draft now targets templates; may I launch a fresh
+  review?" This distinguishes the finding from the correction actually made.
+- **Not reviewable:** "NOT-REVIEWABLE; still draft. The recorded timeout
+  fix is unidentified. I recommend clarifying which change was made before
+  fresh review." An unscripted documentation gap does not imply redoing work.
+
 ## Cross-cutting: priming, search, and docs
 
 Three auxiliary capabilities sit on top of the five content types above -
