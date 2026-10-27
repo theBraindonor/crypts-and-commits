@@ -1,7 +1,7 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail
+from cac.cli.common import edit_markdown, fail, resolve_body_input
 from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
 from cac.core.git_utils import GitIdentityError
@@ -71,9 +71,15 @@ def list_campaigns(
 @app.command("create")
 def create_campaign(
     name: str = typer.Argument(..., help="Campaign name (letters, numbers, underscores, hyphens, periods)."),
-    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Markdown body. Opens an editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(
+        None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
+    ),
 ) -> None:
     """Create a new campaign file."""
+    body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(campaign_core.template_body())
 
     try:
@@ -87,7 +93,12 @@ def create_campaign(
 @app.command("update")
 def update_campaign(
     name: str = typer.Argument(..., help="Campaign name to update."),
-    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Markdown body. Opens an editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(
+        None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
+    ),
 ) -> None:
     """Update an existing campaign file's body. Fails once the campaign is 'completed' or
     'abandoned' - its body is locked once its postmortem is recorded."""
@@ -96,6 +107,7 @@ def update_campaign(
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
 
+    body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(current.body)
     try:
         path = campaign_core.update_campaign(resolve_project_root(), name, content)

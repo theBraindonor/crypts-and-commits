@@ -29,6 +29,19 @@ def edit_markdown(initial: str) -> str:
     return edited if edited is not None else initial
 
 
+def resolve_body_input(body: str | None, body_file: str | None) -> str | None:
+    """Resolve explicit CLI input, preserving None for the command's editor fallback."""
+    if body is not None and body_file is not None:
+        raise typer.BadParameter("--body and --body-file cannot be used together.", param_hint="--body-file")
+    if body_file is None:
+        return body
+    try:
+        with open(body_file, encoding="utf-8", newline="") as source:
+            return source.read()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise typer.BadParameter(f"Cannot read UTF-8 body file {body_file!r}: {exc}", param_hint="--body-file") from exc
+
+
 def fail(console: Console, message: str) -> NoReturn:
     console.print(f"[bold red]{message}[/bold red]")
     raise typer.Exit(code=1)

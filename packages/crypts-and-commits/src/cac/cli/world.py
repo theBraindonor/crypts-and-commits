@@ -1,7 +1,7 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail
+from cac.cli.common import edit_markdown, fail, resolve_body_input
 from cac.core import budget as budget_core
 from cac.core import world as world_core
 from cac.core.git_utils import GitIdentityError
@@ -49,7 +49,12 @@ def set_attribute(
 
 @app.command("set-body")
 def set_body(
-    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Markdown body. Opens an editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(
+        None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
+    ),
 ) -> None:
     """Update the world file's body."""
     try:
@@ -57,6 +62,7 @@ def set_body(
     except world_core.WorldNotFoundError as exc:
         fail(console, str(exc))
 
+    body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(current.body)
     try:
         world_core.update_body(resolve_project_root(), content)

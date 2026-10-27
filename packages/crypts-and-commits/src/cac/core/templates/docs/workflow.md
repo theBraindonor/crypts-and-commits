@@ -41,6 +41,30 @@ the MCP tool name and CLI command for each, but describes the model itself,
 not step-by-step usage instructions - those live in the `world-manager` and
 `campaign-manager` agent skills.
 
+## CLI body input
+
+All CLI operations with `--body/-b` also accept `--body-file PATH`: world
+`set-body`, and lore, region, campaign, and encounter `create`/`update`.
+These options are mutually exclusive, even when the inline body is empty.
+
+The shared CLI resolver reads file input as UTF-8, preserving newline characters
+before passing the body through the ordinary core operation. Existing core
+storage normalization, body validation, summary requirements, and lifecycle
+guards apply equally to inline and file input. CAC neither modifies nor removes
+the input file. An empty file is an explicitly supplied empty body, not a request
+to open an editor. If neither option is supplied, the command keeps its existing
+editor/template behavior, including encounter-kind-specific templates.
+
+Missing files, directory paths, unreadable files, invalid UTF-8, and conflicting
+options produce CLI usage errors before any record write. Explicit file input
+does not open an editor. Paths are resolved relative to the caller's working
+directory, independently of project-root discovery.
+
+For example, `cac campaign create opening-gambit --body-file "notes/campaign plan.md"`
+creates a draft campaign from an ordinary input file. Corresponding MCP tools
+still receive body strings; they do not accept local file paths. File input adds
+no domain operation and does not change response budgets or literal body output.
+
 ## Domain model at a glance
 
 Five content types, each stored as a markdown file with YAML frontmatter

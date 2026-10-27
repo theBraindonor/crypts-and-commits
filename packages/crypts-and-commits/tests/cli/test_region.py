@@ -9,6 +9,26 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("operation", ["create", "update"])
+def test_body_file_still_requires_summary(tmp_path: Path, operation: str) -> None:
+    from cac.core import region
+
+    if operation == "update":
+        region.create_region(tmp_path, "file-input", "Original.", "Original summary.")
+    before = region.read_metadata(tmp_path, "file-input") if operation == "update" else None
+    source = tmp_path / "body.md"
+    source.write_text("Replacement.", encoding="utf-8")
+
+    result = runner.invoke(app, ["region", operation, "file-input", "--body-file", str(source)])
+
+    assert result.exit_code == 1
+    assert "summary is required" in result.output
+    if before is None:
+        assert "file-input" not in region.list_regions(tmp_path)
+    else:
+        assert region.read_metadata(tmp_path, "file-input") == before
+
+
 def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(root: Path) -> str:
         raise git_utils.GitIdentityError("git user.name is not configured.")

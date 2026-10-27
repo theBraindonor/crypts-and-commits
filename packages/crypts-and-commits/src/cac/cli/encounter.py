@@ -3,7 +3,7 @@ from typing import Any
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail
+from cac.cli.common import edit_markdown, fail, resolve_body_input
 from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
@@ -118,7 +118,12 @@ def order_encounters(
 def create_encounter(
     name: str = typer.Argument(..., help="Encounter name (letters, numbers, underscores, hyphens, periods)."),
     campaign: str | None = _campaign_option(),
-    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Markdown body. Opens an editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(
+        None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
+    ),
     kind: str = typer.Option(
         "scripted",
         "--kind",
@@ -130,6 +135,7 @@ def create_encounter(
     """Create a new encounter file."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
+        body = resolve_body_input(body, body_file)
         content = body if body is not None else edit_markdown(encounter_core.template_body(kind))
     except encounter_core.InvalidEncounterKindError as exc:
         fail(console, str(exc))
@@ -152,7 +158,12 @@ def create_encounter(
 def update_encounter(
     name: str = typer.Argument(..., help="Encounter name to update."),
     campaign: str | None = _campaign_option(),
-    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Markdown body. Opens an editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(
+        None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
+    ),
 ) -> None:
     """Update an existing encounter file's body. Only permitted while status is 'draft'."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
@@ -168,6 +179,7 @@ def update_encounter(
             "'draft' status. Use 'cac encounter record-message' to append additional context instead.",
         )
 
+    body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(current.body)
     try:
         path = encounter_core.update_encounter(resolve_project_root(), campaign, name, content)

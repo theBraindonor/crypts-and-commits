@@ -72,6 +72,23 @@ re-explaining yourselves to the other, or to whoever picks this up next.
   `cac docs get migration-guide`.
 - **[Changelog](docs/CHANGELOG.md)** — notable changes, by release.
 
+## CLI bodies from files
+
+Every CLI command that accepts `--body/-b` also accepts `--body-file PATH`.
+For example, prepare a UTF-8 markdown file named `notes/campaign plan.md`, then
+create a draft campaign with:
+
+```shell
+cac campaign create opening-gambit --body-file "notes/campaign plan.md"
+```
+
+CAC reads the input file and performs the managed write through its normal
+API; the input file is left unchanged. Use either `--body` or `--body-file`,
+never both. If neither is supplied, the existing editor flow applies. Empty
+files count as explicit empty bodies. Required summaries and lifecycle guards
+still apply. In this development workspace, prefix the command with `pdm run`.
+MCP operations continue to accept body text directly.
+
 ## Domain model & personas
 
 Borrowing a tabletop metaphor here isn't decoration — a ruleset like this

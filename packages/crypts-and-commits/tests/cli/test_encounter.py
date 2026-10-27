@@ -10,6 +10,32 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("explicit_campaign", [False, True])
+def test_body_file_preserves_encounter_kind_and_update_lock(
+    tmp_path: Path, create_campaign: Callable[..., None], open_campaign: Callable[..., None], explicit_campaign: bool
+) -> None:
+    from cac.core import encounter
+
+    create_campaign()
+    open_campaign()
+    source = tmp_path / "encounter body.md"
+    source.write_text("Recorded work.", encoding="utf-8")
+    options = ["--campaign", "opening-gambit"] if explicit_campaign else []
+    result = runner.invoke(
+        app, ["encounter", "create", "goblin-ambush", *options, "--kind", "unscripted", "--body-file", str(source)]
+    )
+    assert result.exit_code == 0, result.output
+    assert encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")[0]["kind"] == "unscripted"
+    assert _review().exit_code == 0
+    before = encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")
+
+    result = runner.invoke(app, ["encounter", "update", "goblin-ambush", *options, "--body-file", str(source)])
+
+    assert result.exit_code == 1
+    assert "draft" in result.output
+    assert encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush") == before
+
+
 def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(root: Path) -> str:
         raise git_utils.GitIdentityError("git user.name is not configured.")

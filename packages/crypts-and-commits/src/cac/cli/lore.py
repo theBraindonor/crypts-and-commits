@@ -1,7 +1,7 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail
+from cac.cli.common import edit_markdown, fail, resolve_body_input
 from cac.core import budget as budget_core
 from cac.core import lore as lore_core
 from cac.core import region as region_core
@@ -68,7 +68,12 @@ def list_lore(
 @app.command("create")
 def create_lore(
     name: str = typer.Argument(..., help="Lore name (letters, numbers, underscores, hyphens, periods)."),
-    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Markdown body. Opens an editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(
+        None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
+    ),
     summary: str | None = typer.Option(
         None, "--summary", "-s", help="Short routing summary (max 500 characters). Required alongside the body."
     ),
@@ -77,6 +82,7 @@ def create_lore(
     if summary is None:
         fail(console, "A summary is required: pass --summary/-s so the new body is stored with a current summary.")
 
+    body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(lore_core.template_body())
 
     try:
@@ -95,7 +101,12 @@ def create_lore(
 @app.command("update")
 def update_lore(
     name: str = typer.Argument(..., help="Lore name to update."),
-    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Markdown body. Opens an editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(
+        None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
+    ),
     summary: str | None = typer.Option(
         None, "--summary", "-s", help="Short routing summary (max 500 characters). Required alongside the body."
     ),
@@ -109,6 +120,7 @@ def update_lore(
     except lore_core.LoreNotFoundError as exc:
         fail(console, str(exc))
 
+    body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(current.body)
 
     try:

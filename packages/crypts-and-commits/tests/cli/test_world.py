@@ -10,6 +10,24 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+def test_body_file_crlf_matches_inline_input(tmp_path: Path, seed_world: Callable[[], None]) -> None:
+    from cac.core import world
+
+    seed_world()
+    body = "# World\r\n\r\nCafé → [tool.pdm.workspace]\r\n"
+    source = tmp_path / "world body.md"
+    source.write_bytes(body.encode("utf-8"))
+    result = runner.invoke(app, ["world", "set-body", "--body", body])
+    assert result.exit_code == 0
+    inline = world.read_world(tmp_path).body
+
+    result = runner.invoke(app, ["world", "set-body", "--body-file", str(source)])
+
+    assert result.exit_code == 0, result.output
+    assert world.read_world(tmp_path).body == inline
+    assert source.read_bytes() == body.encode("utf-8")
+
+
 def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(root: Path) -> str:
         raise git_utils.GitIdentityError("git user.name is not configured.")

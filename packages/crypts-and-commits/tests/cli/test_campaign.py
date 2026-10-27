@@ -9,6 +9,27 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("terminal", ["completed", "abandoned"])
+def test_body_file_cannot_update_terminal_campaign(tmp_path: Path, terminal: str) -> None:
+    from cac.core import campaign
+
+    campaign.create_campaign(tmp_path, "closed", "Original.")
+    if terminal == "completed":
+        campaign.open_campaign(tmp_path, "closed")
+        campaign.complete_campaign(tmp_path, "closed", "Done.")
+    else:
+        campaign.abandon_campaign(tmp_path, "closed", "Cancelled.")
+    before = campaign.read_metadata(tmp_path, "closed")
+    source = tmp_path / "replacement.md"
+    source.write_text("Replacement.", encoding="utf-8")
+
+    result = runner.invoke(app, ["campaign", "update", "closed", "--body-file", str(source)])
+
+    assert result.exit_code == 1
+    assert "locked" in result.output
+    assert campaign.read_metadata(tmp_path, "closed") == before
+
+
 def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(root: Path) -> str:
         raise git_utils.GitIdentityError("git user.name is not configured.")
