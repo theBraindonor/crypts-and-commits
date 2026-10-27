@@ -31,6 +31,22 @@ section should give the agent every concrete change needed to bring a
 sourcebook fully onto the new version - what changed structurally, and
 exactly how to apply it.
 
+## Hook redeployment is separate from record migration
+
+The current packaged Codex guard denies only `apply_patch` file targets inside
+the managed sourcebook. It does not filter shell calls or ordinary-file patch
+content mentioning managed paths. The MCP/CLI-only instruction still applies;
+this change narrows automated enforcement, not the workflow.
+
+After a library upgrade, the developer runs `cac bootstrap init` to replace
+the framework-owned script and upgrade recognized legacy Bash/apply_patch hook
+registrations to apply_patch only, preserving unrelated hooks/settings. The
+developer then reviews/trusts the changed hook through `/hooks` and re-enables
+it if necessary. The agent must not run bootstrap or edit deployed copies.
+This deployment change requires no sourcebook schema migration and does not
+authorize suspending any guardrail or directly editing managed records. Record
+migrations still follow the explicit approval and restoration procedure below.
+
 ## Generic migration procedure
 
 This procedure applies to every migration, regardless of which

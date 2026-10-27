@@ -117,8 +117,30 @@ def test_init_creates_codex_config(tmp_path: Path) -> None:
     assert server["args"] == []
     assert server["default_tools_approval_mode"] == "approve"
     guard_group = parse(config_path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"][0]
-    assert guard_group["matcher"] == "^(Bash|apply_patch)$"
+    assert guard_group["matcher"] == "^apply_patch$"
     assert (tmp_path / ".codex" / "hooks" / "sourcebook_guard.py").is_file()
+
+
+def test_init_upgrades_old_guard_registration_and_script(tmp_path: Path) -> None:
+    assert runner.invoke(app, ["bootstrap", "init"]).exit_code == 0
+    config_path = tmp_path / ".codex" / "config.toml"
+    config = parse(config_path.read_text(encoding="utf-8"))
+    config["hooks"]["PreToolUse"][0]["matcher"] = "^(Bash|apply_patch)$"
+    config_path.write_text(config.as_string(), encoding="utf-8")
+    hook_path = tmp_path / ".codex" / "hooks" / "sourcebook_guard.py"
+    hook_path.write_text("old broad guard", encoding="utf-8")
+    world_path = tmp_path / ".sourcebook" / "world.md"
+    world_before = world_path.read_bytes()
+
+    result = runner.invoke(app, ["bootstrap", "init"])
+
+    assert result.exit_code == 0, result.output
+    assert "patch guard registration" in result.output
+    groups = parse(config_path.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    assert len(groups) == 1
+    assert groups[0]["matcher"] == "^apply_patch$"
+    assert "_patch_targets" in hook_path.read_text(encoding="utf-8")
+    assert world_path.read_bytes() == world_before
 
 
 def test_init_deploys_agent_skills(tmp_path: Path) -> None:

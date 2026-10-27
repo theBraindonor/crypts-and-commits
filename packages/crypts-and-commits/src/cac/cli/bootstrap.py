@@ -89,9 +89,13 @@ def _report_claude_settings(path: Path, changed: bool) -> None:
 
 def _report_codex_config(path: Path, changed: bool) -> None:
     if changed:
-        console.print(f"Registered the crypts-and-commits MCP server in [bold green]{path}[/bold green]")
+        console.print(
+            f"Updated the crypts-and-commits MCP server and patch guard registration in [bold green]{path}[/bold green]"
+        )
     else:
-        console.print(f"[bold yellow]{path}[/bold yellow] already registers the crypts-and-commits MCP server")
+        console.print(
+            f"[bold yellow]{path}[/bold yellow] already has the current MCP server and patch guard registration"
+        )
 
 
 def _report_codex_guard_hook(path: Path, changed: bool) -> None:

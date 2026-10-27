@@ -566,3 +566,37 @@ pieces above together in practice.
 agent skills into a target project. It is invoked by the developer only,
 never by an agent, and is intentionally not exposed over MCP at all - it sits
 outside the day-to-day domain model described above.
+
+### Codex patch guard
+
+The packaged Codex `PreToolUse` hook is registered for `^apply_patch$` only.
+It checks the actual file-operation headers (`Add File`, `Update File`,
+`Delete File`, and `Move to`) in the patch, denying the whole operation when
+any target has a normalized `.sourcebook` path component. Both move endpoints
+and every file in a multi-file patch are checked. Added, removed, and context
+lines are not file headers, so ordinary repository patches can discuss
+sourcebook paths without being blocked. Shell calls are not filtered by this
+hook. The MCP/CLI-only instruction for managed content remains binding.
+
+Supported events have `tool_name: "apply_patch"` and either a string
+`tool_input` or an object whose `command` field contains the patch string.
+Headers start at column zero, with standard LF or CRLF line endings and
+unquoted file paths. The guard normalizes dot segments and slash/backslash
+separators; Windows paths use case-insensitive component comparison, while
+native POSIX paths retain case. Header scanning does not require a complete
+patch envelope; apply_patch itself validates patch syntax. Invalid JSON,
+missing/wrongly typed fields, unsupported payloads, and text without recognized
+headers yield no hook decision. This lexical guard is not a complete filesystem
+sandbox: symlink/junction aliases, unusual filesystem path aliases, and other
+tool payload formats are outside its enforcement contract.
+
+Developer-run bootstrap replaces the framework-owned deployed script and
+upgrades recognized legacy `^(Bash|apply_patch)$` registrations. It retains one
+apply_patch-only framework registration without duplicates, preserving unrelated
+hooks (including those sharing the broad group), settings, and recognized hook
+customizations. Custom hook commands or matchers outside the known framework
+registration are left alone and may still need developer review. The developer
+reviews/trusts the updated project hook through `/hooks` and re-enables it if
+temporarily disabled. Agents neither redeploy the hook nor change live trust
+settings. Local `CLAUDE.md`/`AGENTS.md` descriptions may need targeted adoption
+edits after deployment; bootstrap does not rewrite those user-owned files.

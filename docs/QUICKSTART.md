@@ -28,7 +28,9 @@ session) that sets up everything an agent needs:
 - Creates `.sourcebook/` and seeds an empty `world.md`.
 - Registers the `crypts-and-commits` MCP server for both Claude Code
   (`.mcp.json`) and Codex (`.codex/config.toml`), and deploys the Codex
-  sourcebook-guard hook.
+  sourcebook-guard hook, which denies `apply_patch` edits targeting managed
+  sourcebook files. It does not filter shell commands or ordinary-file patches
+  whose content merely mentions sourcebook paths.
 - Adds the `.sourcebook/` guardrail permissions to `.claude/settings.json`.
 - Deploys the `world-manager` and `campaign-manager` agent skills into both
   `.claude/skills/` and `.agents/skills/`.
@@ -36,6 +38,14 @@ session) that sets up everything an agent needs:
 It's safe to run again later - re-running only fills in anything missing or
 updates framework-owned files (like the skills) to a newer `cac` release;
 your own edits to `.sourcebook/` content are never touched.
+
+After upgrading CAC, run `cac bootstrap init` yourself to replace the packaged
+hook script and upgrade its old Bash/apply_patch registration to apply_patch
+only. Unrelated hooks and configuration are preserved. In Codex, review and
+trust the updated project hook through `/hooks`, and re-enable it if it was
+temporarily disabled. Agents must not run bootstrap or edit deployed hooks.
+Managed sourcebook content must still be accessed through CAC's MCP/CLI
+interfaces; narrower hook enforcement does not relax that workflow.
 
 ## 3. Hand off to your agent
 
