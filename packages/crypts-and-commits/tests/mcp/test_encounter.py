@@ -41,6 +41,27 @@ def test_encounter_list_returns_items_and_cursor(tmp_path: Path) -> None:
     assert result["next_cursor"] is None
 
 
+def test_archive_list_resolves_parent_and_paged_identities(tmp_path, monkeypatch):
+    from cac.core import config, references
+
+    campaign.create_campaign(tmp_path, "c999-history", "History")
+    for name in ("e999-old", "e1000-last"):
+        encounter.create_encounter(tmp_path, "c999-history", name, "Historical")
+        encounter.abandon_encounter(tmp_path, "c999-history", name, "Done")
+    campaign.abandon_campaign(tmp_path, "c999-history", "Done")
+    campaign.archive_campaign(tmp_path, "c999-history")
+    assert mcp_encounter.encounter_list("c999")["items"] == []
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 350)
+    result = mcp_encounter.encounter_list("c999", include_archived=True)
+    assert len(references.encoded(result)) <= 350
+    names = result["items"]
+    assert all(item["campaign"] == "c999-history" for item in result["identities"])
+    if result["next_cursor"]:
+        names += mcp_encounter.encounter_list("c999", result["next_cursor"], include_archived=True)["items"]
+    assert set(names) == {"e999-old", "e1000-last"}
+    assert mcp_encounter.encounter_list(include_archived=True)["items"] == []
+
+
 def test_encounter_order_returns_dependency_order(tmp_path: Path) -> None:
     encounter.create_encounter(tmp_path, "opening-gambit", "first", "Body.")
     encounter.create_encounter(tmp_path, "opening-gambit", "second", "Body.")

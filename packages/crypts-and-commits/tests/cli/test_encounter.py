@@ -10,6 +10,21 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+def test_archive_inventory_accepts_explicit_archived_parent(tmp_path):
+    from cac.core import campaign, encounter
+
+    campaign.create_campaign(tmp_path, "c999-history", "History")
+    encounter.create_encounter(tmp_path, "c999-history", "e1000-old", "History")
+    encounter.abandon_encounter(tmp_path, "c999-history", "e1000-old", "Done")
+    campaign.abandon_campaign(tmp_path, "c999-history", "Done")
+    campaign.archive_campaign(tmp_path, "c999-history")
+    result = runner.invoke(app, ["encounter", "list", "--campaign", "c999", "--include-archived"])
+    assert result.exit_code == 0, result.output
+    assert "e1000-old" in result.output and "c999/e1000" in result.output
+    assert "e1000-old" not in runner.invoke(app, ["encounter", "list", "--campaign", "c999"]).output
+    assert runner.invoke(app, ["encounter", "list", "--campaign", "c999", "--cursor", "bad"]).exit_code == 1
+
+
 @pytest.mark.parametrize("explicit_campaign", [False, True])
 def test_body_file_preserves_encounter_kind_and_update_lock(
     tmp_path: Path, create_campaign: Callable[..., None], open_campaign: Callable[..., None], explicit_campaign: bool

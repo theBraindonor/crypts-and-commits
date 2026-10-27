@@ -3,12 +3,15 @@
 Status: design for the next release. The boundary below distinguishes implemented
 behavior from future proposals; this document does not approve encounter execution.
 
-Implementation boundary (e006/e007/e008/e009/e011/e012/e013/e014): boss planning, dependencies,
+Implementation boundary (e006/e007/e008/e009/e011/e012/e013/e014/e015): boss planning, dependencies,
 candidate discovery, short refs, promotion, campaign coupling, rumors, active-boss prime,
 boss search, content-based index freshness, multi-boss campaigns, and explicit roadmap
-recording/historical completion are implemented in the
-packaged Workflow Reference Guide. Other sections describe the intended full
-release, including deferred skills and adoption guidance. The additive collection retains schema version 1:
+recording/historical completion, archive-inclusive campaign/encounter inventory,
+and packaged planning/campaign skill guidance are implemented in the Workflow
+Reference Guide. Skill templates include world-planner plus updated manager
+variants and deployment registration; developer-run redeployment remains separate.
+The branching guide and broader local-instruction adoption remain deferred.
+The additive collection retains schema version 1:
 missing storage is empty and created lazily, without rewriting old records or
 requiring bootstrap migration. Existing targets accept canonical names and short
 refs; new create names stay literal. Endpoints do not allocate numbers.
@@ -796,6 +799,16 @@ packaged Claude and Codex variants added to the deployed skill set. Update
 campaign-manager for assignment, branch checks,
 completion/reactivation, and collision checks. Update the canonical packaged
 workflow reference with these procedures. Deployed skill copies are not authoring sources.
+
+e015 implements this packaged workflow, including roadmap recording, group selection,
+draft membership, retained-number allocation and three collision checkpoints.
+campaign_list/encounter_list now accept include_archived=True (CLI --include-archived)
+so allocation can enumerate retained history without direct managed-file reads or
+index dependence. Defaults stay live-only; identities, scopes, sorting and paging
+are preserved. Ambiguous/unsafe storage fails instead of choosing one record.
+Both variants retain encounter review/open/completion gates and substantive handoffs.
+Read-only scenario validation and package/deployment tests verify the implementation;
+this does not grant permission to deploy, alter local instructions, or integrate branches.
 
 ## Quality-of-life changes in this release
 

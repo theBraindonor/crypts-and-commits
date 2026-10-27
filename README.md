@@ -72,6 +72,15 @@ re-explaining yourselves to the other, or to whoever picks this up next.
   `cac docs get migration-guide`.
 - **[Changelog](docs/CHANGELOG.md)** — notable changes, by release.
 
+## Agent skills
+
+CAC packages three skills for Claude and Codex: **world-manager** for static
+context and lore, **world-planner** for goals, roadmap adoption and rumor
+distillation, and **campaign-manager** for tactical selection and reviewed
+execution. Their procedures follow the Workflow Reference Guide. After upgrading,
+the developer redeploys framework-owned skills with `cac bootstrap init`;
+authoring templates does not update deployed copies or local agent instructions.
+
 ## CLI bodies from files
 
 Every CLI command that accepts `--body/-b` also accepts `--body-file PATH`.

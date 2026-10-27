@@ -70,6 +70,24 @@ def test_list_reports_no_campaign_files() -> None:
     assert "No campaign files found." in result.output
 
 
+def test_list_archived_allocations_and_literal_status(tmp_path):
+    import frontmatter
+    from cac.core import campaign
+
+    campaign.create_campaign(tmp_path, "c999-old", "History")
+    campaign.abandon_campaign(tmp_path, "c999-old", "Done")
+    campaign.archive_campaign(tmp_path, "c999-old")
+    path = campaign.campaign_path(tmp_path, "c999-old")
+    post = frontmatter.load(path)
+    post["status"] = "[literal]"
+    path.write_text(frontmatter.dumps(post), encoding="utf-8")
+    assert "c999-old" not in runner.invoke(app, ["campaign", "list"]).output
+    result = runner.invoke(app, ["campaign", "list", "--include-archived"])
+    assert result.exit_code == 0, result.output
+    assert "c999-old ([literal])" in result.output
+    assert runner.invoke(app, ["campaign", "list", "--cursor", "bad"]).exit_code == 1
+
+
 def test_create_with_body_option(tmp_path: Path) -> None:
     result = runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "# Opening Gambit"])
 

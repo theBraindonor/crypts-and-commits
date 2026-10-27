@@ -148,7 +148,7 @@ def test_init_deploys_agent_skills(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     for base_dir in (".claude", ".agents"):
-        for name in ("world-manager", "campaign-manager"):
+        for name in ("world-manager", "world-planner", "campaign-manager"):
             skill_path = tmp_path / base_dir / "skills" / name / "SKILL.md"
             assert skill_path.is_file()
             assert skill_path.read_text(encoding="utf-8").startswith("---\n")

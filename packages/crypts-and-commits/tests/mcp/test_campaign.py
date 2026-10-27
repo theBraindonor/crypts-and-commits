@@ -30,6 +30,31 @@ def test_campaign_list_returns_items_and_cursor(tmp_path: Path) -> None:
     assert result["next_cursor"] is None
 
 
+def test_list_archive_allocations_with_paging(tmp_path, monkeypatch):
+    from cac.core import config, references
+
+    for number in (1, 999, 1000):
+        name = f"c{number:03d}-retained"
+        campaign.create_campaign(tmp_path, name, "Body")
+        if number != 1:
+            campaign.abandon_campaign(tmp_path, name, "Historical")
+            campaign.archive_campaign(tmp_path, name)
+    assert [item["name"] for item in mcp_campaign.campaign_list()["items"]] == ["c001-retained"]
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 300)
+    names, cursor = [], None
+    while True:
+        result = mcp_campaign.campaign_list(cursor, include_archived=True)
+        assert len(references.encoded(result)) <= 300
+        names.extend(item["name"] for item in result["items"])
+        assert len(result["items"]) == len(result["identities"])
+        cursor = result["next_cursor"]
+        if cursor is None:
+            break
+    assert names == ["c001-retained", "c1000-retained", "c999-retained"]
+    with pytest.raises(ValueError):
+        mcp_campaign.campaign_list("bad", include_archived=True)
+
+
 def test_campaign_create_returns_new_campaign() -> None:
     result = mcp_campaign.campaign_create("mvp", "Campaign body.")
 

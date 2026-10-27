@@ -36,9 +36,9 @@ def campaign_get(name: str) -> dict[str, Any]:
 
 @mcp.tool()
 @references.inputs("campaign")
-def campaign_list(cursor: str | None = None) -> dict[str, Any]:
-    """List campaign names with their current status, paged under the response budget."""
-    entries = campaign_core.list_campaigns_with_status(resolve_project_root())
+def campaign_list(cursor: str | None = None, include_archived: bool = False) -> dict[str, Any]:
+    """Page campaign names/statuses; opt into archived allocations with include_archived."""
+    entries = campaign_core.list_campaigns_with_status(resolve_project_root(), include_archived=include_archived)
     return references.identity_page(
         resolve_project_root(), "campaign", [{"name": name, "status": status} for name, status in entries], cursor
     )

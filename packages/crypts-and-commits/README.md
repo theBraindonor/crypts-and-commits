@@ -12,13 +12,13 @@ This installs the `cac` CLI and the `cac-mcp` MCP server console script.
 
 ## Quickstart
 
-From your project's root directory, run `cac bootstrap init`. This one-time, developer-run command sets up everything an agent needs: it creates a `.sourcebook/` directory, registers the `crypts-and-commits` MCP server, and deploys the `world-manager` and `campaign-manager` agent skills.
+From your project's root directory, run `cac bootstrap init`. This developer-run command creates the sourcebook, registers the MCP server, and deploys three skills in Claude and Codex variants: `world-manager` for static context/lore, `world-planner` for goal planning and roadmap adoption, and `campaign-manager` for tactical selection and reviewed execution. After library upgrades the developer reruns bootstrap to redeploy framework-owned skills; agents never run it or edit deployed copies. Local instruction adoption and record migration are separate.
 
 For the full walkthrough, see the [Quickstart guide](https://github.com/theBraindonor/crypts-and-commits/blob/main/docs/QUICKSTART.md).
 
 ## What's inside
 
-`.sourcebook/` content is organized around a small domain model: **world** (project-level summary), **lore** (standards and conventions), **region** (a documented path within the repository), **campaign** (a long-running initiative), and **encounter** (a concrete unit of work within a campaign). An agent typically drives this content through the `cac-mcp` MCP server; the `cac` CLI covers the same operations as a fallback for sessions where the MCP server isn't available.
+Content is organized around **world** (project summary), **lore** (standards), **region** (documented repository path), **boss** (goal, including adopted roadmap context), **campaign** (chosen effort pursuing zero or more bosses), and **encounter** (reviewed unit of work). Optional campaign rumors preserve discoveries for later planning. Agents use the MCP server first and CLI as fallback; managed files are not edited directly. The packaged Workflow Reference Guide supplies branch, numbering, ownership, and approval procedure.
 
 ## Documentation
 

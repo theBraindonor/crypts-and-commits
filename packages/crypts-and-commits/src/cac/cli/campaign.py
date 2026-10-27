@@ -82,11 +82,12 @@ def get_campaign(
 @reference_inputs("campaign")
 def list_campaigns(
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
+    include_archived: bool = typer.Option(False, "--include-archived", help="Include retained archived allocations."),
 ) -> None:
-    """List the campaign files in .sourcebook/campaigns, with their current status, paged under
-    the response budget."""
-    entries = campaign_core.list_campaigns_with_status(resolve_project_root())
+    """Page campaign names/statuses, optionally including archived allocations."""
+    entries = campaign_core.list_campaigns_with_status(resolve_project_root(), include_archived=include_archived)
     if not entries:
+        references.identity_page(resolve_project_root(), "campaign", [], cursor)
         console.print("No campaign files found.", markup=False)
         return
 

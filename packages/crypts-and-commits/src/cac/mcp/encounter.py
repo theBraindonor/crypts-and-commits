@@ -39,11 +39,13 @@ def encounter_get(name: str, campaign: str | None = None) -> dict[str, Any]:
 
 @mcp.tool()
 @references.inputs("encounter")
-def encounter_list(campaign: str | None = None, cursor: str | None = None) -> dict[str, Any]:
+def encounter_list(
+    campaign: str | None = None, cursor: str | None = None, include_archived: bool = False
+) -> dict[str, Any]:
     """List encounter names in a campaign, oldest-updated first, paged under the response budget.
-    campaign defaults to the active (open) campaign when omitted."""
+    include_archived adds retained allocations; campaign defaults to the active campaign when omitted."""
     resolved = _resolve_campaign(campaign, require_mutable=False)
-    names = encounter_core.list_encounters(resolve_project_root(), resolved)
+    names = encounter_core.list_encounters(resolve_project_root(), resolved, include_archived=include_archived)
     return references.identity_page(resolve_project_root(), "encounter", names, cursor, campaign=resolved)
 
 

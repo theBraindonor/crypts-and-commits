@@ -128,7 +128,15 @@ def list_archived_campaigns(root: Path) -> list[str]:
     return sorted(path.stem for path in directory.glob("*.md"))
 
 
-def list_campaigns_with_status(root: Path) -> list[tuple[str, str]]:
+def list_campaigns_with_status(root: Path, *, include_archived: bool = False) -> list[tuple[str, str]]:
+    if include_archived:
+        from cac.core import references
+
+        names = references.Inventory(root).names("campaign")
+        return [
+            (name, frontmatter.load(_existing_campaign_path(root, name)).get("status", DEFAULT_CAMPAIGN_STATUS))
+            for name in names
+        ]
     directory = campaign_dir(root)
     if not directory.is_dir():
         return []

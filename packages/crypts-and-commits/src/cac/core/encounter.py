@@ -151,10 +151,18 @@ def exists(root: Path, campaign: str, name: str) -> bool:
     return (encounter_dir(root, campaign) / f"{name}.md").exists()
 
 
-def list_encounters(root: Path, campaign: str) -> list[str]:
+def list_encounters(root: Path, campaign: str, *, include_archived: bool = False) -> list[str]:
     """List encounter names in a campaign, ascending by their `updated_on` timestamp (oldest first).
     Encounters missing `updated_on` are treated as EPOCH and sort first; the stored timestamp format
     (`%Y-%m-%dT%H:%M:%SZ`) is fixed-width, so a plain text comparison orders them chronologically."""
+    if include_archived:
+        from cac.core import references
+
+        names = references.Inventory(root).names("encounter", campaign)
+        return sorted(
+            names,
+            key=lambda name: frontmatter.load(_existing_encounter_path(root, campaign, name)).get(UPDATED_ON_KEY, ""),
+        )
     directory = encounter_dir(root, campaign)
     if not directory.is_dir():
         return []

@@ -82,12 +82,13 @@ def get_encounter(
 def list_encounters(
     campaign: str | None = _campaign_option(),
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
+    include_archived: bool = typer.Option(False, "--include-archived", help="Include retained archived allocations."),
 ) -> None:
-    """List the encounter files in a campaign, oldest-updated first, paged under the response
-    budget."""
+    """Page encounter names oldest-updated first; optionally include archived allocations."""
     campaign = _resolve_campaign(campaign, require_mutable=False)
-    names = encounter_core.list_encounters(resolve_project_root(), campaign)
+    names = encounter_core.list_encounters(resolve_project_root(), campaign, include_archived=include_archived)
     if not names:
+        references.identity_page(resolve_project_root(), "encounter", [], cursor, campaign=campaign)
         console.print("No encounter files found.", markup=False)
         return
 
