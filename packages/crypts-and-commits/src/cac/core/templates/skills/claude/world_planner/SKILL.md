@@ -15,6 +15,11 @@ or index rebuild, suspend guardrails, or edit deployed skills.
 
 ## Start with context
 
+For worked Git examples, read mcp__crypts-and-commits__docs_get("branching-guide") /
+cac docs get branching-guide. For adoption from older installations and targeted
+local instruction updates, use mcp__crypts-and-commits__docs_get("migration-guide") /
+cac docs get migration-guide; workflow remains the procedural authority.
+
 Orient with mcp__crypts-and-commits__prime_get / cac prime get and effective planning_branch /
 merge_target_branch. Follow mcp__crypts-and-commits__docs_get("workflow") / cac docs get workflow,
 especially "Agent planning and campaign workflow", for the canonical branch,

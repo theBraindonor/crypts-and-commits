@@ -978,17 +978,15 @@ Scoped rollback restores bytes/rows/fingerprints or reports incomplete recovery.
 Rebuild publishes transactionally, never as automatic failure recovery. Guarantees
 cover local operations, not concurrent writers/crashes. Index format is independent
 of sourcebook schema.
-- **Docs** (`docs_list` / `cac docs list`, `docs_get` / `cac docs get`) is a
-  small, read-only set of reference guides packaged with `cac` itself -
-  framework-owned, not `.sourcebook` content, and not user-editable. `docs_list`
-  returns `name` + `summary` pairs (paged, same routing-signal pattern as
-  lore/region); `docs_get(name)` returns one doc's full body (e.g.
-  `docs_get("workflow")` for this guide, or `docs_get("migration-guide")` for
-  the sourcebook schema migration procedure - see "Sourcebook schema
-  versioning" above). It exists so a consuming project's `CLAUDE.md`/`AGENTS.md`
-  doesn't need to carry deep CAC procedural detail inline - an agent session
-  pulls a doc in only when a task actually needs it, via the `world-manager`
-  skill's disclosure ladder (its fourth, "go deeper" step).
+- **Docs**: `docs_list` / `cac docs list` pages name/summary pairs;
+  `docs_get(name)` / `cac docs get NAME` retrieves a packaged, read-only guide.
+  `workflow` is authoritative; `branching-guide` supplies worked Git examples;
+  `migration-guide` covers target-guide access from old installations, library
+  upgrade, developer-run redeployment, targeted instruction edits and branch
+  adoption separately from schema migration. Boss Edition retains schema 1;
+  ordinary adoption suspends no guardrail. Preserve user-owned instruction
+  imports/unrelated rules; bootstrap never rewrites them. Pull these references
+  through world-manager's disclosure ladder rather than duplicating them locally.
 
 ## Example: an encounter's lifecycle, conversation to commit
 

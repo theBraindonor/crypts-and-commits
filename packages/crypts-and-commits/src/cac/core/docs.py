@@ -20,6 +20,15 @@ class DocEntry:
 
 
 _DOCS: dict[str, DocEntry] = {
+    "branching-guide": DocEntry(
+        name="branching-guide",
+        filename="branching-guide.md",
+        summary=(
+            "The Branching Guide: configured planning, assignment and execution branches, "
+            "number allocation and collision checks, integration, review fixes and legacy work. "
+            "Read for a worked Git workflow; workflow remains the lifecycle authority."
+        ),
+    ),
     "workflow": DocEntry(
         name="workflow",
         filename="workflow.md",
@@ -33,10 +42,10 @@ _DOCS: dict[str, DocEntry] = {
         name="migration-guide",
         filename="migration-guide.md",
         summary=(
-            "The Sourcebook Migration Guide: the current sourcebook schema version, the generic "
-            "guardrail-suspend/restore procedure a migration requires, and the version-specific steps "
-            "needed to bring an older sourcebook fully onto the current schema. Read this when "
-            "world.md's schema_version is behind the version cac expects."
+            "The Sourcebook Migration Guide: library upgrades, Boss Edition workflow adoption, "
+            "targeted local instruction updates and developer-run skill/hook redeployment, "
+            "separate from schema migration and its guardrail-suspend/restore procedure. "
+            "Read before upgrading an existing project, even when its schema is current."
         ),
     ),
 }

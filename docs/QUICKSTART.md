@@ -2,8 +2,8 @@
 
 Get Crypts and Commits (CAC) working in your own project in three steps.
 This guide only covers getting an agent session up and running - once it is,
-your coding assistant already knows the rest (its `world-manager` and
-`campaign-manager` skills, and the `docs` MCP/CLI tool for deeper reference,
+your coding assistant already knows the rest (its `world-manager`, `world-planner`
+and `campaign-manager` skills, and the `docs` MCP/CLI tool for deeper reference,
 are all deployed for you by the last step below).
 
 ## 1. Install the package
@@ -22,7 +22,7 @@ From your project's root directory:
 cac bootstrap init
 ```
 
-This is a one-time, developer-run command (never run it from inside an agent
+This is a developer-run setup command (never run it from inside an agent
 session) that sets up everything an agent needs:
 
 - Creates `.sourcebook/` and seeds an empty `world.md`.
@@ -32,12 +32,19 @@ session) that sets up everything an agent needs:
   sourcebook files. It does not filter shell commands or ordinary-file patches
   whose content merely mentions sourcebook paths.
 - Adds the `.sourcebook/` guardrail permissions to `.claude/settings.json`.
-- Deploys the `world-manager` and `campaign-manager` agent skills into both
+- Deploys the `world-manager`, `world-planner` and `campaign-manager` skills into both
   `.claude/skills/` and `.agents/skills/`.
 
 It's safe to run again later - re-running only fills in anything missing or
 updates framework-owned files (like the skills) to a newer `cac` release;
 your own edits to `.sourcebook/` content are never touched.
+
+For an existing installation, first read the target release's
+[Migration Guide](../packages/crypts-and-commits/src/cac/core/templates/docs/migration-guide.md).
+An older installed guide may lack the new upgrade steps; obtain the target guide
+from a verified source revision or distribution as it describes. Library upgrade,
+developer-run redeployment, user-owned instruction edits and schema migration are
+separate. Boss Edition keeps schema 1 and needs no bulk record conversion.
 
 After upgrading CAC, run `cac bootstrap init` yourself to replace the packaged
 hook script and upgrade its old Bash/apply_patch registration to apply_patch
@@ -55,9 +62,16 @@ file - for example:
 > Use the world-manager skill to help me write our world summary.
 
 From here, your agent drives `.sourcebook/` for you: building out lore,
-regions, and campaigns as work comes up. If you (or your agent) ever need the
+regions, future goals with world-planner, and chosen campaigns with campaign-manager.
+If you (or your agent) ever need the
 full domain-model reference, it's one call away - `cac docs get workflow`, or
 ask the agent to look it up.
+
+Read the [Branching Guide](../packages/crypts-and-commits/src/cac/core/templates/docs/branching-guide.md)
+via `cac docs get branching-guide` / `docs_get("branching-guide")` before choosing
+campaign work. It shows goal publication, assignment registration and execution,
+with configured names and collision checks. These conventions are skill guidance;
+endpoints neither switch branches nor grant Git integration authorization.
 
 ### Optional branch settings
 
@@ -100,19 +114,23 @@ cac boss list --include-archived
 ```
 
 Create/update require a summary (at most 500 characters) and accept inline body,
-`--body-file`, or an editor if neither body option is supplied. Use full names;
-numbered names are optional; existing targets accept short refs. Make-available records
+`--body-file`, or an editor if neither body option is supplied. Create with literal
+full names; existing targets accept short refs. Recommended skill workflows allocate
+numbered names, while endpoints also accept legacy names. Make-available records
 readiness even if prerequisites remain unsatisfied. Unassigned proposed/available
 goals can be edited; available goals stay available. Linked, vanquished, withdrawn,
 and archived goals cannot have their designs edited.
 
-Archive accepts only unassigned withdrawn bosses. Archived names are retained;
+Archive accepts unassigned withdrawn bosses or valid externally completed roadmap
+goals. Archived names are retained;
 get still reads them. There is no deletion/restoration operation. Missing storage
 is empty; first create provisions it without migrating existing records.
 All commands have matching `boss_*` MCP tools. See `cac docs get workflow` for
 state guards, dependency validation, paging, and response contracts.
-Rumors operations, boss search/prime integration,
-and automated numbering remain future work.
+Rumors operations and boss search/plural active-boss prime integration are available.
+Skills allocate numbers from complete retained inventories and known branch
+reservations; endpoints never allocate them. world-planner also supports incremental
+roadmap capture; see the migration guide for evidence/provenance and legacy limits.
 
 ### Discover the next goal
 
@@ -158,25 +176,35 @@ legacy-name precedence, context rules, operation coverage, and response budgets.
 
 ### Pursue a boss with a campaign
 
-Prepare tactical campaign notes, then promote an eligible available boss:
+Publish goal planning into the configured merge target, confirm eligibility and
+integrated prerequisites, and allocate an unused campaign number. On its assignment
+branch, prepare tactical notes and promote the selected boss:
 
 ```bash
 cac boss assign-campaign b001 c001-planning --body-file "notes/campaign.md"
 cac campaign get c001
-cac campaign open c001
 ```
 
 Promotion creates a draft with reciprocal links; it does not open it or create
-encounters. Complete the campaign's approved encounters before recording its
-outcome. Completion vanquishes the linked boss; abandonment releases it for a
-new campaign while retaining the old campaign's origin/history.
+encounters. For several bosses, campaign create accepts repeated --boss options.
+Integrate accepted registration, then open the campaign on its exact-name execution
+branch after authorization. Bossless campaigns may skip registration. Follow each
+encounter's separate review/open/completion approvals and verify work before its
+outcome. Completion vanquishes the selected group; abandonment releases it for a
+new campaign while retaining the old campaign's history. See the Branching Guide
+for local-merge and hosted-PR paths, both subject to repository policy.
 
 For feedback on a completed, unarchived campaign, use
 `cac campaign reactivate c001 --message "Address PR feedback"`. Earlier closing
 entries and completed encounters remain intact; create new follow-up encounters,
-then complete again. Archive completed campaigns to archive their current boss
+then verify and complete again before integration. On synchronized planning,
+archive integrated terminal campaigns to archive their current bosses
 and terminal encounters together. Archiving an abandoned old attempt never
 changes a reassigned boss. Origin/reverse links prevent campaign deletion.
+
+Capture execution discoveries using `cac rumors create --campaign c001 --body-file notes/rumors.md`
+(or update for an existing document). world-planner distills integrated rumors
+on planning without automatically deleting them or expanding campaign scope.
 
 `boss_assign_campaign` and `campaign_reactivate` provide MCP parity. Same current
 assignment retries are read-only and never replace campaign content. Inconsistent

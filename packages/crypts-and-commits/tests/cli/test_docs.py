@@ -12,6 +12,7 @@ def test_list_shows_registered_docs() -> None:
     assert result.exit_code == 0
     assert "workflow" in result.output
     assert "migration-guide" in result.output
+    assert "branching-guide" in result.output
 
 
 def test_get_shows_full_body() -> None:
@@ -26,6 +27,15 @@ def test_get_shows_migration_guide_body() -> None:
 
     assert result.exit_code == 0
     assert "Crypts and Commits Sourcebook Migration Guide" in result.output
+
+
+@pytest.mark.parametrize("name", ["workflow", "branching-guide", "migration-guide"])
+def test_get_preserves_complete_guide(name: str) -> None:
+    result = runner.invoke(app, ["docs", "get", name])
+
+    assert result.exit_code == 0
+    assert docs_core.read_doc(name).strip() == result.output.strip()
+    assert "[TRUNCATED" not in result.output
 
 
 def test_get_missing_doc_fails() -> None:

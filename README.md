@@ -42,7 +42,7 @@ factor — it just relocates it.
 Crypts and Commits addresses both by moving context and work history out of
 any one session, and any one assistant, and into the repository itself.
 `.sourcebook/` is a small, versioned domain model — World, Lore, Regions,
-Campaigns, and Encounters — that lives alongside your code, is committed the
+Bosses, Campaigns, and Encounters — that lives alongside your code, is committed the
 same way your code is, and is driven through a shared `cac` CLI and MCP server
 that any compliant coding assistant can use. An Encounter isn't a chat
 transcript; it's a structured, reviewed unit of work — Requirements, Rationale,
@@ -67,9 +67,14 @@ re-explaining yourselves to the other, or to whoever picks this up next.
   retrievable on demand by an agent via `docs_get("workflow")` (MCP) or
   `cac docs get workflow` (CLI), once a project is bootstrapped.
 - **[Sourcebook Migration Guide](packages/crypts-and-commits/src/cac/core/templates/docs/migration-guide.md)**
-  — carrying an existing `.sourcebook` forward across schema versions.
+  — library upgrades, workflow adoption and targeted local instruction updates,
+  separate from carrying records across schema versions.
   Retrievable the same way, via `docs_get("migration-guide")` /
   `cac docs get migration-guide`.
+- **[Branching Guide](packages/crypts-and-commits/src/cac/core/templates/docs/branching-guide.md)**
+  — planning, assignment and execution branches, number/collision checks and
+  integration examples. Retrieve via `docs_get("branching-guide")` /
+  `cac docs get branching-guide`.
 - **[Changelog](docs/CHANGELOG.md)** — notable changes, by release.
 
 ## Agent skills
@@ -111,7 +116,7 @@ low-ambiguity interface between a developer's intent and a model's behavior
 — fewer bespoke conventions to define and re-explain per project, and less
 room for a session to quietly redefine its own scope or authority as it goes.
 
-`.sourcebook/` content is organized around five object types, plus the two
+`.sourcebook/` content is organized around six object types, plus the two
 people/agents that drive them:
 
 - **World** — a project-level summary, read first to prime context.
@@ -120,6 +125,8 @@ people/agents that drive them:
   lore assigned to a region only applies within that region.
 - **Region** — a documented path within the repository (e.g. frontend vs.
   backend) that carries its own conventions and lore.
+- **Boss** — a project goal refined before tactical campaign selection, with
+  readiness, prerequisites and optional roadmap provenance.
 - **Campaign** — a long-running initiative, analogous to a Jira Epic,
   expected to span many encounters before it's done.
 - **Encounter** — a concrete unit of work within a campaign: either a plan

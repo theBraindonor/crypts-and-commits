@@ -62,6 +62,15 @@ Docs are read-only, framework-owned reference guides packaged with `cac` itself 
 
 ## Sourcebook schema version
 
+For library/workflow adoption, read mcp__crypts-and-commits__docs_get("migration-guide") /
+cac docs get migration-guide even when schema_version is current. It separates
+library upgrade, developer-run skill/hook redeployment, targeted user-owned
+instruction edits, branch adoption and actual record migration. An older installed
+guide may require obtaining the target guide from verified source/distribution
+first. Do not stop a workflow-adoption request merely because no schema change is
+needed. For worked branch examples use mcp__crypts-and-commits__docs_get("branching-guide") /
+cac docs get branching-guide; workflow stays authoritative.
+
 `world.md` carries a `schema_version` frontmatter attribute — present on every sourcebook `cac bootstrap init` creates; a sourcebook bootstrapped before this attribute existed has none, which means version 1. `cac bootstrap init` reports when an existing sourcebook is behind or ahead of what the installed `cac` expects, but never migrates it itself — that's this skill's job, on request.
 
 When asked to check for or perform a sourcebook migration/upgrade:

@@ -31,6 +31,149 @@ section should give the agent every concrete change needed to bring a
 sourcebook fully onto the new version - what changed structurally, and
 exactly how to apply it.
 
+## Boss Edition upgrade and workflow adoption
+
+Boss Edition is the feature target for these instructions. The development
+package currently declares 0.2.0, but the Boss Edition release number and tag
+have not been selected. Do not assume that an installed or published 0.2.0
+contains this guide. Record the actual source version and the target release
+or verified commit before upgrading; substitute the selected release when it
+exists. This guide makes no claim that a new release is already published.
+Python >=3.11, Git, the project's package manager and access to the selected
+distribution/source are prerequisites. Respect its dependency and Git policy.
+
+### Obtain the target instructions before trusting old skills
+
+An old `cac docs get migration-guide` returns the old package's guide, which
+may know nothing about Boss Edition. Use the target artifact instead:
+
+1. Locate the intended release tag or full commit in the project's trusted
+   repository, https://github.com/theBraindonor/crypts-and-commits. In a separate
+   source checkout at that verified revision, read
+   `packages/crypts-and-commits/src/cac/core/templates/docs/migration-guide.md`
+   and its sibling branching-guide.md/workflow.md. A tag alone is insufficient
+   if it lacks those files or predates the required feature contracts.
+2. Alternatively obtain the selected wheel through the project's approved
+   package source, verify its identity under local policy and inspect
+   `cac/core/templates/docs/migration-guide.md` inside it. Reading an extracted
+   artifact does not modify the live sourcebook or require bootstrap.
+3. Preserve the target version/commit and source of these instructions in the
+   adoption plan. Do not feed new records to the old library while comparing
+   versions. If the target guide cannot be obtained or verified, resolve that
+   missing input before dependent upgrade work.
+
+The [Branching Guide](branching-guide.md) provides worked Git examples and edge
+cases; [workflow.md](workflow.md) is the canonical lifecycle/procedure authority.
+After installation the equivalent routes are `docs_get("branching-guide")` /
+`cac docs get branching-guide`, and `docs_get("workflow")` / `cac docs get workflow`.
+Ordinary workflow adoption does not require changing the schema version.
+
+### Upgrade in distinct stages
+
+1. **Inventory and plan.** Read existing CLAUDE.md/AGENTS.md files and imports,
+   world settings, installed package identity, deployed skills/hooks, open and
+   paused campaigns and their encounters through supported APIs. Record current
+   Git branch/worktree state and known local/remote reservations. Preserve user
+   changes. Agree how in-flight work continues and what upgrade/adoption is
+   authorized before performing dependent changes. Use the normal encounter
+   approval gates when the project requires them; existing authorization persists.
+2. **Upgrade the library.** Install the selected artifact using the project's
+   package manager/lockfile policy. Restart/reconnect persistent MCP consumers
+   and agent sessions as needed so they load that package, rather than continuing
+   to execute old code. Verify installed distribution metadata and `cac --help`,
+   `cac docs list`, and `cac docs get migration-guide` against the target guide.
+   This stage does not update local instructions or deploy skills/hooks.
+3. **Redeploy framework assets.** The developer runs `cac bootstrap init` from
+   the project root after upgrading. This refreshes framework-owned skill/hook
+   files, preserving unrelated configuration under bootstrap's merge rules.
+   It does not migrate records or rewrite user-owned CLAUDE.md/AGENTS.md.
+   The developer reviews/trusts the updated Codex hook through `/hooks` and
+   re-enables it if needed. Custom unrecognized hook registrations need separate
+   inspection; do not assume deployment rewrites them. Agents neither run
+   bootstrap nor edit deployed copies/trust settings. Reopen sessions as needed
+   to discover world-manager, world-planner and campaign-manager.
+4. **Update local instructions deliberately.** Apply the mapping below to the
+   files actually present and their established import structure. Preserve
+   unrelated policy, tool preferences and local exceptions. Explain targeted
+   changes rather than replacing files with a framework template. Reconcile
+   conflicts with the developer; upgrading does not authorize new publication,
+   branch cleanup or messages to others.
+5. **Adopt branches and goals as needed.** Follow the Branching Guide with the
+   world's effective merge-target/planning names. Inventory legacy work first;
+   do not blindly rename history or attach bosses to already-open campaigns.
+   Incremental roadmap recording below is optional. Configuring names does not
+   create/switch branches, prove integration or require wholesale adoption.
+6. **Check schema separately.** Boss Edition's additive contracts retain schema
+   1. Missing schema_version means 1, and missing boss storage is empty/lazy.
+   Do not suspend a guardrail, rewrite records, run bootstrap as migration or
+   stamp a new schema just for this upgrade. If an actual version-specific
+   structural migration is required by a later target guide, follow its exact
+   steps and the generic approval/capture/restoration procedure below instead.
+
+### Targeted instruction mapping
+
+Read first; the examples describe replacements for obsolete CAC clauses, not
+complete instruction-file templates. Link deep details rather than duplicating
+the full workflow into every project.
+
+| Older CAC guidance | Targeted replacement or clarification |
+| --- | --- |
+| Plan every future idea as a campaign; only two skills exist | Route static context to world-manager, goal/roadmap/readiness and rumor planning to world-planner, and explicit tactical selection/execution to campaign-manager. |
+| An available boss is immediately executable, or one campaign always has one boss | Availability records readiness; selection checks prerequisites/graph/integration and exclusive ownership. A draft can choose zero/one/many bosses; tactics address the whole group. Assignment freezes designs; opening locks draft membership. |
+| Open campaigns directly on main | Main/planning/assignment have no open campaign under the recommended workflow. Register selected bosses on the campaign's -assignment branch, then open on the exact campaign-name execution branch. Bossless campaigns may skip registration. |
+| Pick the next number from the visible list or reuse an old number | Skills use complete retained/archive-inclusive inventories plus known campaign branch reservations, numeric max plus one and per-campaign encounters. Check collisions at creation, after integration and before completion/recompletion; resolve manually. |
+| Edit assigned goal notes when discoveries appear | Capture execution discoveries with rumors operations; distill integrated rumors on planning with world-planner into selected goals/refinements without automatic deletion or scope expansion. |
+| Completion proves merged work, or review fixes overwrite completed history | Verify integration separately. Complete before implementation integration; reactivate completed campaigns for pre-merge fixes, add follow-up encounters, verify and complete again. Retain history and group membership. |
+| Codex hook blocks shell access to managed paths | The packaged hook now denies apply_patch file-operation targets inside managed sourcebook paths. Shell calls are not filtered. MCP/CLI-only access remains binding; narrower enforcement grants no bypass. Developer redeployment and hook review/trust are separate. |
+
+A shared guidance replacement might read:
+
+> Before nontrivial CAC work, orient with world-manager. Use world-planner for
+> goal planning, roadmap capture and integrated rumor distillation; use
+> campaign-manager for explicit tactical selection and encounter execution.
+> Follow the installed Branching Guide via docs_get("branching-guide") or
+> cac docs get branching-guide, with workflow as the procedural authority.
+> Access managed records through the crypts-and-commits MCP tools first and
+> equivalent cac CLI only as fallback. Bootstrap and index rebuild remain
+> developer-only; existing encounter review/open/completion approvals persist.
+
+Keep this in the established shared instruction source. For a CLAUDE-only
+project, update just its obsolete clauses; do not create AGENTS.md merely to
+match a sample. For AGENTS-only, make the equivalent targeted edits there.
+If AGENTS.md imports CLAUDE.md (as this development repo does), update shared
+CAC guidance in CLAUDE.md and retain AGENTS.md's import and genuine provider
+overrides. If the import direction is reversed, keep that source instead.
+For independent files, inspect each and avoid erasing intentional differences.
+Link world-planner through the project's deployed skill location and link the
+guide through docs retrieval (or a verified target-source link during upgrade).
+These examples grant no permission to edit deployed framework skills.
+
+### Preserve in-flight work and verify adoption
+
+Inspect open/paused campaigns and encounters before branch changes. An open
+unnumbered prototype on main needs an agreed transition to continued execution
+on its matching branch and an inactive merge target; an open encounter prevents
+pausing/closing the campaign. Finish or abandon that encounter only within its
+ordinary approvals. Preserve history and references; do not invent a boss,
+retrofit ownership onto an open campaign, bulk rename records or require a
+universal Git repair recipe. See the Branching Guide's rejected registration,
+registered cancellation and legacy-work examples. Core remains branch-agnostic.
+
+Before declaring adoption done, verify the installed package and connected MCP
+consumer use the chosen target, all three registered guides are readable without
+normal-budget truncation, and deployed skill owners match local instructions.
+Inspect the effective hook registration/script and developer trust state without
+triggering a destructive managed-file test. Confirm unrelated hooks/settings
+remain, the apply_patch-only boundary is accurately described, and any actually
+disabled migration guardrails were restored. Inspect effective world settings,
+campaign/encounter state and reciprocal boss links via supported MCP/CLI reads;
+disclose incomplete remote/integration knowledge. Verify legacy work still has
+a valid continuation path. A guide walkthrough does not prove live repairs.
+
+Actual adoption in this development repository is a subsequent encounter. This
+guide does not choose a release number, deploy assets, rewrite local instructions
+or mutate managed records just by being retrieved.
+
 ## Hook redeployment is separate from record migration
 
 The current packaged Codex guard denies only `apply_patch` file targets inside
@@ -100,7 +243,7 @@ these operations. Optional campaign origin boss links and lifecycle coupling are
 also additive within schema 1: legacy campaigns remain bossless, with no inferred
 goals, rewritten history, guardrail suspension, or bootstrap migration. Upgrade the
 library for promotion and completed-campaign reactivation; workflow/skill adoption
-remains separate future work. Older libraries do not manage these new contracts.
+follows the separate stages above. Older libraries do not manage these new contracts.
 
 Within prerelease Boss Edition, campaigns now use canonical `bosses` lists while
 each boss keeps one current scalar `campaign`. This reader accepts legacy `boss`
@@ -149,7 +292,7 @@ Capture references to existing campaigns as context. Adopting already-open legac
 campaign ownership is deferred; recording never changes campaign membership or
 status. Existing draft-only membership, single ownership, and lifecycle guards
 remain. Planning/branch guidance, skills deployment, and local-instruction adoption
-are separate subsequent work; agents must not run bootstrap.
+follow the separate stages above; agents must not run bootstrap.
 
 No mandatory record migrations are documented yet; sourcebook schema remains 1.
 The compatible optional-field changes above do not require a bulk rewrite.

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from cac.core import docs
+from cac.core import config, docs
 
 
 def test_list_docs_returns_registered_entries() -> None:
@@ -11,6 +11,19 @@ def test_list_docs_returns_registered_entries() -> None:
     assert names == sorted(names)
     assert "workflow" in names
     assert "migration-guide" in names
+    assert "branching-guide" in names
+
+
+@pytest.mark.parametrize("name", ["branching-guide", "migration-guide", "workflow"])
+def test_registered_guide_resource_fits_response_budget(name: str) -> None:
+    path = docs.doc_source_path(name)
+    body = docs.read_doc(name)
+
+    assert path.is_file()
+    assert path.name == f"{name}.md"
+    assert body == path.read_text(encoding="utf-8")
+    assert 0 < len(body) <= config.DOCS_RESPONSE_BUDGET
+    assert dict(docs.list_docs())[name] == docs.doc_summary(name)
 
 
 def test_doc_summary_returns_registered_summary() -> None:

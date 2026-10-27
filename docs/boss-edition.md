@@ -10,7 +10,9 @@ recording/historical completion, archive-inclusive campaign/encounter inventory,
 and packaged planning/campaign skill guidance are implemented in the Workflow
 Reference Guide. Skill templates include world-planner plus updated manager
 variants and deployment registration; developer-run redeployment remains separate.
-The branching guide and broader local-instruction adoption remain deferred.
+The packaged branching guide and migration/adoption instructions are implemented
+in e016, including public discovery and targeted local-instruction guidance.
+Actual adoption in this repository and developer-run redeployment remain deferred.
 The additive collection retains schema version 1:
 missing storage is empty and created lazily, without rewriting old records or
 requiring bootstrap migration. Existing targets accept canonical names and short
@@ -484,7 +486,8 @@ impossible envelopes fail explicitly, with recording preflight before persistenc
 Schema remains 1; old records without provenance are preserved on reads. No bulk
 conversion/bootstrap migration. Pre-e014 libraries must not mutate roadmap records;
 they lack provenance validation and completion/archive semantics. Downgrade needs
-deliberate developer conversion. Broader adoption/branching guides and skills follow.
+deliberate developer conversion. Adoption and branching guidance is packaged;
+applying it to a live project and redeploying assets are separate actions.
 
 An assigned boss remains `available` with its campaign reference set until
 completion; it is excluded from new assignments. This avoids inventing a new

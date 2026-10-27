@@ -15,6 +15,11 @@ disable guardrails, or edit deployed skill copies.
 
 ## Orient and reconcile the branch
 
+For worked Git examples, read docs_get("branching-guide") /
+cac docs get branching-guide. For adoption from older installations and targeted
+local instruction updates, use docs_get("migration-guide") /
+cac docs get migration-guide; workflow remains the procedural authority.
+
 Start with prime_get / cac prime get and world-manager's disclosure ladder.
 Use active_boss_names, active_bosses and active_boss_diagnostics for all selected
 goals. Hydrate missing/truncated bodies and integrity diagnostics; never choose
