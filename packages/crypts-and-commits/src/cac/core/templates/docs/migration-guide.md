@@ -113,6 +113,44 @@ API results expose bosses; prime replaces active_boss/active_boss_diagnostic wit
 active_boss_names/active_bosses/active_boss_diagnostics. Update consumers with the
 library. Preserve abandoned campaign lists as history; they are not current claims.
 
+### Adopt an existing roadmap
+
+The e014 recording contract retains schema 1. No bulk conversion, guardrail
+suspension, or bootstrap migration is required. Existing records without
+provenance remain readable and are not rewritten. Pre-e014 libraries must not
+mutate roadmap-recorded bosses: they cannot validate the provenance or enforce
+its historical-completion/archive rules. Downgrade requires deliberate developer
+conversion; optional fields alone do not establish backward compatibility.
+
+Record only the relevant goals, incrementally, through boss_record / cac boss
+record. Supply the body, summary, explicit progress (planned/in_progress/completed),
+source description/reference, and message explaining capture and outcome evidence.
+Planned/in_progress goals start proposed and require the normal readiness decision.
+Completed goals start unassigned vanquished without synthetic campaigns/encounters;
+they satisfy prerequisites, including after supported standalone archival.
+CAC records supplied evidence, not independent proof of external work or a Git merge.
+
+For example, record delivered b001-storage from roadmap.md#storage with release
+evidence and a known completed_on date; next record planned b002-search with
+depends_on=[b001]; finally record in_progress b003-ui with its outside-work reference.
+Each new name is literal and create-only; duplicate live/archived names fail.
+Enter prerequisite records first; unknown relationships stay in prose. Inspect the
+result with boss_get before proceeding. No roadmap fetch, extraction, or full import
+is implied. Provenance progress remains the original snapshot, not live status.
+
+created_on/updated_on reflect CAC recording now. Optional completed_on is a known
+YYYY-MM-DD date for completed progress only, never future (UTC); unknown is null.
+Never invent/backdate audit fields. Historical completions are frozen like ordinary
+completed bosses; no undo/edit/restore API is added. Mistakes require deliberate
+developer repair, preserving graph/index consistency; this grants agents no direct
+managed-file access. Use normal supported operations for incomplete goals.
+
+Capture references to existing campaigns as context. Adopting already-open legacy
+campaign ownership is deferred; recording never changes campaign membership or
+status. Existing draft-only membership, single ownership, and lifecycle guards
+remain. Planning/branch guidance, skills deployment, and local-instruction adoption
+are separate subsequent work; agents must not run bootstrap.
+
 No mandatory record migrations are documented yet; sourcebook schema remains 1.
 The compatible optional-field changes above do not require a bulk rewrite.
 When `SOURCEBOOK_SCHEMA_VERSION` is next bumped,

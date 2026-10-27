@@ -106,7 +106,7 @@ def _snapshot(root: Path) -> tuple[dict, dict, dict, dict, list[str]]:
                 _issue(
                     name,
                     "invalid_record",
-                    "Cannot read boss metadata safely; inspect name, status, archive flag, and storage.",
+                    "Cannot read boss metadata safely; inspect name, status, provenance, archive flag, and storage.",
                 )
             )
             continue
@@ -214,6 +214,15 @@ def _evaluate(root: Path) -> tuple[list[dict], dict[str, int], list[dict]]:
                     "status": prerequisite.get("status"),
                     "archived": prerequisite.get("archived"),
                     "satisfied": satisfied,
+                    **(
+                        {
+                            "completion_origin": "roadmap",
+                            "ref": "boss_get",
+                        }
+                        if prerequisite.get("status") == "vanquished"
+                        and prerequisite.get("provenance", {}).get("progress") == "completed"
+                        else {}
+                    ),
                     **contexts.get(target, {}),
                 }
             )
@@ -248,6 +257,18 @@ def _evaluate(root: Path) -> tuple[list[dict], dict[str, int], list[dict]]:
                 "identity": inventory.identity("boss", name),
                 "summary": summary if isinstance(summary, str) else SUMMARY_ABSENT_MESSAGE,
                 "status": record["status"],
+                **(
+                    {
+                        "roadmap": {
+                            "recorded_progress": record["provenance"]["progress"],
+                            "source": record["provenance"]["source"][:120],
+                            "source_truncated": len(record["provenance"]["source"]) > 120,
+                            "ref": "boss_get",
+                        }
+                    }
+                    if "provenance" in record
+                    else {}
+                ),
                 "classification": classification,
                 "eligible": classification == "eligible",
                 "reason_codes": reasons,
@@ -272,6 +293,8 @@ def _bounded_item(item: dict, limit: int, *, minimal: bool = False) -> dict:
         "prerequisites": [] if minimal else item["prerequisites"][:_DETAIL_LIMIT],
         "diagnostics": [] if minimal else item["diagnostics"][:_DETAIL_LIMIT],
     }
+    if minimal and "roadmap" in result:
+        result["roadmap"] = {**result["roadmap"], "source": "", "source_truncated": True}
     while True:
         result["summary_truncated"] = result["summary"] != item["summary"]
         result["prerequisites_omitted"] = item["prerequisite_count"] - len(result["prerequisites"])
@@ -285,6 +308,8 @@ def _bounded_item(item: dict, limit: int, *, minimal: bool = False) -> dict:
             result["prerequisites"] = result["prerequisites"][: len(result["prerequisites"]) // 2]
         elif result["summary"]:
             result["summary"] = result["summary"][: max(0, len(result["summary"]) - excess)]
+        elif result.get("roadmap", {}).get("source"):
+            result["roadmap"] = {**result["roadmap"], "source": "", "source_truncated": True}
         else:
             raise boss.BossError(
                 "Candidate identifiers and required fields exceed the response budget; increase it or inspect with boss_get."

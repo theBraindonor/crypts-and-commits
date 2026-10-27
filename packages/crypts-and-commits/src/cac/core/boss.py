@@ -5,7 +5,7 @@ from typing import Any
 
 import frontmatter
 
-from cac.core import frontmatter_utils, templates, world
+from cac.core import boss_provenance, frontmatter_utils, templates, world
 from cac.core.config import ARCHIVE_DIR_NAME, BOSS_DIR_NAME, BOSS_STATUSES, NAME_PATTERN, RESERVED_NAMES
 from cac.core.paths import sourcebook_dir
 
@@ -113,6 +113,10 @@ def _load(root: Path, name: str) -> tuple[Path, frontmatter.Post]:
     campaign = post.get("campaign")
     if campaign is not None and (not isinstance(campaign, str) or not campaign):
         raise BossError(f"Boss {name!r} has malformed campaign metadata.")
+    if "provenance" in post.metadata:
+        snapshot = boss_provenance.validate(post["provenance"])
+        if snapshot["progress"] == "completed" and (post["status"] != "vanquished" or campaign is not None):
+            raise BossError(f"Boss {name!r} has inconsistent external completion state.")
     return path, post
 
 
@@ -125,7 +129,7 @@ def template_body() -> str:
     return frontmatter.loads(templates.load("sourcebook", "boss.md")).content
 
 
-def create_boss(root: Path, name: str, body: str, summary: str) -> Path:
+def _prepare_boss(root: Path, name: str, body: str, summary: str) -> tuple[Path, frontmatter.Post]:
     world.read_world(root)
     live, archived = _locations(root, name)
     if live.exists() or archived.exists():
@@ -137,9 +141,115 @@ def create_boss(root: Path, name: str, body: str, summary: str) -> Path:
     post.content = body
     frontmatter_utils.set_summary_attribute(post, summary)
     frontmatter_utils.stamp_created(post, root)
+    return live, post
+
+
+def create_boss(root: Path, name: str, body: str, summary: str) -> Path:
+    live, post = _prepare_boss(root, name, body, summary)
     live.parent.mkdir(parents=True, exist_ok=True)
     frontmatter_utils.write_post(root, live, post)
     return live
+
+
+def record_boss(
+    root: Path,
+    name: str,
+    body: str,
+    summary: str,
+    progress: str,
+    source: str,
+    message: str,
+    completed_on: str | None = None,
+    depends_on: list[str] | None = None,
+) -> Path:
+    """Capture one existing roadmap goal without inventing CAC execution history."""
+    from cac.core import references
+    from cac.core.recovery import Recovery
+
+    if not isinstance(body, str) or not isinstance(summary, str):
+        raise BossError("Boss body and summary must be text.")
+    provenance = boss_provenance.validate(
+        {"kind": "roadmap", "progress": progress, "source": source, "message": message, "completed_on": completed_on}
+    )
+    live, post = _prepare_boss(root, name, body, summary)
+    if depends_on is None:
+        depends_on = []
+    if not isinstance(depends_on, list):
+        raise BossError("depends_on must be a list of boss references.")
+    inventory = references.Inventory(root)
+    targets = []
+    for target in depends_on:
+        if target == name:
+            raise BossError("A recorded boss cannot depend on itself.")
+        targets.append(inventory.resolve("boss", target))
+    if len(set(targets)) != len(targets):
+        raise BossError("Duplicate prerequisite identities after reference resolution.")
+    graph, records = {}, {}
+    for canonical in list_bosses(root, include_archived=True):
+        _, record = _load(root, canonical)
+        records[canonical] = record
+        graph[canonical] = _dependencies(record, canonical)
+    _validate_graph(graph)
+    for target in targets:
+        if records[target]["status"] == "withdrawn":
+            raise BossError(f"Cannot add withdrawn prerequisite {target!r}.")
+    graph[name] = sorted(targets)
+    _validate_graph(graph)
+    post["provenance"] = provenance
+    post["depends_on"] = graph[name]
+    post["status"] = "vanquished" if progress == "completed" else "proposed"
+    _minimum_output(root, name, post)
+    with Recovery(root, [live]):
+        live.parent.mkdir(parents=True, exist_ok=True)
+        frontmatter_utils.write_post(root, live, post)
+    return live
+
+
+def _minimum_output(root: Path, name: str, post: frontmatter.Post) -> None:
+    from cac.core import config, references
+
+    metadata = dict(post.metadata)
+    summary = metadata.pop("summary", "")
+    minimum = {
+        "metadata": metadata,
+        "summary": summary,
+        "body": "",
+        "identity": {"canonical": name, "short": None, "reason": "ambiguous"},
+    }
+    # Reserve a full truncation notice, hydration ref, and the longest possible identity.
+    path = boss_dir(root, archived=True) / f"{name}.md"
+    if len(references.encoded(minimum)) + 400 + 2 * len(str(path)) > config.RESPONSE_BUDGET:
+        raise BossError("Boss metadata/provenance and hydration notice exceed the response budget before writes.")
+
+
+def budget_response(root: Path, name: str, result: dict) -> dict:
+    """Reserve complete metadata and JSON escaping before truncating body text."""
+    from cac.core import budget, config, references
+
+    if len(references.encoded(result)) <= config.RESPONSE_BUDGET:
+        return result
+    body = result.get("body", "")
+    result = {**result, "body": ""}
+    allowance = config.RESPONSE_BUDGET - len(references.encoded(result))
+    if allowance < 0:
+        raise BossError("Boss metadata/provenance exceeds the response budget; increase it.")
+    path = boss_path(root, name)
+    ref = f"\n[Hydrate with boss_get(name={name!r}).]"
+
+    def truncated(size):
+        return budget.truncate_body(body, path, budget=size) + ref
+
+    low, high = 0, allowance
+    while low < high:
+        middle = (low + high + 1) // 2
+        if len(references.encoded({**result, "body": truncated(middle)})) <= config.RESPONSE_BUDGET:
+            low = middle
+        else:
+            high = middle - 1
+    result["body"] = truncated(low)
+    if len(references.encoded(result)) > config.RESPONSE_BUDGET:
+        raise BossError("Boss metadata and truncation notice exceed the response budget; increase it.")
+    return result
 
 
 def _editable(post: frontmatter.Post, name: str, statuses: tuple[str, ...] = ("proposed", "available")) -> None:
@@ -181,18 +291,28 @@ def reactivate(root: Path, name: str) -> Path:
 
 
 def archive_boss(root: Path, name: str) -> Path:
+    from cac.core import coupling
     from cac.core.recovery import Recovery
 
     path, post = _load(root, name)
-    _editable(post, name, ("withdrawn",))
+    external = boss_provenance.external_completion(post.metadata)
+    allowed = ("vanquished",) if external else ("withdrawn",)
+    _editable(post, name, allowed)
     destination = _locations(root, name)[1]
     if destination.exists():
         raise BossAlreadyExistsError(f"Archive destination already exists for boss {name!r}.")
     post["archived"] = True
     frontmatter_utils.stamp_updated(post, root)
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    if "provenance" in post.metadata:
+        _minimum_output(root, name, post)
+    original = path.read_bytes()
+    coupling._body_suffix(original)
     with Recovery(root, [path, destination]):
-        frontmatter_utils.write_post(root, destination, post)
+        if external:
+            coupling._write_boss(root, destination, post, original)
+        else:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            frontmatter_utils.write_post(root, destination, post)
         path.unlink()
     return destination
 

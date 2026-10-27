@@ -10,29 +10,21 @@ and retaining final authority; assistants use CAC's MCP server or CLI to act on 
 
 ### This document
 
-This is the shared source of truth for current record structures, lifecycles,
-relationships, and agent procedures. Update it with observable model changes;
-agent-specific skills follow this spec. Retrieve it using `docs_get("workflow")`
-or `cac docs get workflow`. MCP is the primary agent interface; CLI is the fallback
-and human interface. Both expose equivalent operations except developer maintenance.
+Shared source of truth for record structures, lifecycles, relationships, and
+agent procedures; update with observable changes. Skills follow this spec.
+Retrieve via docs_get("workflow") / cac docs get workflow. MCP is primary;
+CLI is the fallback/human interface, with parity except developer maintenance.
 
 ## CLI body input
 
-All CLI operations with `--body/-b` also accept `--body-file PATH`: world
-`set-body`, and lore, region, boss, campaign, encounter, and rumors `create`/`update`.
-These options are mutually exclusive, even when the inline body is empty.
-
-The shared resolver reads UTF-8 with newlines preserved, then applies ordinary core
-normalization, validation, summary requirements, and lifecycle guards. Input files
-are untouched; empty files supply empty bodies. Without either option, existing
-editor/template behavior applies, including encounter-kind templates. Missing,
-unreadable, directory, invalid UTF-8, or conflicting input fails before writes.
-Explicit file input never opens an editor. Paths are relative to the caller's cwd,
-independently of project-root discovery.
-
-Example: `cac campaign create opening-gambit --body-file "notes/campaign plan.md"`.
-MCP receives body strings, never file paths; file input changes no domain operation,
-response budget, or literal output rule.
+Every CLI --body/-b operation also accepts --body-file PATH, including boss record.
+The options conflict even for empty strings. Files are read as UTF-8 with newlines
+preserved, then normal core validation/normalization/guards apply. Empty files give
+empty bodies; sources are untouched. Relative paths use caller cwd, not project root.
+Missing/unreadable/directory/invalid-UTF-8/conflicting input fails before writes.
+File input never opens an editor; absent options retain editor/template behavior,
+including encounter kinds. MCP takes body strings, never paths. Budgets and literal
+rendering are unchanged. Example: cac campaign create goal --body-file "notes/plan.md".
 
 ## Domain model at a glance
 
@@ -596,38 +588,35 @@ it was made, supporting observations, and follow-up rather than future execution
 
 ## Boss planning records
 
-Bosses capture goals before campaign selection. Records live at
-`.sourcebook/bosses/<name>.md`; archives at
-`.sourcebook/archive/bosses/<name>.md`. The nested `bosses/rumors/` namespace
-is reserved for campaign rumors and excluded from boss enumeration and indexing.
+Bosses capture goals at `.sourcebook/bosses/<name>.md`, archived under
+`.sourcebook/archive/bosses/`. Reserved `bosses/rumors/` is excluded from boss discovery/indexing.
 
 Frontmatter contains `name`, required `summary` (maximum 500 characters),
 `status`, `archived`, `depends_on` (direct canonical names), optional
-`campaign`, and the common creation/update stamps. Creation sets proposed,
-unarchived, no campaign, and an empty dependency list. Suggested body headings
-are Goal, Rationale, Success Criteria, Design Notes, and Open Questions;
-none are required. Body text cannot set frontmatter or bypass guards.
+`campaign`, optional adoption `provenance`, and common audit stamps. Ordinary
+creation sets proposed, unarchived, no campaign, empty dependencies. Optional body
+headings: Goal, Rationale, Success Criteria, Design Notes, Open Questions.
+Body text cannot set frontmatter or bypass guards.
 
 | Operation | MCP tool | CLI command |
 | --- | --- | --- |
 | Capture body and summary | `boss_create` | `cac boss create NAME --summary TEXT` |
+| Record existing roadmap goal | `boss_record` | `cac boss record NAME --progress VALUE --source TEXT --message TEXT --summary TEXT` |
 | Read metadata, summary, bounded body | `boss_get` | `cac boss get NAME` |
 | Page canonical names | `boss_list` | `cac boss list` |
 | Replace body and summary together | `boss_update` | `cac boss update NAME --summary TEXT` |
 | Mark proposed goal ready | `boss_make_available` | `cac boss make-available NAME` |
 | Withdraw proposed/available goal | `boss_withdraw` | `cac boss withdraw NAME` |
 | Return withdrawn goal to proposed | `boss_reactivate` | `cac boss reactivate NAME` |
-| Archive unassigned withdrawn goal | `boss_archive` | `cac boss archive NAME` |
+| Archive withdrawn/external completed goal | `boss_archive` | `cac boss archive NAME` |
 | Add direct prerequisite | `boss_assign_dependency` | `cac boss assign-dependency NAME DEPENDENCY` |
 | Remove direct prerequisite | `boss_unassign_dependency` | `cac boss unassign-dependency NAME DEPENDENCY` |
 
-Create/update require body and summary together. CLI accepts `--body/-b`,
-`--body-file`, or an editor initialized with template/current body when neither
-body option is supplied. MCP requires explicit body and summary strings.
-Both surfaces preserve literal markdown, page lists with `cursor`/`--cursor`,
-and budget get bodies. MCP mutation results use the same bounded
-`{metadata, summary, body}` shape as get. Lists return canonical names and a
-next cursor; deterministic ordering does not express priority.
+Create/update/record require body and summary together: CLI `--body/-b`,
+`--body-file`, or template/current-body editor; MCP requires explicit strings.
+Output preserves literal Markdown. Lists return canonical names and next_cursor
+with cursor paging, not priority. MCP get/mutation results contain metadata,
+summary, body, and identity; bodies are bounded.
 
 Body/summary/dependency edits require unarchived, unassigned proposed/available
 status. Available edits retain available status. Make-available requires proposed
@@ -637,36 +626,56 @@ Reactivate requires unarchived, unassigned withdrawn status. Linked and vanquish
 records are frozen. Every archived mutation is rejected. State changes preserve
 the design body.
 
-Standalone archive accepts only unassigned withdrawn bosses, preserves status
-and body, updates audit stamps, and moves the record while setting archived.
-Destination collisions are rejected; persistence/move failures restore the live
-record and remove the incomplete archive. Get and canonical resolution read live
-and archived records. Default lists exclude archives; use `include_archived=True`
-/ `--include-archived` to inventory retained allocations. Names cannot be reused.
-Live/archive ambiguity is an error. There is no delete, rename, restoration,
-arbitrary metadata setter, or public vanquish operation.
+Standalone archive requires unassigned withdrawn status, or vanquished with valid
+completed roadmap provenance. It preserves status/provenance/body, updates audit
+stamps, and moves the record with archived=true. Collisions fail; persistence
+failures restore bytes/index evidence. Reads resolve archives; lists need
+include_archived=True/--include-archived. Retained names cannot be reused;
+live/archive ambiguity fails. No delete, rename, restore, or generic status setter.
 
-Dependencies persist full canonical names under existing permissive validation.
-Numbered names are optional; short refs are supported as below; allocation is deferred. Adding edges
-rejects self references, duplicates, unknown/withdrawn targets, and cycles.
-Graph changes validate stored dependency types, missing references, live/archive
-ambiguity, and cycles before writes. Existing edges to later-withdrawn bosses
-remain visible, including after archival. Archived vanquished prerequisites
-resolve normally. Explicit removal can repair missing references or break cycles
-if the resulting entire graph is valid; unrelated damage still blocks changes.
-Dependents are never rewritten, and changes do not reset availability.
+Dependencies store canonical names; adding rejects self/duplicate edges,
+unknown/withdrawn targets, malformed storage, ambiguity, and cycles before writes.
+Existing edges survive withdrawal/archive. Explicit removal may repair damage
+only if the resulting entire graph is valid. Dependents are never rewritten;
+availability is not reset. Numbered and legacy names/short refs remain supported.
 
-Schema compatibility: this is additive storage within schema version 1. Missing
-storage is empty in an existing bootstrapped project; reads create nothing and
-first create provisions directories lazily. No existing world/campaign is
-rewritten, no historical bosses are inferred, and no migration/bootstrap rerun
-is needed. Upgrade the library to use these interfaces; older libraries do not
-manage bosses. Storage links and namespace/path collisions are rejected rather
-than followed outside record locations.
+Schema stays 1. Missing storage is empty; reads never write; creation is lazy.
+No inferred goals, bulk conversion, bootstrap migration, or existing record rewrite.
+Pre-e014 libraries must not mutate roadmap records: they cannot validate provenance
+or its completion/archive rules. Downgrade requires developer conversion.
+Storage links/path/namespace collisions fail. Endpoints perform no Git/branch automation.
 
-Vanquished is set by campaign completion; reads preserve optional campaign links.
-Number allocation remains deferred. Boss endpoints perform no branch inspection,
-switching, or merge automation; world settings do not change endpoint behavior.
+### Roadmap adoption
+
+boss_record(name,body,summary,progress,source,message,completed_on=None,depends_on=None)
+is create-only; repeated live/archived names fail without updates. Required progress:
+planned/in_progress -> proposed; completed -> unassigned vanquished, without a
+synthetic campaign/encounter. Ordinary boss_create remains proposed-only.
+Required nonblank source describes the roadmap/evidence; message explains capture
+and, for completion, the outcome/evidence. CAC records an assertion, not proof of
+Git integration. No fetching, automatic extraction, or bulk upsert.
+
+Immutable provenance contains kind=roadmap, progress, source, message, completed_on.
+Progress is the original snapshot, never current readiness/ownership. Audit dates
+mean recorded now. completed_on is an optional YYYY-MM-DD completion date, only
+for completed progress; invalid/future dates (UTC) fail. Unknown stays null.
+CLI adds --completed-on and repeated --depends-on; refs resolve existing goals,
+including archives, before one atomic write. Record prerequisites first; unresolved
+external relations stay in prose. Historical outcomes need not replay prerequisite
+readiness; graph damage still prevents downstream trust.
+
+Planned/in_progress goals need explicit make-available approval. Existing campaign
+references are informational; adopting open legacy campaign ownership is deferred.
+Draft-only membership locks remain. External completions satisfy dependencies,
+including when archived; ordinary completed-content freezing applies. Mistakes need
+documented developer repair, never assistant direct edits. No undo API here.
+Recorded reads reserve provenance/identity before body truncation and boss_get
+hydration refs; impossible metadata fails explicitly, preflighted before record/archive.
+Failures roll back cohort bytes/rows/fingerprints, preserving unrelated drift.
+Prime still includes only actual active membership. Search indexes summary/body.
+For example, record delivered b001, then planned b002 depending on b001, then
+in_progress b003. Preserve roadmap references/evidence and known completion dates;
+no entire-roadmap import or invented execution history is required.
 
 ## Campaign rumors
 
@@ -719,27 +728,21 @@ never inspect Git or enforce branches.
 
 ### Candidate discovery
 
-`boss_candidates(cursor=None)` / `cac boss candidates --cursor TOKEN` return
-read-only local-record discovery as compact JSON. They do not prove integration.
-Numeric bNNN-slug names sort by integer, then name; legacy names follow lexically.
-Numeric ties retain distinct names. Order is not priority.
+boss_candidates(cursor=None) / cac boss candidates --cursor TOKEN returns read-only
+compact JSON, not proof of integration. Numeric names sort by integer then name;
+legacy names follow lexically. Ties stay distinct; order is not priority.
 
-The pool contains live, unassigned proposed/available goals. Proposed goals are
-not_ready; available goals are eligible only when all direct prerequisites are
-recorded vanquished and their reachable graph has no integrity defects; otherwise
-they are blocked. Archived vanquished prerequisites still satisfy the status rule.
-Assigned/withdrawn/vanquished/archived roots are excluded. Readiness is unchanged.
-Optional campaign links must resolve, reciprocate the boss, and agree on state:
-available with draft/open/paused; vanquished with completed. Linked campaign
-statuses are reported, including abandoned/paused.
+Pool: live unassigned proposed/available goals. Proposed is not_ready; available is
+eligible only with vanquished direct prerequisites and an intact reachable graph,
+otherwise blocked. Archived completion counts. Other roots are excluded; readiness
+is unchanged. Links must resolve, reciprocate, and match lifecycle/archive state:
+available with draft/open/paused, vanquished with completed. Campaign status is shown.
 
-Page fields: items, next_cursor, counts, healthy, diagnostics,
-diagnostics_omitted, diagnostics_ref. Counts are collection-wide before paging:
-total_live, total_archived, pool, eligible, blocked, not_ready, excluded, invalid.
-Invalid counts unreadable live records; archived defects affect health.
-Counts distinguish empty storage, no pool, not-ready goals, and blocked work.
-Healthy means no integrity diagnostics. Unrelated damage remains visible without
-hiding healthy choices; unsafe/ambiguous storage raises a domain error.
+Page: items, next_cursor, counts, healthy, diagnostics, diagnostics_omitted,
+diagnostics_ref. Global counts: total_live, total_archived, pool, eligible, blocked,
+not_ready, excluded, invalid (unreadable live records). Archived defects affect
+health. Healthy means no diagnostics; unrelated damage does not hide healthy choices.
+Unsafe/ambiguous storage fails. Counts distinguish empty, excluded, unready, blocked.
 
 Items carry name, summary, status, classification, eligible, reason_codes,
 prerequisite_count, unsatisfied_count, diagnostic_count, prerequisites,
@@ -753,14 +756,16 @@ campaign_boss_mismatch, campaign_state_mismatch. Entries carry name/code/message
 and optional prerequisite/campaign names. Reachable defects block dependents;
 cycle diagnostics do not imply cycle membership.
 
-Compact JSON for the whole page fits the shared response budget. Details and
-diagnostics show at most 16 entries per list, reduced further as needed; global
-diagnostics use at most one quarter of the budget. Fields prerequisites_omitted,
-diagnostics_omitted, and summary_truncated disclose cuts; counts and eligibility
-remain intact. Hydrate names with boss_get/campaign_get; collection
-diagnostics_ref: boss_list routes omitted problems to inventory and reads.
-Bodies are never included. If required fields/identifiers cannot fit, return an
-explicit budget error. Cursors assume an unchanged store; no snapshot is saved.
+Recorded items add roadmap {recorded_progress,source,source_truncated,ref:boss_get};
+source is a bounded preview. External completed prerequisites add
+completion_origin:roadmap and ref:boss_get; this never implies campaign ownership.
+
+Whole-page compact JSON fits the shared budget: at most 16 details per list,
+global diagnostics at most one quarter, reduced further if needed. Cuts report
+prerequisites_omitted/diagnostics_omitted/summary_truncated; counts/eligibility stay
+intact. Hydrate via boss_get/campaign_get; diagnostics_ref:boss_list routes omitted
+issues. No bodies. Unfit required identifiers/fields fail explicitly. Cursors assume
+an unchanged store, without snapshots.
 
 ### Promotion and campaign coupling
 
@@ -802,7 +807,7 @@ Open/pause do not vanquish; existing encounter guards apply.
 Completed archive moves all assigned bosses and terminal encounters, preserving
 status and readable history. Abandoned archive never controls released bosses,
 even if reassigned/archived/withdrawn/vanquished. Rumors stay live. Standalone boss
-archive still requires unassigned withdrawn status; no restoration/vanquish setter.
+archive also accepts externally evidenced completion; no restoration/generic status setter.
 Current/historical lists and reverse claims protect deletion. Broken/competing
 ownership or lifecycle state blocks mutation without repair. Campaign reads expose
 `bosses` and boss_link inspection; candidates diagnose malformed/orphan claims.
@@ -885,26 +890,19 @@ explicit budget error. Oversized encounter order requires inspecting paged lists
 instead of silently dropping rows. Get bodies reserve identity space before
 truncation; normal metadata and literal markdown contracts remain intact.
 
-The public core input boundary is `references.select` and its `inputs` adapter,
-shared by CLI/MCP. Domain/storage routines below it deliberately consume exact
-canonical names so damaged stored references cannot acquire new meaning. A
-request-local inventory may be cached; no persistent map, index, file/audit write,
-number reservation, branch/network lookup, or migration occurs during resolution.
-Schema version stays 1. Planning/branching skill adoption and Git collision checks
-remain later work. The dedicated docs budget is 64,000 characters so this full
-canonical reference remains retrievable; ordinary response budgets are unchanged.
+CLI/MCP share references.select/inputs; lower storage routines consume exact names
+without reinterpreting damaged links. Resolution may cache request-local inventory,
+never persistent maps, writes, number reservations, branch/network lookups, or
+migration. Schema stays 1; skill adoption/Git collision checks remain later work.
+The docs budget is 64,000 characters; ordinary response budgets are unchanged.
 
 ## Cross-cutting: priming, search, and docs
 
-Three auxiliary capabilities sit on top of the six content types above -
-none of them is a content type itself:
+Auxiliary capabilities (not content types):
 
-- **Prime** (`prime_get` / `cac prime get`, `prime_applicable_lore` /
-  `cac prime applicable-lore`) assembles cross-object context in one call
-  instead of chaining individual reads: the world, world-assigned enabled
-  lore summaries, the region map, and active campaign and boss bodies in one
-  round trip; and, for a specific encounter, the exact enabled lore set that
-  applies to it (world-assigned union its assigned regions' lore).
+- **Prime** (prime_get / cac prime get) bundles world, enabled world-lore
+  summaries, region map, active campaign/boss bodies. prime_applicable_lore /
+  cac prime applicable-lore resolves enabled world union encounter-region lore.
 - **Search index** (`index_status` / `cac index status`, `index_search` /
   `cac index search`) is a full-text index over `.sourcebook` content kept in
   sync automatically for world, lore, region, boss, campaign, and encounter records

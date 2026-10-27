@@ -53,6 +53,25 @@ def boss_update(name: str, body: str, summary: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+@references.inputs("boss", create=True)
+def boss_record(
+    name: str,
+    body: str,
+    summary: str,
+    progress: str,
+    source: str,
+    message: str,
+    completed_on: str | None = None,
+    depends_on: list[str] | None = None,
+) -> dict[str, Any]:
+    """Record an existing roadmap goal: planned/in_progress starts proposed; completed records evidenced historical success without a campaign. Create-only; provenance is a recording-time snapshot."""
+    boss_core.record_boss(
+        resolve_project_root(), name, body, summary, progress, source, message, completed_on, depends_on
+    )
+    return _read_boss(name)
+
+
+@mcp.tool()
 @references.inputs("boss")
 def boss_make_available(name: str) -> dict[str, Any]:
     """Mark an unassigned proposed boss available; prerequisites need not be satisfied."""
@@ -79,7 +98,7 @@ def boss_reactivate(name: str) -> dict[str, Any]:
 @mcp.tool()
 @references.inputs("boss")
 def boss_archive(name: str) -> dict[str, Any]:
-    """Archive an unassigned withdrawn boss; retain its name and status."""
+    """Archive an unassigned withdrawn or externally recorded completed boss; retain identity and status."""
     boss_core.archive_boss(resolve_project_root(), name)
     return _read_boss(name)
 

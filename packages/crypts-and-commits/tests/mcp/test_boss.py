@@ -68,3 +68,45 @@ def test_core_errors_propagate_without_writes(tmp_path):
     with pytest.raises(ValueError):
         api.boss_update("goal", "New", "x" * 501)
     assert boss.boss_path(tmp_path, "goal").read_bytes() == before
+
+
+def test_roadmap_recording_and_historical_archive(tmp_path):
+    result = api.boss_record(
+        "b001-old", "[Evidence] café", "Existing goal", "completed", "roadmap.md", "Shipped", "2024-02-29"
+    )
+    assert result["metadata"]["status"] == "vanquished"
+    assert result["metadata"]["provenance"]["completed_on"] == "2024-02-29"
+    assert result["identity"]["short"] == "b001"
+    result = api.boss_record("b002-next", "Next", "Next", "planned", "roadmap.md", "Future", depends_on=["b001"])
+    assert result["metadata"]["depends_on"] == ["b001-old"]
+    assert result["metadata"]["status"] == "proposed"
+    result = api.boss_archive("b001")
+    assert result["metadata"]["archived"] and result["metadata"]["status"] == "vanquished"
+    assert api.boss_get("b001")["metadata"]["provenance"]["source"] == "roadmap.md"
+    assert api.boss_candidates()["items"][0]["prerequisites"][0]["completion_origin"] == "roadmap"
+    with pytest.raises(boss.BossAlreadyExistsError):
+        api.boss_record("b001-old", "Replacement", "Replacement", "planned", "Source", "Reason")
+
+
+def test_recorded_boss_whole_envelope_budget_and_preflight(tmp_path, monkeypatch):
+    from cac.core import references
+
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 1600)
+    result = api.boss_record("b001-old", ('"\\\n' * 3000), "Summary", "completed", "Source", "Outcome")
+    assert len(references.encoded(result)) <= 1600
+    assert "TRUNCATED" in result["body"] and "boss_get" in result["body"]
+    assert result["metadata"]["provenance"]["message"] == "Outcome"
+    assert result["identity"]["canonical"] == "b001-old"
+    with pytest.raises(ValueError, match="before writes"):
+        api.boss_record("b002-huge", "Body", "Summary", "planned", "s" * 5000, "Reason")
+    assert boss.list_bosses(tmp_path) == ["b001-old"]
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 100)
+    with pytest.raises(ValueError, match="response budget"):
+        api.boss_get("b001")
+
+
+@pytest.mark.parametrize("progress", ["planned", "in_progress", "completed"])
+def test_record_arguments_fail_before_mutation(tmp_path, progress):
+    with pytest.raises(ValueError):
+        api.boss_record("b001-old", "Body", "Summary", progress, " ", "Evidence")
+    assert boss.list_bosses(tmp_path) == []

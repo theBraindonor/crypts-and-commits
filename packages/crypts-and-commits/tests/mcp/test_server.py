@@ -15,6 +15,7 @@ def test_all_domain_tools_are_registered() -> None:
         "rumors_update",
         "rumors_delete",
         "boss_create",
+        "boss_record",
         "boss_candidates",
         "boss_assign_campaign",
         "boss_get",

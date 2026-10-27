@@ -136,3 +136,71 @@ def test_missing_git_identity_is_a_readable_cli_error(tmp_path, monkeypatch):
     assert result.exit_code == 1
     assert "[identity] not configured" in result.output
     assert path.read_bytes() == before
+
+
+def test_record_body_file_dependencies_and_literal_context(tmp_path, monkeypatch):
+    source = tmp_path / "roadmap excerpt.md"
+    source.write_bytes("[Evidence]\r\n\r\nCafé 🐉\r\n".encode())
+    args = ["--summary", "[summary]", "--source", "[roadmap]", "--message", "[outcome]"]
+    result = invoke(
+        "record",
+        "b001-old",
+        "--progress",
+        "completed",
+        "--completed-on",
+        "2024-02-29",
+        "--body-file",
+        str(source),
+        *args,
+    )
+    assert result.exit_code == 0, result.output
+    assert "b001" in result.output
+    result = invoke("get", "b001")
+    assert result.exit_code == 0 and "[Evidence]" in result.output and "[roadmap]" in result.output
+    assert "Café" in result.output and "[outcome]" in result.output
+    create("b003-other")
+    monkeypatch.setattr("cac.cli.boss.edit_markdown", lambda initial: "[Editor] underway")
+    result = invoke(
+        "record", "b002-next", "--progress", "in_progress", "--depends-on", "b001", "--depends-on", "b003", *args
+    )
+    assert result.exit_code == 0, result.output
+    metadata, body = boss.read_metadata(tmp_path, "b002-next")
+    assert body == "[Editor] underway" and metadata["status"] == "proposed"
+    assert metadata["depends_on"] == ["b001-old", "b003-other"]
+    assert metadata["provenance"]["progress"] == "in_progress"
+    assert invoke("archive", "b001").exit_code == 0
+
+
+@pytest.mark.parametrize(
+    "failure", ["source", "message", "progress", "summary", "conflict", "utf8", "date", "duplicate"]
+)
+def test_record_cli_errors_leave_no_record(tmp_path, failure):
+    create("b002-other")
+    source = tmp_path / "body.md"
+    source.write_bytes(b"\xff" if failure == "utf8" else b"Body")
+    args = [
+        "record",
+        "b001-old",
+        "--progress",
+        "planned",
+        "--source",
+        "roadmap.md",
+        "--message",
+        "Reason",
+        "--summary",
+        "S",
+        "--body-file",
+        str(source),
+    ]
+    if failure in ("source", "message", "progress", "summary"):
+        at = args.index("--" + failure)
+        del args[at : at + 2]
+    elif failure == "conflict":
+        args.extend(["--body", "Other"])
+    elif failure == "date":
+        args.extend(["--completed-on", "2024-01-01"])
+    elif failure == "duplicate":
+        args.extend(["--depends-on", "b002", "--depends-on", "b002-other"])
+    result = invoke(*args)
+    assert result.exit_code != 0
+    assert boss.list_bosses(tmp_path) == ["b002-other"]

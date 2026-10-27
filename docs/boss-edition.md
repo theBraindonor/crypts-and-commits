@@ -3,9 +3,10 @@
 Status: design for the next release. The boundary below distinguishes implemented
 behavior from future proposals; this document does not approve encounter execution.
 
-Implementation boundary (e006/e007/e008/e009/e011/e012/e013): boss planning, dependencies,
+Implementation boundary (e006/e007/e008/e009/e011/e012/e013/e014): boss planning, dependencies,
 candidate discovery, short refs, promotion, campaign coupling, rumors, active-boss prime,
-boss search, content-based index freshness, and multi-boss campaigns are implemented in the
+boss search, content-based index freshness, multi-boss campaigns, and explicit roadmap
+recording/historical completion are implemented in the
 packaged Workflow Reference Guide. Other sections describe the intended full
 release, including deferred skills and adoption guidance. The additive collection retains schema version 1:
 missing storage is empty and created lazily, without rewriting old records or
@@ -58,8 +59,8 @@ bosses, not necessarily the entire project.
   `main` directly, following the same flow a PR would.
 - Archiving is a flag, not a status, matching existing campaigns and encounters.
   Archiving campaigns and their bosses happens on the planning branch.
-- `vanquished` is the boss's successful-completion status, set when its campaign
-  completes.
+- `vanquished` is successful completion: normally campaign completion, or explicit
+  evidenced historical completion through roadmap recording during adoption.
 - Encounter numbering starts at `e001` within each campaign. References such as
   `c001/e011` identify an encounter without repeating its descriptive slug.
 - Multi-agent messaging, assignment, supervision, and distributed coordination
@@ -256,8 +257,9 @@ of the same operation:
 
 These operations change only the boss's frontmatter, never its body. This
 coupling keeps the two records consistent without giving campaign management any
-way to edit a boss's aspirational content, and there is no separate public
-operation for setting `vanquished`. Apply the same rollback rules as assignment
+way to edit a boss's aspirational content. There is no generic public status setter;
+the roadmap-recording exception below creates new historical records only.
+Apply the same rollback rules as assignment
 (see "Promotion contract") when one half of a coupled update fails. These are
 lifecycle exceptions, not general editing rights. Execution branches do not edit
 boss design content.
@@ -385,6 +387,7 @@ Proposed boss attributes:
 | `archived` | Flag set when archived, matching campaigns and encounters; status is left untouched and the record moves to the sourcebook's `archive/bosses` directory |
 | `depends_on` | Direct prerequisite boss names |
 | `campaign` | Current assigned campaign; absent before assignment or after an abandoned attempt is released |
+| `provenance` | Optional immutable roadmap-adoption snapshot; original progress/source/evidence and optional historical completion date |
 | Audit attributes | Creation and update attribution/timestamps consistent with CAC |
 
 The campaign stores canonical `bosses` (zero or more names); each boss retains
@@ -420,10 +423,65 @@ for initial capture.
 | Update | Refine unassigned proposed/available bosses on planning without resetting status; the planning skill re-evaluates readiness after scope changes |
 | Assign | Link one draft campaign to an available boss and lock its design; assignment is a relationship, not a `promoted` status |
 | Withdraw | Set aside an unassigned, non-vanquished goal on planning |
-| Vanquish | Campaign completion sets boss status to `vanquished`, its successful-completion status |
+| Vanquish | Campaign completion sets `vanquished`; explicit roadmap recording may create a historical completed boss directly |
 | Archive campaign | On planning, archive the completed campaign and every currently assigned boss |
 | Reactivate withdrawn boss | On planning, return `withdrawn` -> `proposed` for renewed consideration |
 | Archive withdrawn boss | On planning, set the `archived` flag |
+| Record existing roadmap goal | Explicit create-only capture; planned/in_progress starts proposed, completed starts unassigned vanquished |
+| Archive external completion | Standalone archive of an unassigned vanquished goal with valid completed provenance |
+
+### Existing roadmaps and historical completion
+
+boss_record(name,body,summary,progress,source,message,completed_on=None,depends_on=None)
+/ cac boss record NAME captures one existing goal. The CLI requires --progress,
+--source, --message, and --summary, accepts --body/--body-file/editor, optional
+--completed-on, and repeated --depends-on. MCP requires body and summary strings.
+Ordinary boss_create remains proposed-only. Reusing any live/archived name fails,
+without upsert. No automatic extraction, external fetch, or all-roadmap import.
+
+Provenance is an immutable mapping: kind=roadmap, progress=planned/in_progress/
+completed, required nonblank source and message, and completed_on or null. Source
+may be a roadmap path/URL, issue/release identifier, or developer evidence description.
+Message explains capture and, for completion, the outcome/evidence. Original progress
+is a snapshot, never live status, readiness, or ownership. created_on/created_by and
+updated_on/updated_by describe recording now; a known completed_on is a separate
+YYYY-MM-DD date, only for completed progress, not future in UTC. Unknown stays null.
+CAC records supplied evidence and does not verify outside implementation or merging.
+
+Planned/in_progress starts unassigned proposed, requiring explicit make-available
+approval before selection. Normal edits/transitions preserve provenance. Existing
+campaign references are informational: this operation neither retrofits ownership
+into already-open legacy campaigns nor bypasses draft-only membership. Future
+ownership can be established only through existing eligible-boss/draft operations.
+
+Completed starts unassigned vanquished without fabricated campaigns/encounters.
+It satisfies prerequisites with intact reachable graph, live or archived, and is
+excluded from candidates. It stays frozen against ordinary editing, reassignment,
+withdrawal, or reactivation. Standalone archive requires valid completed provenance,
+preserves exact body bytes/status/audit creation/provenance, and does not grant an
+arbitrary legacy unassigned vanquished record permission to archive. No historical
+undo/edit/restore API; errors use the documented developer repair route, never
+assistant filesystem edits. Normal campaign completion/coupled archival remain.
+
+Dependencies resolve existing canonical/short refs atomically, including archives;
+self/duplicate/missing/ambiguous/withdrawn targets and cycles fail before writes.
+Enter prerequisites first; unknown external relations remain prose. Historical
+outcomes need not replay prerequisite readiness, but graph defects still block
+downstream trust. Creation/archive preflight output and audit/path constraints;
+failures restore bytes/index rows/fingerprints and preserve unrelated stale evidence.
+
+Incrementally record delivered b001-storage with roadmap.md#storage/release evidence
+and a known completion date, then planned b002-search depending on b001, then
+in_progress b003-ui referencing outside work. Read each with boss_get. Candidate
+context labels original recorded progress/source previews and external completion;
+prime still includes only actual active campaign membership. Search retains its
+summary/body contract. Metadata/identity are reserved before body truncation;
+impossible envelopes fail explicitly, with recording preflight before persistence.
+
+Schema remains 1; old records without provenance are preserved on reads. No bulk
+conversion/bootstrap migration. Pre-e014 libraries must not mutate roadmap records;
+they lack provenance validation and completion/archive semantics. Downgrade needs
+deliberate developer conversion. Broader adoption/branching guides and skills follow.
 
 An assigned boss remains `available` with its campaign reference set until
 completion; it is excluded from new assignments. This avoids inventing a new
@@ -524,7 +582,9 @@ completed implementation integrated into the merge target.
 
 Candidate discovery uses a simple rule: a prerequisite is satisfied when its
 boss's recorded status is `vanquished`, whether or not it is archived. This
-matches the intended meaning because of how the workflow is shaped. Candidate
+matches the intended meaning for ordinary campaigns because of the workflow below.
+Explicit historical completion is the documented adoption exception: supplied
+evidence replaces invented CAC campaign history, not graph-integrity checks. Candidate
 selection happens on `planning`, and `planning` receives campaign records only
 by synchronizing from `main`. A campaign reaches `main` only after it is
 completed and merged, so a `vanquished` boss visible on `planning` has already

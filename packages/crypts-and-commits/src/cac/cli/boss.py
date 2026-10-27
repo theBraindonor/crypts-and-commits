@@ -1,6 +1,7 @@
 import json
 from collections.abc import Callable
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -64,13 +65,22 @@ def get_boss(name: str = typer.Argument(...)) -> None:
     """Show boss metadata, summary, and a budgeted body."""
     root = resolve_project_root()
     metadata, body = _call(boss_core.read_metadata, root, name)
+    if "provenance" in metadata:
+        body = _call(
+            boss_core.budget_response,
+            root,
+            name,
+            {"metadata": metadata, "body": body, "identity": references.Inventory(root).identity("boss", name)},
+        )["body"]
+    else:
+        body = budget_core.truncate_body(
+            body, boss_core.boss_path(root, name), budget=references.body_allowance(root, "boss", name)
+        )
     for key, value in metadata.items():
         console.print(f"{key}: {value}", markup=False)
     console.print()
     console.print(
-        budget_core.truncate_body(
-            body, boss_core.boss_path(root, name), budget=references.body_allowance(root, "boss", name)
-        ),
+        body,
         markup=False,
         soft_wrap=True,
     )
@@ -136,6 +146,44 @@ def update_boss(
     _body_write(name, body, body_file, summary, update=True)
 
 
+@app.command("record")
+@reference_inputs("boss", create=True)
+def record_boss(
+    name: str = typer.Argument(...),
+    progress: str = typer.Option(..., "--progress", help="Reported progress: planned, in_progress, or completed."),
+    source: str = typer.Option(..., "--source", help="Roadmap/evidence reference or description."),
+    message: str = typer.Option(
+        ..., "--message", "-m", help="Recording rationale; describe completion evidence if completed."
+    ),
+    summary: str = typer.Option(..., "--summary", "-s"),
+    completed_on: str | None = typer.Option(
+        None, "--completed-on", help="Known historical completion date, YYYY-MM-DD."
+    ),
+    depends_on: Annotated[
+        list[str] | None, typer.Option("--depends-on", help="Existing prerequisite; repeat for each.")
+    ] = None,
+    body: str | None = typer.Option(None, "--body", "-b"),
+    body_file: str | None = typer.Option(None, "--body-file", help="Read UTF-8 Markdown; conflicts with --body."),
+) -> None:
+    """Capture one existing roadmap goal without inventing campaign history."""
+    content = resolve_body_input(body, body_file)
+    if content is None:
+        content = edit_markdown(boss_core.template_body())
+    path = _call(
+        boss_core.record_boss,
+        resolve_project_root(),
+        name,
+        content,
+        summary,
+        progress,
+        source,
+        message,
+        completed_on,
+        depends_on,
+    )
+    console.print(str(path), markup=False)
+
+
 @app.command("make-available")
 @reference_inputs("boss")
 def make_available(name: str = typer.Argument(...)) -> None:
@@ -163,7 +211,7 @@ def reactivate(name: str = typer.Argument(...)) -> None:
 @app.command("archive")
 @reference_inputs("boss")
 def archive_boss(name: str = typer.Argument(...)) -> None:
-    """Archive an unassigned withdrawn boss, retaining its name and status."""
+    """Archive an unassigned withdrawn or externally recorded completed boss."""
     path: Path = _call(boss_core.archive_boss, resolve_project_root(), name)
     console.print(str(path), markup=False)
 
