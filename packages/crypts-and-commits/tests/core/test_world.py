@@ -2,6 +2,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+import frontmatter
 import pytest
 from cac.core import git_utils, lore, world
 
@@ -62,6 +63,8 @@ def test_read_world_returns_metadata_and_body(tmp_path: Path) -> None:
     assert result.metadata == {
         "name": "unnamed_world",
         "assigned_lore": [],
+        "merge_target_branch": "main",
+        "planning_branch": "planning",
         "schema_version": 1,
         "created_by": "John Hoff",
         "created_on": "2026-07-23T18:04:12Z",
@@ -69,6 +72,92 @@ def test_read_world_returns_metadata_and_body(tmp_path: Path) -> None:
         "updated_on": "2026-07-23T18:04:12Z",
     }
     assert "Be sure to edit this world definition file before starting development!" in result.body
+
+
+def test_new_world_persists_branch_defaults(tmp_path: Path) -> None:
+    path, _ = world.initialize_world(tmp_path)
+    metadata = frontmatter.load(path).metadata
+
+    assert metadata["merge_target_branch"] == "main"
+    assert metadata["planning_branch"] == "planning"
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {},
+        {"merge_target_branch": "trunk"},
+        {"planning_branch": "plans/team"},
+        {"merge_target_branch": "release/next", "planning_branch": "roadmap"},
+        {"merge_target_branch": "", "planning_branch": None},
+        {"merge_target_branch": False, "planning_branch": []},
+    ],
+)
+def test_legacy_world_exposes_missing_defaults_without_writes(
+    tmp_path: Path, legacy_world: Path, overrides: dict[str, object]
+) -> None:
+    post = frontmatter.load(legacy_world)
+    post.metadata.update(overrides)
+    legacy_world.write_text(frontmatter.dumps(post), encoding="utf-8")
+    before = legacy_world.read_bytes()
+    modified = legacy_world.stat().st_mtime_ns
+
+    result = world.read_world(tmp_path)
+
+    expected = {"merge_target_branch": "main", "planning_branch": "planning"} | overrides
+    for key, value in expected.items():
+        assert result.metadata[key] == value
+    assert legacy_world.read_bytes() == before
+    assert legacy_world.stat().st_mtime_ns == modified
+
+
+@pytest.mark.parametrize("operation", ["attribute", "body", "assign", "unassign"])
+def test_world_writes_return_effective_defaults_without_backfill(
+    tmp_path: Path, legacy_world: Path, operation: str
+) -> None:
+    lore.create_lore(tmp_path, "conventions", "Body.", "Summary.")
+    if operation == "unassign":
+        world.assign_lore(tmp_path, "conventions")
+    before = frontmatter.load(legacy_world)
+    if operation == "attribute":
+        result = world.set_attribute(tmp_path, "custom", "keep-me")
+    elif operation == "body":
+        result = world.update_body(tmp_path, "New body.")
+    elif operation == "assign":
+        result = world.assign_lore(tmp_path, "conventions")
+    else:
+        result = world.unassign_lore(tmp_path, "conventions")
+
+    assert result.metadata["merge_target_branch"] == "main"
+    assert result.metadata["planning_branch"] == "planning"
+    assert result == world.read_world(tmp_path)
+    persisted = frontmatter.load(legacy_world)
+    assert "merge_target_branch" not in persisted
+    assert "planning_branch" not in persisted
+    assert persisted["created_on"] == before["created_on"]
+    assert persisted["name"] == before["name"]
+    assert persisted.content == ("New body." if operation == "body" else before.content)
+
+
+@pytest.mark.parametrize("key", ["merge_target_branch", "planning_branch"])
+def test_branch_override_persists_only_the_requested_setting(tmp_path: Path, legacy_world: Path, key: str) -> None:
+    result = world.set_attribute(tmp_path, key, "team/custom")
+
+    persisted = frontmatter.load(legacy_world)
+    other = "planning_branch" if key == "merge_target_branch" else "merge_target_branch"
+    assert persisted[key] == "team/custom"
+    assert other not in persisted
+    assert result.metadata[key] == "team/custom"
+    assert result.metadata[other] == ("planning" if other == "planning_branch" else "main")
+    assert result == world.read_world(tmp_path)
+
+
+def test_effective_metadata_is_an_independent_copy(tmp_path: Path, legacy_world: Path) -> None:
+    result = world.read_world(tmp_path)
+    result.metadata["planning_branch"] = "changed-in-memory"
+
+    assert world.read_world(tmp_path).metadata["planning_branch"] == "planning"
+    assert "planning_branch" not in frontmatter.load(legacy_world)
 
 
 def test_set_attribute_updates_metadata(tmp_path: Path) -> None:

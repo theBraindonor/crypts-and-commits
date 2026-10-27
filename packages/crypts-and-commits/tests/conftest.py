@@ -2,8 +2,9 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+import frontmatter
 import pytest
-from cac.core import frontmatter_utils, git_utils
+from cac.core import frontmatter_utils, git_utils, world
 
 FIXED_TIME = datetime(2026, 7, 23, 18, 4, 12, tzinfo=UTC)
 
@@ -25,3 +26,14 @@ def identity(monkeypatch: pytest.MonkeyPatch) -> Callable[..., None]:
 @pytest.fixture(autouse=True)
 def _default_identity(identity: Callable[..., None]) -> None:
     identity()
+
+
+@pytest.fixture
+def legacy_world(tmp_path: Path) -> Path:
+    """A historical world without the optional branch attributes."""
+    path, _ = world.initialize_world(tmp_path)
+    post = frontmatter.load(path)
+    post.metadata.pop("merge_target_branch")
+    post.metadata.pop("planning_branch")
+    path.write_text(frontmatter.dumps(post), encoding="utf-8")
+    return path

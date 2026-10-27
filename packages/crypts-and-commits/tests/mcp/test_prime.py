@@ -3,6 +3,22 @@ from pathlib import Path
 import pytest
 from cac.core import campaign, encounter, lore, region, world
 from cac.mcp import prime as mcp_prime
+from cac.mcp import world as mcp_world
+
+
+@pytest.mark.parametrize("override", [False, True])
+def test_prime_world_branch_settings_agree_with_world_tool(legacy_world: Path, override: bool) -> None:
+    if override:
+        mcp_world.world_set("merge_target_branch", "release/next")
+    before = legacy_world.read_bytes()
+
+    result = mcp_prime.prime_get()
+
+    assert set(result) == {"world", "world_lore", "regions", "active_campaign", "campaign_body"}
+    assert result["world"] == mcp_world.world_get()
+    assert result["world"]["metadata"]["merge_target_branch"] == ("release/next" if override else "main")
+    assert result["world"]["metadata"]["planning_branch"] == "planning"
+    assert legacy_world.read_bytes() == before
 
 
 def test_prime_get_assembles_bundle(tmp_path: Path) -> None:

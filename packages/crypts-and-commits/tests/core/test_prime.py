@@ -9,6 +9,22 @@ def test_assemble_prime_missing_world_raises(tmp_path: Path) -> None:
         prime.assemble_prime(tmp_path)
 
 
+@pytest.mark.parametrize("override", [False, True])
+def test_prime_branch_settings_match_world_without_writes(tmp_path: Path, legacy_world: Path, override: bool) -> None:
+    if override:
+        world.set_attribute(tmp_path, "planning_branch", "plans/team")
+    before = legacy_world.read_bytes()
+    modified = legacy_world.stat().st_mtime_ns
+
+    bundle = prime.assemble_prime(tmp_path)
+
+    assert bundle.world == world.read_world(tmp_path)
+    assert bundle.world.metadata["merge_target_branch"] == "main"
+    assert bundle.world.metadata["planning_branch"] == ("plans/team" if override else "planning")
+    assert legacy_world.read_bytes() == before
+    assert legacy_world.stat().st_mtime_ns == modified
+
+
 def test_assemble_prime_returns_world_full_body(tmp_path: Path) -> None:
     world.initialize_world(tmp_path)
     world.update_body(tmp_path, "The world body.")

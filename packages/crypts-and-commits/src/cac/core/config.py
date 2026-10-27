@@ -8,6 +8,7 @@ ENCOUNTER_DIR_NAME = "encounters"
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 RESERVED_NAMES = frozenset({".", ".."})
 WORLD_FILE_NAME = "world.md"
+WORLD_BRANCH_DEFAULTS = {"merge_target_branch": "main", "planning_branch": "planning"}
 SCHEMA_VERSION_KEY = "schema_version"
 SOURCEBOOK_SCHEMA_VERSION = 1
 MCP_CONFIG_FILE_NAME = ".mcp.json"

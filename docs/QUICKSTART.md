@@ -58,3 +58,23 @@ From here, your agent drives `.sourcebook/` for you: building out lore,
 regions, and campaigns as work comes up. If you (or your agent) ever need the
 full domain-model reference, it's one call away - `cac docs get workflow`, or
 ask the agent to look it up.
+
+### Optional branch settings
+
+The world defaults to `main` for `merge_target_branch` and `planning` for
+`planning_branch`. Inspect the effective values or store overrides through the
+existing world commands:
+
+```bash
+cac world get
+cac world set merge_target_branch trunk
+cac world set planning_branch plans/team
+cac prime get
+```
+
+MCP exposes the same values through `world_get`, `world_set`, and the world
+portion of `prime_get`. Legacy worlds missing these attributes use the defaults
+without being rewritten, so no migration or bootstrap rerun is needed. Existing
+explicit values are preserved. New worlds record both defaults at initialization.
+These settings configure intended branch names; setting them does not create or
+switch branches or enforce a branching workflow.

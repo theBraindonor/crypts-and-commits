@@ -10,6 +10,29 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+def test_get_exposes_legacy_branch_defaults_without_writes(legacy_world: Path) -> None:
+    before = legacy_world.read_bytes()
+
+    result = runner.invoke(app, ["world", "get"])
+
+    assert result.exit_code == 0, result.output
+    assert "merge_target_branch: main" in result.output
+    assert "planning_branch: planning" in result.output
+    assert legacy_world.read_bytes() == before
+
+
+@pytest.mark.parametrize("key", ["merge_target_branch", "planning_branch"])
+def test_branch_setting_round_trip_keeps_literal_value(legacy_world: Path, key: str) -> None:
+    value = "team/[custom]"
+    result = runner.invoke(app, ["world", "set", key, value])
+
+    assert result.exit_code == 0, result.output
+    assert f"Set {key} = {value}" in result.output
+    result = runner.invoke(app, ["world", "get"])
+    assert result.exit_code == 0, result.output
+    assert f"{key}: {value}" in result.output
+
+
 def test_body_file_crlf_matches_inline_input(tmp_path: Path, seed_world: Callable[[], None]) -> None:
     from cac.core import world
 

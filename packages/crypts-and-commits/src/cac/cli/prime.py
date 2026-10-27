@@ -39,7 +39,8 @@ def get_prime() -> None:
 
     console.print("[bold]== World ==[/bold]")
     for key, value in bundle.world.metadata.items():
-        console.print(f"[bold]{key}[/bold]: {value}")
+        console.print(f"{key}:", style="bold", markup=False, end=" ")
+        console.print(value, markup=False)
     console.print()
     world_body = budget_core.truncate_body(bundle.world.body, world_core.world_path(resolve_project_root()))
     console.print(world_body, markup=False, soft_wrap=True)

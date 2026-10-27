@@ -8,6 +8,21 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("override", [False, True])
+def test_prime_shows_legacy_branch_settings_literally_without_writes(legacy_world: Path, override: bool) -> None:
+    if override:
+        result = runner.invoke(app, ["world", "set", "merge_target_branch", "team/[custom]"])
+        assert result.exit_code == 0
+    before = legacy_world.read_bytes()
+
+    result = runner.invoke(app, ["prime", "get"])
+
+    assert result.exit_code == 0, result.output
+    assert "merge_target_branch: " + ("team/[custom]" if override else "main") in result.output
+    assert "planning_branch: planning" in result.output
+    assert legacy_world.read_bytes() == before
+
+
 def test_get_fails_without_bootstrap() -> None:
     result = runner.invoke(app, ["prime", "get"])
 

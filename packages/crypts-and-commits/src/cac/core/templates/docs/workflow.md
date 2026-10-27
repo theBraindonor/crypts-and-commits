@@ -141,6 +141,38 @@ to prime context for any other work. Exactly one exists per project.
 | Replace the body | `world_set_body` | `cac world set-body` |
 | Assign/unassign lore | (via lore's tools, below - world is the "target" object) | `cac lore assign-world` / `unassign-world` |
 
+### Branch settings
+
+The world supplies two configurable branch names:
+
+| Attribute | Effective default | Intended use by branch-workflow guidance |
+| --- | --- | --- |
+| `merge_target_branch` | `main` | Integration target for campaign work |
+| `planning_branch` | `planning` | Boss planning and rumor distillation |
+
+World reads and the world portion of prime expose these fields in `metadata`
+through core, CLI, and MCP. New worlds persist both defaults from the packaged
+template. Older worlds need no migration: missing keys are filled in the
+returned metadata only. Reads do not rewrite files or audit stamps, and
+unrelated writes do not backfill missing defaults. World-returning setters,
+body updates, and lore-link operations expose the same effective metadata.
+
+Use the existing `cac world set merge_target_branch trunk` and
+`cac world set planning_branch plans/team` commands to persist explicit
+overrides, or `world_set(key="planning_branch", value="plans/team")` through MCP.
+Only the explicitly set attribute is persisted along with normal audit updates;
+the other setting still uses its default if absent. Explicit stored values are
+preserved, including empty or malformed historical values: fallback depends on
+key absence, not truthiness. The generic setter retains its string-value
+contract and adds no branch-name validation policy. Configure meaningful Git
+branch names; these values are configuration, not proof that a branch exists.
+
+These optional fields do not change the sourcebook schema version. Endpoints
+do not inspect, create, switch, or merge Git branches, and do not gate lifecycle
+operations on these settings. They supply configuration for future branch
+workflow guidance; this feature alone does not deploy that guidance or change
+the current skill procedures.
+
 ### Sourcebook schema versioning
 
 `schema_version` is stamped onto every `world.md` `cac bootstrap init`

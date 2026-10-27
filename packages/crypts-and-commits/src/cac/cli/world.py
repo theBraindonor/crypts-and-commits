@@ -27,7 +27,8 @@ def get_world() -> None:
         fail(console, str(exc))
 
     for key, value in world.metadata.items():
-        console.print(f"[bold]{key}[/bold]: {value}")
+        console.print(f"{key}:", style="bold", markup=False, end=" ")
+        console.print(value, markup=False)
     console.print()
     body = budget_core.truncate_body(world.body, world_core.world_path(resolve_project_root()))
     console.print(body, markup=False, soft_wrap=True)
@@ -35,7 +36,7 @@ def get_world() -> None:
 
 @app.command("set")
 def set_attribute(
-    key: str = typer.Argument(..., help="Frontmatter attribute name."),
+    key: str = typer.Argument(..., help="Frontmatter attribute name, such as merge_target_branch or planning_branch."),
     value: str = typer.Argument(..., help="Frontmatter attribute value."),
 ) -> None:
     """Set a frontmatter attribute on the world file."""
@@ -44,7 +45,9 @@ def set_attribute(
     except (world_core.WorldNotFoundError, GitIdentityError) as exc:
         fail(console, str(exc))
 
-    console.print(f"Set [bold]{key}[/bold] = {value}")
+    console.print("Set", end=" ")
+    console.print(key, style="bold", markup=False, end=" = ")
+    console.print(value, markup=False)
 
 
 @app.command("set-body")
