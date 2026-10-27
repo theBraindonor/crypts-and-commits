@@ -3,9 +3,9 @@ archived: false
 created_by: John Hoff
 created_on: '2026-10-27T03:26:33Z'
 name: c001-boss-edition
-status: draft
+status: open
 updated_by: John Hoff
-updated_on: '2026-10-27T03:28:46Z'
+updated_on: '2026-10-27T03:35:48Z'
 ---
 
 Deliver "Boss Edition", the next CAC release: add **bosses**, project goals that can be captured and refined before any campaign commits to them, plus the numbered-name and branch workflow that ties bosses, campaigns, and encounters together. The full design, including all agreed decisions, lives in `docs/boss-edition.md` (committed on this branch). That doc is the reference for every encounter in this campaign. Where an encounter and the doc disagree, fix the doc in the same change rather than drifting from it.

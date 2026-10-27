@@ -60,7 +60,8 @@ boss's requirements. Boss dependencies are optional hard prerequisites referenci
 other bosses. Planning has a dedicated skill, and merge-policy enforcement is
 skill-based; CI validation is entirely the developer's choice.
 
-The remaining implementation details below are proposals unless explicitly agreed.
+Accepted implementation choices and remaining proposals are distinguished in
+the e001 decision record below. All describe future behavior, not shipped APIs.
 
 ## Scope and boundaries
 
@@ -84,7 +85,7 @@ clones or provide distributed assignment and supervision.
 
 Store two branch names in the world record:
 
-| Proposed attribute | Default | Purpose |
+| Attribute | Default | Purpose |
 | --- | --- | --- |
 | `merge_target_branch` | `main` | Integration branch that campaign and assignment work merges into |
 | `planning_branch` | `planning` | Branch where bosses are managed and rumors distilled |
@@ -94,6 +95,11 @@ configured branches: `master`, `trunk`, or another project integration branch
 is equally valid, and a project can rename the planning branch to avoid
 colliding with an existing branch. Skills use these settings when creating
 planning/campaign branches, synchronizing, and targeting merges.
+
+World reads and prime expose the effective defaults when these attributes are
+absent in older records. Explicit overrides use the existing world-set CLI/MCP
+interfaces. Reading defaults does not require rewriting historical records;
+endpoints do not inspect Git branches.
 
 Branch conventions and integration checks are skill guidance only. The CLI and
 MCP endpoints do not inspect the current branch, and their behavior never
@@ -377,7 +383,7 @@ for initial capture.
 | --- | --- |
 | Create | Start as `proposed`, with editable aspirations and relationships on planning |
 | Make available | A planner deems the boss ready for a campaign |
-| Update | Refine unassigned proposed/available bosses on planning; re-evaluate readiness after scope changes |
+| Update | Refine unassigned proposed/available bosses on planning without resetting status; the planning skill re-evaluates readiness after scope changes |
 | Assign | Link one draft campaign to an available boss and lock its design; assignment is a relationship, not a `promoted` status |
 | Withdraw | Set aside an unassigned, non-vanquished goal on planning |
 | Vanquish | Campaign completion sets boss status to `vanquished`, its successful-completion status |
@@ -389,6 +395,12 @@ An assigned boss remains `available` with its campaign reference set until
 completion; it is excluded from new assignments. This avoids inventing a new
 assignment status. An unassigned available boss is planner-approved, but may
 still be blocked by prerequisites. Availability and execution eligibility differ.
+
+Editing an unassigned available boss's body, summary, or dependencies leaves it
+available. Readiness reassessment belongs to planning guidance rather than an
+automatic transition back to proposed. The planning skill must revisit the goal
+and affected dependents after scope changes; assignment still validates current
+prerequisites and link integrity. Assigned and archived bosses remain protected.
 
 Boss lifecycle metadata must remain consistent with its linked campaign:
 
@@ -410,6 +422,14 @@ satisfies dependencies, while an archived withdrawn boss does not. Coordinate th
 updates through supported operations, without changing frozen design notes.
 An abandoned historical campaign whose assignment was released must not archive
 or otherwise change a boss now available or assigned to a different campaign.
+
+Archive restoration has no supported operation in this release. Archived boss
+records remain readable and resolvable, but cannot be edited or reactivated
+through the boss operations. Returning a withdrawn boss to proposed requires it
+to be unarchived. A developer can reverse archival manually when necessary;
+that rare repair is outside the assistant's managed-content workflow and must
+preserve paths, flags, and links. Deferring a restoration API does not prohibit
+that developer maintenance or imply permission for agents to bypass the guardrail.
 
 ### Reactivation for PR feedback
 
@@ -585,8 +605,19 @@ like this will always need some manual judgment.
    procedures.
 
 Prime should include the current boss details: the boss linked to the active
-campaign, so campaign scope stays aligned with what planning intended. Do not
-append the full boss knowledgebase to every prime response. Discovery must
+campaign, so campaign scope stays aligned with what planning intended. Add an
+`active_boss` field: null when there is no active campaign or its campaign is
+bossless; otherwise include `metadata` with `name`, `status`, `archived`,
+`depends_on`, and `campaign`, plus `summary` and `body`. Include only this boss,
+without recursively expanding its prerequisites or campaign.
+
+Apply the existing shared response budget. Truncate the boss body when needed,
+with an explicit notice and a reference for `boss_get`, preserving identifiers
+and state. A missing or inconsistent boss link must produce an explicit integrity
+diagnostic rather than masquerade as a bossless campaign. The prime integration
+encounter will specify the exact diagnostic and truncation serialization.
+
+Do not append the full boss knowledgebase to every prime response. Discovery must
 remain paged and bounded. A response should distinguish "no proposed
 bosses" from "all proposed bosses are blocked" and provide a route to inspect
 the blockers. No automatic promotion or automatic campaign opening is implied.
@@ -634,13 +665,21 @@ read branch context from the target project checkout, including linked
 worktrees.
 
 The search index under the managed sourcebook is gitignored and updated only by
-CAC writes, so switching branches leaves it stale. Address this as part of the
-search integration: either detect staleness automatically, or have the skills
-rebuild the index after a branch switch.
+CAC writes, so switching branches can leave it stale. Detect divergence between
+managed record contents and the indexed snapshot automatically, including after
+branch switches and manual edits. Report a stale-index diagnostic instead of
+returning stale search hits. This content-based check adds no Git or branch
+awareness to endpoints. The search encounter will choose the fingerprint/cache
+mechanics and verify additions, edits, removals, and archive moves.
 
-Add a dedicated planning skill for bosses and rumor distillation, with packaged
-Claude and Codex variants (working name: `world-planner`; final name chosen at
-implementation, and added to the deployed skill set). Update campaign-manager for assignment, branch checks,
+Recovery requires the developer to run `cac index rebuild`. Skills explain the
+diagnostic and request that maintenance; they do not invoke rebuild themselves.
+The existing developer-only rebuild rule remains in force, and no rebuild MCP
+tool or automatic rebuild is introduced by this design.
+
+Add the dedicated `world-planner` skill for bosses and rumor distillation, with
+packaged Claude and Codex variants added to the deployed skill set. Update
+campaign-manager for assignment, branch checks,
 completion/reactivation, and collision checks. Update the canonical packaged
 workflow reference with these procedures. Deployed skill copies are not authoring sources.
 
@@ -770,7 +809,8 @@ still to be chosen; "Boss Edition" is the feature's working title.
 
 Suggested implementation sequence:
 
-1. Decide the items listed under "Remaining implementation details".
+1. Carry the accepted e001 decisions into implementation; resolve the explicitly
+   deferred details in their owning encounters below.
 2. Implement core storage, validation, dependencies, and candidate explanations.
 3. Implement promotion, campaign references, and deletion/archive safeguards.
 4. Expose equivalent CLI/MCP interfaces and integrate bounded search/discovery.
@@ -797,12 +837,14 @@ Implementation encounters should cover:
 - Protected campaign deletion and visible diagnostics for damaged links.
 - Scope reduction of the original boss plus new bosses, without forced withdrawal.
 - Coupled campaign/boss archiving via the `archived` flag, the move into
-  `archive/bosses`, retained status, and planning reactivation.
+  `archive/bosses`, retained status, and withdrawn-boss reactivation only while
+  unarchived. No archive-restoration API in this release.
 - Campaign operations change only boss frontmatter and never the boss body;
   rollback when one half of a coupled update fails.
 - Withdrawal rejected for linked or vanquished bosses; no boss deletion
   operation exposed; archived campaigns cannot be reactivated.
-- Prime includes the active campaign's boss within the response budget.
+- Prime includes the active campaign's boss metadata, summary, and budgeted body,
+  with truncation/hydration guidance and explicit broken-link diagnostics.
 - Compatibility with sourcebooks lacking bosses and campaigns lacking boss links.
 - CLI/MCP parity, literal markdown output, pagination, and response budgets.
 - Search visibility, packaged templates, and documented agent workflows.
@@ -834,28 +876,115 @@ Implementation encounters should cover:
   Skill guidance covers branch-scoped activation, no active campaign on `main`,
   independent campaign worktrees, unrelated branches, detached HEAD,
   custom branch names, local merges without PRs, and legacy in-flight campaigns.
-- Search results after branch switches (staleness detection or skill-driven rebuild).
+- Automatic search-index freshness checks after branch switches and manual
+  changes; stale diagnostics instead of stale hits; developer-run rebuild recovery.
 
 Run narrow relevant tests first, followed by the repository's full pytest and
 ruff checks as required for implementation encounter verification. This design
 draft alone does not require runtime changes or a new test suite.
 
+## Implementation decision record (e001)
+
+The developer accepted the branch names/defaults, archive-restoration deferral,
+discovery contract, `world-planner` skill name, and retention of available status
+after edits during e001. Those choices are reflected above; no pre-core design
+decision remains pending from this encounter.
+The world-settings encounter will implement effective-default exposure using
+the existing read/set interfaces. This design does not authorize implementation
+encounters or describe shipped behavior.
+
+| Topic | Accepted decision and rationale | Alternative considered | Implementation owner / sequencing |
+| --- | --- | --- | --- |
+| World branch settings | Keep `merge_target_branch=main` and `planning_branch=planning`. Expose effective defaults through world reads and prime when attributes are absent; persist explicit overrides through the existing world-set interfaces. This preserves older records without requiring new commands or Git-aware endpoints. | Require explicit setup before branch guidance can run, adding adoption work. | World-settings implementation; settle names before core work. |
+| Archive restoration | Defer restoration of archived records from this release. Keep archived records readable and resolvable; reject mutations, including withdrawn-boss reactivation, while archived. Archiving and withdrawn -> proposed reactivation remain distinct operations. | Design an explicit restore operation with coordinated campaign/boss handling in this release. | Boss storage/lifecycle implementation; document the deferral in migration guidance. |
+| Readiness after edits | Leave an unassigned available boss available after body/summary/dependency edits. The planning skill reassesses readiness and affected dependents. Assignment still checks current prerequisites and integrity. This follows the agreed preference for reconciliation through skills and avoids treating typo fixes as readiness resets. | Automatically return available bosses to proposed on edits; simple to enforce, but also resets readiness for minor corrections. | Boss update/lifecycle implementation; settle before core work. |
+| Planning skill name | Use `world-planner` for both packaged agent variants and deployment registration. It complements `world-manager` while naming the new planning responsibility. | `boss-planner`, which is narrower but gives rumor distillation less visibility. | Skill implementation; settle the name now, author/deploy in the later encounter. |
+| Search after branch switches | Detect source/index divergence automatically and report a stale-index diagnostic before returning search hits. Require a developer-run `cac index rebuild` to recover; skills explain the diagnostic instead of invoking the rebuild. This preserves developer-only maintenance and prevents stale hits from looking current. Detection compares the managed record contents with the indexed snapshot, so branch switches and manual edits need no Git-aware endpoint. | Have skills request a developer rebuild after every branch switch; simpler runtime behavior, but direct search callers can still see stale results. Automatic rebuilding would require a separate policy decision and is not proposed here. | Search implementation; settle policy now, defer fingerprint/cache mechanics to that encounter. |
+| Active boss in prime | Add `active_boss`: null for no active campaign or a bossless campaign; otherwise `metadata` containing `name`, `status`, `archived`, `depends_on`, and `campaign`, plus `summary` and `body`. Include only the linked boss, with no recursive prerequisite/campaign expansion. Share the existing response budget; truncate the body with an explicit notice and a `boss_get` reference, preserving identifiers and state. A missing or inconsistent link produces an explicit integrity diagnostic rather than looking bossless. | Include metadata and summary only, requiring a separate read of the goal at every session start. | Prime/search integration; defer exact serialized diagnostic/truncation fields to its encounter while preserving this contract. |
+| Workflow examples | Use the cases below as design examples, then adapt them into packaged skills and the branching/migration guides in their respective encounters. They preserve manual reconciliation rather than adding cleanup endpoints. | Fully specify examples only when authoring the skills, leaving these edge cases untested in the design. | Examples in e001; executable guidance and docs in later skill/guide encounters. |
+
+Release numbering and the schema-version decision are deferred to the
+release/migration work, with an earlier schema assessment during boss-storage
+implementation if the chosen representation needs one. They do not block this
+design-only encounter. Bootstrap must not be treated as record migration.
+
+### Workflow design examples
+
+These examples describe future skill guidance using the default branch names.
+They are not commands to run during this encounter. Substitute the configured
+branches in adopting projects, and use MCP/CLI operations for managed records.
+
+**Rejected assignment PR.** Suppose `b007-improve-planning` is assigned to
+`c012-planning-tools` on `c012-planning-tools-assignment`, and its registration
+PR is rejected before merge. First establish whether the registration actually
+reached `main`, and inventory the assignment branch and any execution branch
+created from it. If nothing merged, `main` and synchronized `planning` still
+have the unassigned boss. With the developer, decide whether to revise the
+proposal or retain it as an abandoned local attempt. In the latter case,
+abandon the draft through CAC on an appropriate campaign branch, releasing its
+local boss link. Preserve any useful notes before the developer chooses how to
+retire branches. Do not publish the rejected assignment as an accepted one or
+delete records/branches automatically. Disclose remaining branch reservations
+so campaign-number discovery does not silently reuse the number.
+
+**Registered draft abandoned before execution.** Suppose the assignment for
+`c012-planning-tools` merged, but work is cancelled before its execution branch
+exists. Create the matching execution branch from synchronized `main`, confirm
+the draft's reciprocal boss link, and abandon the campaign with a reason through
+CAC. This releases the boss while retaining the campaign's historical boss
+reference. Merge the small cleanup change through the normal integration policy,
+then synchronize `planning` before selecting the boss again. No campaign opening
+or encounter is needed just to abandon the draft. Planning does not mutate the
+campaign; it receives the integrated result and may refine the available boss.
+
+**Legacy in-flight records.** Suppose an adopting project has an open unnumbered
+campaign `prototype` on `main`. Read existing local instructions and inventory
+its encounters and any paused work through CAC. Explain the branch/name mismatch
+and propose moving continued work to a matching execution branch without losing
+history. Since an open encounter prevents pausing its campaign, agree how to
+finish or abandon that encounter before making the integration branch inactive.
+Do not blindly rewrite historical names or references, invent a boss for the
+campaign, or add endpoint branch checks that strand it. Coordinate any explicit
+rename with branch names and references, preserve unrelated instructions, and
+verify the repaired checkout before resuming normal work. Migration guidance
+must explain the chosen repair rather than assume one universal Git procedure.
+
+**Pre-planning integration check.** Before selecting a prerequisite-dependent
+boss on `planning`, inspect the current checkout/worktree and configured merge
+target, refresh known remote refs when available, and synchronize the accepted
+merge-target history using the project's normal Git policy. Verify that the
+prerequisite campaign's completion and implementation are in that integrated
+history, then query candidates. A locally vanquished boss on an unmerged
+execution branch is not proof of integration. If remote refresh is unavailable,
+state what local refs were inspected and what remains unknown; ask the developer
+to reconcile uncertain integration before relying on it. Also check numeric IDs
+and reciprocal links after integration: a clean Git merge does not prove there
+are no logical collisions. Keep all Git checks in skill guidance and resolve
+conflicts manually; the candidates endpoint continues to report local records.
+
 ## Remaining implementation details
 
-- Finalize the `merge_target_branch` and `planning_branch` attribute names and
-  how world tools expose them.
-- Define archive restoration separately from the agreed withdrawn -> proposed
-  path if restoration is needed in this release.
-- Decide whether editing an `available` boss's scope automatically returns it to
-  `proposed`, or whether re-evaluating readiness is skill guidance only.
-- Choose the planning skill's final name (working name: `world-planner`).
-- Choose how the search index handles branch switches: automatic staleness
-  detection or skill-driven rebuild.
-- Define exactly which boss fields prime includes for the active campaign's boss
-  while staying within the response budget.
-- Write practical skill examples for cleaning up rejected assignment PRs,
-  abandoning registered drafts that were never started, resolving legacy
-  records, and manual pre-planning integration checks.
+- Implement effective-default exposure through world reads and prime for the
+  accepted `merge_target_branch=main` and `planning_branch=planning` settings.
+  The world-settings encounter owns this work using existing read/set interfaces.
+- Archive restoration is deferred from this release: rare developer maintenance
+  does not justify a dedicated operation. Record the boundary in lifecycle and
+  migration documentation; this is not a pre-core blocker.
+- Boss update operations retain available status after edits; the boss lifecycle
+  encounter implements that contract and the skill encounter documents readiness
+  reassessment. The pre-core decision is settled.
+- The planning skill's final name is `world-planner`. The skill encounter owns
+  both packaged variants, deployment registration, and matching workflow updates.
+- Search policy is settled: automatic content-based stale-index detection and
+  developer-run rebuild recovery. The search encounter owns the detection
+  mechanics; the decision does not block boss storage/lifecycle work.
+- Prime fields and budget behavior are settled above. The prime integration
+  encounter owns exact diagnostic/truncation serialization, without changing
+  the accepted fields or silently hiding damaged links.
+- Workflow examples are drafted above. Later skill/guide encounters adapt them
+  into packaged guidance; e001 does not change existing skill procedures.
+- Release numbering and schema-version assessment remain with release/migration
+  work, brought forward to boss storage if representation requires it.
 
 The independent review's workflow questions are resolved through the guidance
 above. Implementation should favor assistant/developer reconciliation over new
