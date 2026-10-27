@@ -3,9 +3,9 @@
 Status: design for the next release. The boundary below distinguishes implemented
 behavior from future proposals; this document does not approve encounter execution.
 
-Implementation boundary (e006/e007/e008/e009/e011/e012): boss planning, dependencies,
+Implementation boundary (e006/e007/e008/e009/e011/e012/e013): boss planning, dependencies,
 candidate discovery, short refs, promotion, campaign coupling, rumors, active-boss prime,
-boss search, and content-based index freshness are implemented in the
+boss search, content-based index freshness, and multi-boss campaigns are implemented in the
 packaged Workflow Reference Guide. Other sections describe the intended full
 release, including deferred skills and adoption guidance. The additive collection retains schema version 1:
 missing storage is empty and created lazily, without rewriting old records or
@@ -27,8 +27,8 @@ The feature should help an agent answer:
 A **boss** represents a project goal or challenge. Its notes explain the problem,
 desired outcome, design considerations, and prerequisites. A campaign represents
 the effort chosen to defeat that boss; encounters remain the concrete units of
-work within the campaign. Defeating one boss completes an initiative, not
-necessarily the entire project.
+work within the campaign. Completing a campaign defeats its selected group of
+bosses, not necessarily the entire project.
 
 ## Decisions established so far
 
@@ -39,7 +39,8 @@ necessarily the entire project.
   successful campaigns must be split before selection. Abandoned attempts release
   their assignment so another campaign can pursue the same boss.
 - Selection creates a campaign reference and makes the boss read-only.
-- Boss assignment occurs when the draft campaign is created, before encounters.
+- Initial boss selection occurs at draft creation; membership may change while draft and locks before execution.
+- A campaign can pursue multiple bosses; every boss has at most one current campaign. Lifecycle outcomes move the whole group together.
 - Campaign branches may capture freeform rumors for later planning without
   modifying boss records. Planning engineers decide how to distill them.
 - Bosses, campaigns, and encounters use numbered names: `bNNN-boss-slug`,
@@ -157,8 +158,8 @@ Use an assignment branch and an execution branch, without an extra prefix:
 
 1. Check known campaign records and local/remote branches for collisions.
 2. Create `cNNN-slug-name-assignment` from updated `main`.
-3. Create a draft campaign with its boss reference and set the reciprocal
-   campaign reference on the boss. Freeze the boss's planning content.
+3. Create a draft campaign with its bosses list and set each reciprocal
+   campaign reference. Freeze every selected boss's planning content.
 4. Issue a small assignment PR into `main` to register the assignment and notify
    the team. Aim for fast automated merging under the repository's normal policy.
    Resolve collisions and merge conflicts manually before proceeding.
@@ -261,7 +262,8 @@ operation for setting `vanquished`. Apply the same rollback rules as assignment
 lifecycle exceptions, not general editing rights. Execution branches do not edit
 boss design content.
 
-Assign the boss at draft campaign creation, before any encounter is created.
+Select initial bosses at draft campaign creation. Draft membership may be revised
+explicitly with a recorded reason; opening locks it, including after reactivation.
 Encounter creation does not trigger assignment.
 
 ### Choosing the next number
@@ -385,9 +387,19 @@ Proposed boss attributes:
 | `campaign` | Current assigned campaign; absent before assignment or after an abandoned attempt is released |
 | Audit attributes | Creation and update attribution/timestamps consistent with CAC |
 
-The campaign receives an optional `boss` reference. Existing campaigns remain
-valid without one; direct campaign creation remains supported. New promotions
-create a new campaign rather than attach a boss to an existing campaign.
+The campaign stores canonical `bosses` (zero or more names); each boss retains
+one current `campaign`. Legacy scalar `boss` reads as a singleton, absence/null
+as empty. Both fields together are rejected. Reads do not rewrite records;
+ordinary supported mutations normalize to the list. Schema stays 1; older
+one-boss libraries must not operate on plural records. No bulk migration/bootstrap.
+
+`campaign_create(name,body,bosses=None)` supports atomic group creation with
+repeatable CLI --boss. `campaign_set_bosses(name,bosses,message)` / CLI set-bosses
+replaces the full draft set, adding eligible goals or releasing removed ones;
+[] (CLI no --boss) clears it. Real changes log old/new names and a required
+reason; identical-set retries are read-only. Open and later states lock membership.
+Bossless creation and single-boss promotion remain supported. Grouping does not
+waive any prerequisite or imply a primary boss, priority, or per-boss outcome.
 
 Use a markdown body with suggested headings: Goal, Rationale, Success Criteria,
 Design Notes, and Open Questions. These guide useful capture without imposing
@@ -409,7 +421,7 @@ for initial capture.
 | Assign | Link one draft campaign to an available boss and lock its design; assignment is a relationship, not a `promoted` status |
 | Withdraw | Set aside an unassigned, non-vanquished goal on planning |
 | Vanquish | Campaign completion sets boss status to `vanquished`, its successful-completion status |
-| Archive campaign | On planning, set the `archived` flag on the campaign and its currently assigned boss |
+| Archive campaign | On planning, archive the completed campaign and every currently assigned boss |
 | Reactivate withdrawn boss | On planning, return `withdrawn` -> `proposed` for renewed consideration |
 | Archive withdrawn boss | On planning, set the `archived` flag |
 
@@ -435,10 +447,10 @@ Boss lifecycle metadata must remain consistent with its linked campaign:
 | `abandoned` | Release the current assignment and return the boss to available for another campaign |
 | Missing or inconsistent link | Integrity problem requiring attention |
 
-Campaign completion remains the developer-confirmed assertion that the goal has
-been achieved. Creating or opening the campaign does not defeat the boss.
-Campaign archiving happens on planning and must archive its currently assigned
-boss too, preserving reference resolution. Because archiving is a flag rather
+Campaign completion asserts that every selected goal has been achieved, and
+vanquishes all linked bosses. Creating/opening does not defeat any goal.
+Campaign archiving on planning archives all currently assigned bosses,
+preserving reference resolution. Because archiving is a flag rather
 than a status, the boss keeps its status: an archived vanquished boss still
 satisfies dependencies, while an archived withdrawn boss does not. Coordinate these
 updates through supported operations, without changing frozen design notes.
@@ -462,8 +474,8 @@ campaign body becomes editable while open, and completing it again appends a
 new closing entry. Completion locks the body until explicit reactivation rather
 than imposing an irreversible lock.
 
-The boss remains linked and its design frozen. Reactivation returns the boss
-from `vanquished` to `available`, still linked, until the campaign completes again. Completed encounters remain
+All bosses remain linked with frozen designs. Reactivation returns every boss
+from `vanquished` to `available` until recompletion, without unlocking membership. Completed encounters remain
 historical records; create new encounters with continuing sequence numbers for
 review fixes. Encounter reactivation is not implied. Complete and verify the
 campaign again before merging its implementation PR.
@@ -496,9 +508,9 @@ they can remove the file themselves and rebuild the search index. As with any
 manual change to the sourcebook, this is the developer's choice, outside the
 MCP/CLI workflow, and not something the coding assistant does on its own.
 
-When an assigned campaign is abandoned, campaign management removes the boss's
-current campaign reference and makes the boss available for a new campaign and
-its encounters. Keep the abandoned campaign's boss reference as historical
+When a campaign is abandoned, management releases every boss's current
+campaign reference; goals become available for new campaigns and encounters.
+Keep the abandoned campaign's complete bosses list as historical
 context; it no longer represents a reciprocal current assignment. New assignment
 checks distinguish such historical attempts from competing current assignments.
 Synchronize this release into the merge target and planning through normal Git
@@ -568,20 +580,21 @@ scope-change locks to solve this risk mechanically.
 
 ## Promotion contract
 
-A proposed assignment operation `boss_assign_campaign(name, campaign_name, body)` should:
+`boss_assign_campaign(name, campaign_name, body)` remains the single-goal
+convenience operation. Group creation uses campaign_create with bosses. Both must:
 
-1. Confirm the boss is available, eligible, and has no campaign link.
+1. Confirm every selected boss is available, eligible, and unassigned. Co-selection cannot satisfy incomplete prerequisites.
 2. Confirm the requested campaign name is unused, including archived
    campaigns. The endpoint does not check the branch. Before calling it, the
    skill confirms that the numeric ID is unused and that the current branch is
    the matching assignment branch. The expected assignment/execution branch
    pair is not a collision.
 3. Create a draft campaign with deliberately crafted tactical content addressing
-   the boss's aspirational requirements and success conditions, plus its origin
-   reference. Do not copy the boss body as the campaign plan.
-4. Set the boss's campaign reference, retaining its notes,
-   summary, and dependency snapshot unchanged.
-5. Return both records' identifiers and the resulting campaign status.
+   every selected boss's requirements and success conditions, plus its bosses
+   list. Do not copy goal bodies as the campaign plan.
+4. Set each boss's campaign reference, retaining notes, summary, dependencies,
+   and raw design bytes unchanged, with cohort rollback on any failure.
+5. Expose the full membership and campaign status through campaign reads.
 
 Promotion does not open the campaign, create encounters, bypass lore review, or
 authorize execution. Promotion registers the draft on its assignment branch;
@@ -594,7 +607,12 @@ Remove only the newly created draft if needed to restore the pre-assignment
 state. Do not publish a partial assignment or silently retry a different mapping.
 If rollback itself fails, report exactly what remains inconsistent and stop for
 developer guidance. A repeat request for the same successful assignment returns
-the existing result; a different campaign target must fail.
+the existing result; a different campaign target must fail. Single-goal retries
+against an existing group never shrink its membership or replace its tactical body.
+
+Group membership changes use the same cohort rollback, including index rows and
+fingerprints. Replacing a draft set logs its old/new membership and required
+reason. Identical sets do not write; membership edits lock after draft.
 
 These guarantees apply to one local store. Independent clones can each promote
 their own copy. Assignment PRs, skill collision checks, synchronization, and
@@ -626,20 +644,20 @@ like this will always need some manual judgment.
    then draft and open the campaign on its execution branch using normal approval
    procedures.
 
-Prime should include the current boss details: the boss linked to the active
-campaign, so campaign scope stays aligned with what planning intended. Add an
-`active_boss` field: null when there is no active campaign or its campaign is
-bossless; otherwise include `metadata` with `name`, `status`, `archived`,
-`depends_on`, and `campaign`, plus `summary` and `body`. Include only this boss,
-without recursively expanding its prerequisites or campaign.
+Prime includes every selected goal: active_boss_names preserves complete declared
+membership, active_bosses contains validated metadata/summary/body entries, and
+active_boss_diagnostics identifies broken members/claims. Boss metadata preserves
+name/status/archived/depends_on/campaign. Empty membership yields empty lists;
+no recursive expansion. The prerelease singular fields are removed, without a
+first-member compatibility alias.
 
 Apply the existing shared response budget. Truncate the boss body when needed,
 with an explicit notice and a reference for `boss_get`, preserving identifiers
 and state. A missing or inconsistent boss link must produce an explicit integrity
 diagnostic rather than masquerade as a bossless campaign. The prime integration
-implementation uses active_boss_diagnostic (code/campaign/boss/message) and a
+implementation uses active_boss_diagnostics (code/campaign/boss/message entries) and a
 truncations list with field/notice/ref entries. Healthy/bossless diagnostics are
-null. Whole-response budgeting reserves metadata/routing before body shares;
+empty. Whole-response budgeting reserves metadata/routing before body shares;
 unfit metadata fails explicitly. The packaged workflow specifies the full contract.
 
 Search now indexes boss body plus summary across all statuses, excluding archives
@@ -920,6 +938,9 @@ ruff checks as required for implementation encounter verification. This design
 draft alone does not require runtime changes or a new test suite.
 
 ## Implementation decision record (e001)
+
+The e013 amendment supersedes the original single-boss campaign and singular
+prime-field decisions below; they record the earlier design, not current output.
 
 The developer accepted the branch names/defaults, archive-restoration deferral,
 discovery contract, `world-planner` skill name, and retention of available status

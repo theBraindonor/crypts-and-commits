@@ -19,7 +19,7 @@ def campaign_to_dict(campaign: campaign_core.Campaign) -> dict[str, Any]:
         "status": campaign.status,
         "archived": campaign.archived,
         "body": campaign.body,
-        "boss": campaign.boss,
+        "bosses": campaign.bosses,
     }
 
 
@@ -46,10 +46,19 @@ def campaign_list(cursor: str | None = None) -> dict[str, Any]:
 
 @mcp.tool()
 @references.inputs("campaign", create=True)
-def campaign_create(name: str, body: str) -> dict[str, Any]:
-    """Create a new campaign, starting in 'draft' status."""
+def campaign_create(name: str, body: str, bosses: list[str] | None = None) -> dict[str, Any]:
+    """Create a draft and atomically select optional eligible bosses (canonical names or refs)."""
     root = resolve_project_root()
-    campaign_core.create_campaign(root, name, body)
+    campaign_core.create_campaign(root, name, body, bosses)
+    return campaign_to_dict(campaign_core.read_campaign(root, name))
+
+
+@mcp.tool()
+@references.inputs("campaign")
+def campaign_set_bosses(name: str, bosses: list[str], message: str) -> dict[str, Any]:
+    """Replace all draft boss membership atomically; an empty list clears it. Later states are locked."""
+    root = resolve_project_root()
+    campaign_core.set_bosses(root, name, bosses, message)
     return campaign_to_dict(campaign_core.read_campaign(root, name))
 
 
@@ -91,7 +100,7 @@ def campaign_pause(name: str) -> dict[str, Any]:
 def campaign_complete(name: str, message: str) -> dict[str, Any]:
     """Move a campaign from 'open' or 'paused' to 'completed'. Fails if the campaign has an open
     encounter. message is a required postmortem, recorded as a dated, attributed log entry; the
-    campaign's body is locked while completed. A current boss is vanquished without changing its design."""
+    campaign's body is locked while completed. All linked bosses are vanquished without design changes."""
     return campaign_to_dict(campaign_core.complete_campaign(resolve_project_root(), name, message))
 
 
@@ -100,7 +109,7 @@ def campaign_complete(name: str, message: str) -> dict[str, Any]:
 def campaign_abandon(name: str, message: str) -> dict[str, Any]:
     """Move a campaign from 'draft', 'open', or 'paused' to 'abandoned'. Fails if the campaign has
     an open encounter. message is a required postmortem, recorded as a dated, attributed log entry;
-    the campaign's body is locked. Release its current boss but retain the campaign's historical origin."""
+    the campaign's body is locked. Release all current boss links but retain the historical bosses list."""
     return campaign_to_dict(campaign_core.abandon_campaign(resolve_project_root(), name, message))
 
 
@@ -109,6 +118,6 @@ def campaign_abandon(name: str, message: str) -> dict[str, Any]:
 def campaign_archive(name: str) -> dict[str, Any]:
     """Archive a campaign and all its encounters, moving them into .sourcebook/archive/ and setting
     archived: true on each. The campaign must already be 'completed' or 'abandoned', and every one
-    of its encounters must also be 'completed' or 'abandoned' - status is preserved. Archive a completed campaign's current boss too; abandoned history never controls a released boss."""
+    of its encounters must also be 'completed' or 'abandoned' - status is preserved. Archive all current bosses too; abandoned history never controls released goals."""
     campaign, archived_encounters = campaign_core.archive_campaign(resolve_project_root(), name)
     return {**campaign_to_dict(campaign), "archived_encounters": archived_encounters}

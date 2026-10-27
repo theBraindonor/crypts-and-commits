@@ -15,8 +15,8 @@ def _prime_bundle_to_dict(bundle: prime_core.PrimeBundle) -> dict[str, Any]:
 def prime_get() -> dict[str, Any]:
     """Assemble the global prime bundle: world (full) + world-assigned enabled lore
     (summaries) + region map (summary + path + assigned-lore edge names per region) +
-    the active campaign and linked boss. Bodies share one budget; truncations contain hydration refs.
-    active_boss_diagnostic distinguishes broken ownership from a bossless campaign."""
+    the active campaign and all linked bosses. Bodies share one budget; truncations contain hydration refs.
+    active_boss_names preserves declared membership; active_boss_diagnostics identifies broken ownership."""
     return _prime_bundle_to_dict(prime_core.assemble_prime(resolve_project_root()))
 
 

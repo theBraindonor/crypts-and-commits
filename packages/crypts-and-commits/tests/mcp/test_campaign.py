@@ -35,7 +35,7 @@ def test_campaign_create_returns_new_campaign() -> None:
 
     assert result == {
         "name": "mvp",
-        "boss": None,
+        "bosses": [],
         "status": "draft",
         "archived": False,
         "body": "Campaign body.",
@@ -149,3 +149,48 @@ def test_campaign_get_still_works_after_archiving(tmp_path: Path) -> None:
     result = mcp_campaign.campaign_get("mvp")
 
     assert result["metadata"]["archived"] is True
+
+
+def test_group_create_replace_and_plural_prime(tmp_path):
+    from cac.core import boss, world
+    from cac.mcp import prime
+
+    world.initialize_world(tmp_path)
+    for name in ("b001-one", "b002-two", "b003-three"):
+        boss.create_boss(tmp_path, name, "[design]", "[summary]")
+        boss.make_available(tmp_path, name)
+    created = mcp_campaign.campaign_create("c001-work", "[tactical] body", ["b002", "b001"])
+    assert created["bosses"] == ["b001-one", "b002-two"]
+    changed = mcp_campaign.campaign_set_bosses("c001", ["b002", "b003"], "[message] Scope")
+    assert changed["bosses"] == ["b002-two", "b003-three"]
+    assert "[message] Scope" in changed["body"]
+    assert mcp_campaign.campaign_get("c001")["metadata"]["bosses"] == changed["bosses"]
+    mcp_campaign.campaign_open("c001")
+    payload = prime.prime_get()
+    assert payload["active_boss_names"] == changed["bosses"]
+    assert len(payload["active_bosses"]) == 2 and payload["active_boss_diagnostics"] == []
+    with pytest.raises(campaign.CampaignNotMutableError):
+        mcp_campaign.campaign_set_bosses("c001", [], "No")
+
+
+def test_group_api_validation_and_complete_envelope_budget(tmp_path, monkeypatch):
+    from cac.core import boss, references, world
+
+    world.initialize_world(tmp_path)
+    for name in ("b001-one", "b002-two"):
+        boss.create_boss(tmp_path, name, "Design", "Summary")
+        boss.make_available(tmp_path, name)
+    with pytest.raises(ValueError, match="Duplicate"):
+        mcp_campaign.campaign_create("c001-work", "No", ["b001", "b001-one"])
+    assert not campaign.exists(tmp_path, "c001-work")
+    mcp_campaign.campaign_create("c001-work", "x" * 8000, ["b001", "b002"])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 1600)
+    payload = mcp_campaign.campaign_get("c001")
+    assert len(references.encoded(payload)) <= 1600
+    assert payload["metadata"]["bosses"] == ["b001-one", "b002-two"]
+    assert "TRUNCATED" in payload["body"]
+    before = campaign.campaign_path(tmp_path, "c001-work").read_bytes()
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    with pytest.raises(ValueError, match="budget"):
+        mcp_campaign.campaign_set_bosses("c001", [], "Would clear")
+    assert campaign.campaign_path(tmp_path, "c001-work").read_bytes() == before

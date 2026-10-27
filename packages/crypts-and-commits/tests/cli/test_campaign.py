@@ -384,8 +384,8 @@ def test_update_fails_once_campaign_is_terminal(tmp_path: Path, terminal_command
 
 
 def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "x" * 200])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "x" * 4000])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 1400)
 
     result = runner.invoke(app, ["campaign", "get", "opening-gambit"])
 
@@ -493,3 +493,31 @@ def test_get_and_list_after_archiving(tmp_path: Path) -> None:
     assert get_result.exit_code == 0
     assert "text" in get_result.output
     assert "opening-gambit" not in list_result.output
+
+
+def test_repeatable_boss_input_body_file_and_draft_set_command(tmp_path):
+    from cac.core import boss, campaign, world
+
+    world.initialize_world(tmp_path)
+    for name in ("b001-one", "b002-two"):
+        boss.create_boss(tmp_path, name, "[design]", "Summary")
+        boss.make_available(tmp_path, name)
+    source = tmp_path / "campaign notes.md"
+    source.write_text("[tactical] café", encoding="utf-8")
+    result = runner.invoke(
+        app, ["campaign", "create", "c001-work", "--body-file", str(source), "--boss", "b002", "--boss", "b001"]
+    )
+    assert result.exit_code == 0, result.output
+    assert campaign.read_campaign(tmp_path, "c001-work").bosses == ["b001-one", "b002-two"]
+    result = runner.invoke(app, ["campaign", "get", "c001"])
+    assert result.exit_code == 0 and "[tactical] café" in result.output
+    before = campaign.campaign_path(tmp_path, "c001-work").read_bytes()
+    assert runner.invoke(app, ["campaign", "set-bosses", "c001"]).exit_code != 0
+    assert campaign.campaign_path(tmp_path, "c001-work").read_bytes() == before
+    result = runner.invoke(app, ["campaign", "set-bosses", "c001", "--boss", "b001", "-m", "[reason] Narrow"])
+    assert result.exit_code == 0, result.output
+    assert campaign.read_campaign(tmp_path, "c001-work").bosses == ["b001-one"]
+    assert "[reason] Narrow" in runner.invoke(app, ["campaign", "get", "c001"]).output
+    result = runner.invoke(app, ["campaign", "set-bosses", "c001", "-m", "Clear"])
+    assert result.exit_code == 0, result.output
+    assert campaign.read_campaign(tmp_path, "c001-work").bosses == []

@@ -22,16 +22,16 @@ def test_prime_active_boss_and_integrity_diagnostics(tmp_path, defect):
     if defect in ("malformed", "reverse-only"):
         post = frontmatter.load(path)
         if defect == "malformed":
-            post["boss"] = ["not-a-name"]
+            post["bosses"] = "not-a-list"
         else:
-            post.metadata.pop("boss")
+            post.metadata.pop("bosses")
         path.write_text(frontmatter.dumps(post), encoding="utf-8")
     elif defect == "missing":
         goal_path.unlink()
     elif defect == "competing":
         other = campaign.create_campaign(tmp_path, "c002-other", "Other")
         post = frontmatter.load(other)
-        post["boss"] = "b001-goal"
+        post["bosses"] = ["b001-goal"]
         other.write_text(frontmatter.dumps(post), encoding="utf-8")
     elif defect in ("status", "archive"):
         post = frontmatter.load(goal_path)
@@ -40,7 +40,7 @@ def test_prime_active_boss_and_integrity_diagnostics(tmp_path, defect):
     before = {p: p.read_bytes() for p in tmp_path.rglob("*.md")}
     payload = prime.present(prime.assemble_prime(tmp_path))
     if defect is None:
-        assert payload["active_boss"] == {
+        assert payload["active_bosses"][0] == {
             "metadata": {
                 "name": "b001-goal",
                 "status": "available",
@@ -51,11 +51,12 @@ def test_prime_active_boss_and_integrity_diagnostics(tmp_path, defect):
             "summary": "Boss summary",
             "body": "[bossbody]",
         }
-        assert payload["active_boss_diagnostic"] is None
+        assert payload["active_boss_diagnostics"] == []
+        assert payload["active_boss_names"] == ["b001-goal"]
     else:
-        assert payload["active_boss"] is None
-        assert payload["active_boss_diagnostic"]["code"] == "invalid_boss_link"
-        assert payload["active_boss_diagnostic"]["campaign"] == "c001-work"
+        assert payload["active_bosses"] == []
+        assert payload["active_boss_diagnostics"][0]["code"] == "invalid_boss_link"
+        assert payload["active_boss_diagnostics"][0]["campaign"] == "c001-work"
     assert {p: p.read_bytes() for p in before} == before
 
 
@@ -73,11 +74,11 @@ def test_prime_total_budget_preserves_state_and_hydration_refs(tmp_path, monkeyp
     bundle = prime.assemble_prime(tmp_path)
     payload = prime.present(bundle)
     assert len(references.encoded(payload)) <= 2200
-    assert payload["active_boss"]["metadata"]["campaign"] == "c001-work"
-    assert payload["active_boss"]["summary"] == "Boss summary"
+    assert payload["active_bosses"][0]["metadata"]["campaign"] == "c001-work"
+    assert payload["active_bosses"][0]["summary"] == "Boss summary"
     assert {entry["ref"]["tool"] for entry in payload["truncations"]} == {"world_get", "campaign_get", "boss_get"}
     assert all(entry["notice"] == "TRUNCATED" for entry in payload["truncations"])
-    assert all(payload["active_boss"][key] for key in ("body", "metadata", "summary"))
+    assert all(payload["active_bosses"][0][key] for key in ("body", "metadata", "summary"))
     assert len(bundle.world.body) > 2200  # Presentation does not mutate in-process context.
     monkeypatch.setattr(config, "RESPONSE_BUDGET", 50)
     with pytest.raises(ValueError, match="metadata/state"):

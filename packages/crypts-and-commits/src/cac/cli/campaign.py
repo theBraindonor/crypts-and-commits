@@ -1,3 +1,5 @@
+from typing import Annotated
+
 import typer
 from rich.console import Console
 
@@ -54,6 +56,16 @@ def get_campaign(
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
 
+    presentation = campaign_core.budget_response(
+        resolve_project_root(),
+        name,
+        {
+            "metadata": metadata,
+            "body": body,
+            "boss_link": coupling.inspection(resolve_project_root(), name),
+            "identity": references.Inventory(resolve_project_root()).identity("campaign", name),
+        },
+    )
     for key, value in metadata.items():
         console.print(f"{key}: {value}", markup=False)
     console.print(
@@ -62,11 +74,7 @@ def get_campaign(
         soft_wrap=True,
     )
     console.print()
-    body = budget_core.truncate_body(
-        body,
-        campaign_core.campaign_path(resolve_project_root(), name),
-        budget=references.body_allowance(resolve_project_root(), "campaign", name),
-    )
+    body = presentation["body"]
     console.print(body, markup=False, soft_wrap=True)
 
 
@@ -109,17 +117,33 @@ def create_campaign(
     body_file: str | None = typer.Option(
         None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
     ),
+    bosses: Annotated[
+        list[str] | None, typer.Option("--boss", help="Existing boss name/ref; repeat to select several.")
+    ] = None,
 ) -> None:
     """Create a new campaign file."""
     body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(campaign_core.template_body())
 
     try:
-        path = campaign_core.create_campaign(resolve_project_root(), name, content)
+        path = campaign_core.create_campaign(resolve_project_root(), name, content, bosses if bosses else None)
     except (campaign_core.InvalidCampaignNameError, campaign_core.CampaignAlreadyExistsError, GitIdentityError) as exc:
         fail(console, str(exc))
 
     console.print(f"Created {path}", markup=False)
+
+
+@app.command("set-bosses")
+@reference_inputs("campaign")
+def set_bosses(
+    name: str = typer.Argument(...),
+    message: str = typer.Option(..., "--message", "-m", help="Nonblank reason for changing draft membership."),
+    bosses: Annotated[
+        list[str] | None, typer.Option("--boss", help="Complete new set; repeat, or omit to clear.")
+    ] = None,
+) -> None:
+    path = campaign_core.set_bosses(resolve_project_root(), name, bosses or [], message)
+    console.print(f"Updated boss membership: {path}", markup=False)
 
 
 @app.command("update")

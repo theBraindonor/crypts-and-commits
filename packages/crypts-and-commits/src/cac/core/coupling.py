@@ -6,7 +6,7 @@ from pathlib import Path
 import frontmatter
 import yaml
 
-from cac.core import boss, config, frontmatter_utils, references, search_index, templates
+from cac.core import boss, campaign_bosses, config, frontmatter_utils, references, search_index, templates
 from cac.core.recovery import Recovery
 
 
@@ -57,11 +57,10 @@ def _campaign(root: Path, name: str) -> tuple[Path, frontmatter.Post]:
         or post.get("archived", False) != (path == archived)
     ):
         raise LinkError(f"Campaign {name!r} has invalid name/status/archive metadata.")
-    if post.get("boss") is not None:
-        try:
-            boss.validate_name(post["boss"])
-        except (ValueError, TypeError) as error:
-            raise LinkError(f"Campaign {name!r} has invalid origin boss metadata.") from error
+    try:
+        campaign_bosses.read(post.metadata)
+    except (ValueError, TypeError) as error:
+        raise LinkError(f"Campaign {name!r} has invalid boss membership: {error}") from error
     return path, post
 
 
@@ -78,39 +77,40 @@ class Links:
     def claims(self, name: str) -> list[str]:
         return [key for key, (_, post) in self.bosses.items() if post.get("campaign") == name]
 
-    def current(self, name: str) -> str | None:
+    def current(self, name: str) -> list[str]:
         """Validate current or explicitly released historical ownership for a campaign."""
         _, post = self.campaigns[name]
-        origin, claims = post.get("boss"), self.claims(name)
-        if origin is None:
-            if claims:
-                raise LinkError(f"Campaign {name!r} has reverse boss claims {claims} but no origin link.")
-            return None
-        if origin not in self.bosses:
-            raise LinkError(f"Campaign {name!r} references missing origin boss {origin!r}.")
-        _, goal = self.bosses[origin]
+        origins, claims = campaign_bosses.read(post.metadata), self.claims(name)
+        for origin in origins:
+            if origin not in self.bosses:
+                raise LinkError(f"Campaign {name!r} references missing origin boss {origin!r}.")
         if post.get("status", "draft") == "abandoned":
             if claims:
                 raise LinkError(f"Abandoned campaign {name!r} still has current boss claims {claims}.")
             # A released origin may now be owned elsewhere; validate without changing it.
-            other = goal.get("campaign")
-            if other is not None:
-                self._pair(origin, other)
-            return None
-        self._pair(origin, name)
-        return origin
+            for origin in origins:
+                other = self.bosses[origin][1].get("campaign")
+                if other is not None:
+                    self._pair(origin, other)
+            return []
+        if set(claims) != set(origins):
+            raise LinkError(f"Campaign {name!r} has inconsistent reciprocal boss membership/claims.")
+        for origin in origins:
+            self._pair(origin, name)
+        return origins
 
     def _pair(self, origin: str, name: str) -> None:
         if name not in self.campaigns:
             raise LinkError(f"Boss {origin!r} references missing campaign {name!r}.")
         _, goal = self.bosses[origin]
         _, post = self.campaigns[name]
-        if goal.get("campaign") != name or post.get("boss") != origin or self.claims(name) != [origin]:
+        origins = campaign_bosses.read(post.metadata)
+        if goal.get("campaign") != name or origin not in origins or set(self.claims(name)) != set(origins):
             raise LinkError(f"Boss {origin!r} and campaign {name!r} have inconsistent reciprocal ownership.")
         competitors = [
             key
             for key, (_, other) in self.campaigns.items()
-            if other.get("boss") == origin and other.get("status", "draft") != "abandoned"
+            if origin in campaign_bosses.read(other.metadata) and other.get("status", "draft") != "abandoned"
         ]
         if competitors != [name]:
             raise LinkError(f"Boss {origin!r} has competing campaign claims: {competitors}.")
@@ -125,7 +125,7 @@ def inspection(root: Path, name: str) -> dict:
     try:
         links = Links(root)
         current = links.current(name)
-        origin = links.campaigns[name][1].get("boss")
+        origin = campaign_bosses.read(links.campaigns[name][1].metadata)
         return {"kind": "current" if current else "historical" if origin else "bossless", "diagnostics": []}
     except (ValueError, OSError, TypeError, KeyError, yaml.YAMLError) as error:
         text = str(error)
@@ -179,26 +179,19 @@ def _pair_result(root: Path, name: str, campaign_name: str, status: str, *, reus
 
 
 def assign_campaign(root: Path, name: str, campaign_name: str, body: str) -> dict:
-    from cac.core import boss_candidates, campaign
+    from cac.core import campaign
 
     campaign.validate_name(campaign_name)
     links = Links(root)
-    path, goal = boss._load(root, name)
+    _, goal = boss._load(root, name)
     if goal.get("campaign") is not None:
         if campaign_name not in links.campaigns:
             raise LinkError(f"Boss {name!r} is assigned to a missing or different campaign.")
-        if goal["campaign"] != campaign_name or links.current(campaign_name) != name:
+        if goal["campaign"] != campaign_name or name not in links.current(campaign_name):
             raise LinkError(f"Boss {name!r} is already assigned or has inconsistent ownership.")
         return _pair_result(root, name, campaign_name, links.campaigns[campaign_name][1]["status"], reused=True)
-    boss._editable(goal, name, ("available",))
     if campaign_name in links.campaigns or links.claims(campaign_name):
         raise LinkError(f"Campaign name {campaign_name!r} is retained or already claimed.")
-    evaluation = boss_candidates.assess(root, name)
-    if not evaluation["eligible"]:
-        blocked = [entry["name"] for entry in evaluation["prerequisites"] if not entry["satisfied"]]
-        raise LinkError(
-            f"Boss {name!r} is not eligible: {evaluation['reason_codes']}; unsatisfied prerequisites {blocked[:8]}. Inspect boss_candidates/boss_get for full diagnostics."
-        )
     destination = boss._safe_path(root, campaign.campaign_dir(root) / f"{campaign_name}.md")
     archived = boss._safe_path(root, campaign.archive_campaign_dir(root) / f"{campaign_name}.md")
     if destination.exists() or archived.exists():
@@ -222,21 +215,115 @@ def assign_campaign(root: Path, name: str, campaign_name: str, body: str) -> dic
     }
     # The entry adapter adds the boss identity too; reserve it in preflight.
     _bounded_pair(result)
-    post = frontmatter.loads(templates.load("sourcebook", "campaign.md"))
-    post["name"], post["boss"], post.content = campaign_name, name, body
-    goal["campaign"] = campaign_name
-    original = path.read_bytes()
-    _body_suffix(original)
-    frontmatter_utils.stamp_created(post, root)
-    frontmatter_utils.stamp_updated(goal, root)
-    with Recovery(root, [path, destination]):
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        frontmatter_utils.write_post(root, destination, post)
-        _write_boss(root, path, goal, original)
+    create_group(root, campaign_name, body, [name])
     return result
 
 
-def _archive_paths(root: Path, name: str, path: Path, post: frontmatter.Post, goal_path: Path | None) -> list[Path]:
+def _minimum_output(root: Path, name: str, post: frontmatter.Post, **extras) -> None:
+    names = campaign_bosses.read(post.metadata)
+    # Reserve both campaign-read representations plus adapter identity overhead.
+    required = {
+        **extras,
+        "name": name,
+        "bosses": names,
+        "metadata": post.metadata,
+        "body": "",
+        "identity": {"canonical": name, "short": None, "reason": "ambiguous"},
+        "status": post.get("status", "draft"),
+        "archived": post.get("archived", False),
+        "boss_link": {"kind": "current", "diagnostics": []},
+    }
+    if len(references.encoded(required)) + 300 > config.RESPONSE_BUDGET:
+        raise LinkError("Campaign membership/state exceeds the response budget before writes; increase it.")
+
+
+def _eligible(root: Path, names: list[str], links: Links) -> None:
+    from cac.core import boss_candidates
+
+    for name in names:
+        _, goal = links.bosses[name]
+        boss._editable(goal, name, ("available",))
+        evaluation = boss_candidates.assess(root, name)
+        if not evaluation["eligible"]:
+            blocked = [entry["name"] for entry in evaluation["prerequisites"] if not entry["satisfied"]]
+            raise LinkError(
+                f"Boss {name!r} is not eligible: {evaluation['reason_codes']}; "
+                f"unsatisfied prerequisites {blocked[:8]}. Inspect boss_candidates/boss_get."
+            )
+
+
+def create_group(root: Path, name: str, body: str, names: list[str]) -> Path:
+    from cac.core import campaign
+
+    names = campaign_bosses.resolve(root, names)
+    preflight_campaign_creation(root, name)
+    links = Links(root)
+    _eligible(root, names, links)
+    destination = boss._safe_path(root, campaign.campaign_dir(root) / f"{name}.md")
+    post = frontmatter.loads(templates.load("sourcebook", "campaign.md"))
+    post["name"], post.content = name, body
+    campaign_bosses.store(post.metadata, names)
+    frontmatter_utils.stamp_created(post, root)
+    changes = []
+    for member in names:
+        path, goal = links.bosses[member]
+        original = path.read_bytes()
+        _body_suffix(original)
+        goal["campaign"] = name
+        frontmatter_utils.stamp_updated(goal, root)
+        changes.append((path, goal, original))
+    _minimum_output(root, name, post)
+    with Recovery(root, [destination] + [path for path, _, _ in changes]):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        frontmatter_utils.write_post(root, destination, post)
+        for path, goal, original in changes:
+            _write_boss(root, path, goal, original)
+    return destination
+
+
+def set_bosses(root: Path, name: str, names: list[str], message: str) -> Path:
+    from cac.core import campaign
+
+    names = campaign_bosses.resolve(root, names)
+    path, post = _campaign(root, name)
+    if post.get("status", "draft") != "draft" or post.get("archived", False):
+        raise campaign.CampaignNotMutableError("Boss membership can change only on an unarchived draft campaign.")
+    if not message or not message.strip():
+        raise campaign.CampaignMessageRequiredError("A nonblank message is required for boss membership changes.")
+    links = Links(root)
+    previous = links.current(name)
+    if names == previous:
+        return path
+    _eligible(root, [member for member in names if member not in previous], links)
+    changes = []
+    for member in sorted(set(names) ^ set(previous), key=campaign_bosses.order):
+        target, goal = links.bosses[member]
+        original = target.read_bytes()
+        _body_suffix(original)
+        if member in names:
+            goal["campaign"] = name
+        else:
+            goal.metadata.pop("campaign", None)
+        frontmatter_utils.stamp_updated(goal, root)
+        changes.append((target, goal, original))
+    campaign_bosses.store(post.metadata, names)
+    user = frontmatter_utils.stamp_updated(post, root)
+    frontmatter_utils.append_log_entry(
+        post,
+        section="Log",
+        heading="Bosses changed",
+        message=f"{message.strip()}\n\nPrevious bosses: {previous}\nNew bosses: {names}",
+        user=user,
+    )
+    _minimum_output(root, name, post)
+    with Recovery(root, [path] + [target for target, _, _ in changes]):
+        frontmatter_utils.write_post(root, path, post)
+        for target, goal, original in changes:
+            _write_boss(root, target, goal, original)
+    return path
+
+
+def _archive_paths(root: Path, name: str, path: Path, post: frontmatter.Post, goal_paths: list[Path]) -> list[Path]:
     from cac.core import campaign, encounter
 
     if post.get("archived", False):
@@ -245,7 +332,7 @@ def _archive_paths(root: Path, name: str, path: Path, post: frontmatter.Post, go
     for key in encounter.list_encounters(root, name):
         source = encounter.encounter_dir(root, name) / f"{key}.md"
         paths.extend([source, encounter.archive_encounter_dir(root, name) / source.name])
-    if goal_path is not None:
+    for goal_path in goal_paths:
         paths.extend([goal_path, boss.boss_dir(root, archived=True) / goal_path.name])
     for index, candidate in enumerate(paths):
         boss._safe_path(root, candidate)
@@ -265,23 +352,22 @@ def campaign_operation(action: str):
             # Preserve ordinary missing-record error behavior before enumerating claims.
             path, post = _campaign(root, name)
             links = Links(root)
-            if action == "delete" and (post.get("boss") is not None or links.claims(name)):
+            if action == "delete" and (campaign_bosses.read(post.metadata) or links.claims(name)):
                 raise CampaignLinkedError(
                     f"Cannot delete campaign {name!r}: origin/reverse boss links protect its history."
                 )
             current = links.current(name)
             if post.get("archived", False) and action not in ("archive", "delete"):
                 raise campaign.CampaignNotMutableError(f"Campaign {name!r} is archived and cannot be changed.")
-            goal_path, goal = links.bosses[current] if current is not None else (None, None)
-            paths = [path] + ([goal_path] if goal_path is not None else [])
+            goals = [links.bosses[member] for member in current]
+            paths = [path] + [target for target, _ in goals]
             if action == "archive":
-                paths = _archive_paths(root, name, path, post, goal_path)
-            original = goal_path.read_bytes() if goal_path is not None else None
-            if original is not None:
+                paths = _archive_paths(root, name, path, post, [target for target, _ in goals])
+            changes = []
+            for goal_path, goal in goals:
+                original = goal_path.read_bytes()
                 _body_suffix(original)
-            with Recovery(root, paths):
-                result = function(root, name, *args, **kwargs)
-                if current is not None and action in ("complete", "abandon", "reactivate", "archive"):
+                if action in ("complete", "abandon", "reactivate", "archive"):
                     goal["status"] = (
                         "vanquished"
                         if action == "complete"
@@ -296,6 +382,18 @@ def campaign_operation(action: str):
                         goal["archived"] = True
                         destination = boss.boss_dir(root, archived=True) / goal_path.name
                     frontmatter_utils.stamp_updated(goal, root)
+                    changes.append((goal_path, destination, goal, original))
+            preview = frontmatter.Post(post.content, **post.metadata)
+            frontmatter_utils.stamp_updated(preview, root)
+            if action == "archive":
+                from cac.core import encounter
+
+                _minimum_output(root, name, preview, archived_encounters=encounter.list_encounters(root, name))
+            else:
+                _minimum_output(root, name, preview)
+            with Recovery(root, paths):
+                result = function(root, name, *args, **kwargs)
+                for goal_path, destination, goal, original in changes:
                     _write_boss(root, destination, goal, original)
                     if destination != goal_path:
                         goal_path.unlink()
@@ -318,12 +416,31 @@ def boss_diagnostics(root: Path, records: dict) -> dict[str, list[dict]]:
         try:
             _, post = _campaign(root, name)
         except (ValueError, OSError, yaml.YAMLError) as error:
-            result.setdefault("campaign:" + name, []).append(
-                {"name": name, "code": "invalid_campaign_origin", "campaign": name, "message": str(error)}
-            )
+            issue = {"name": name, "code": "invalid_campaign_origin", "campaign": name, "message": str(error)}
+            result.setdefault("campaign:" + name, []).append(issue)
+            # Route diagnostics to every plausible claim without choosing a representation.
+            try:
+                raw = frontmatter.load(campaign.campaign_path(root, name)).metadata
+                claims = [raw.get("boss")] + (raw.get("bosses") if isinstance(raw.get("bosses"), list) else [])
+                for member in claims:
+                    if isinstance(member, str) and member in records:
+                        result.setdefault(member, []).append(issue)
+            except (ValueError, OSError, yaml.YAMLError):
+                pass  # The campaign-level diagnostic above remains authoritative.
             continue
-        origin = post.get("boss")
-        if origin is not None:
+        declared = campaign_bosses.read(post.metadata)
+        claims = [member for member, goal in records.items() if goal.get("campaign") == name]
+        if post.get("status", "draft") != "abandoned" and set(declared) != set(claims):
+            for member in set(declared) | set(claims):
+                result.setdefault(member, []).append(
+                    {
+                        "name": member,
+                        "code": "campaign_boss_mismatch",
+                        "campaign": name,
+                        "message": "Campaign membership does not match all current boss claims.",
+                    }
+                )
+        for origin in campaign_bosses.read(post.metadata):
             goal = records.get(origin)
             historical = post.get("status", "draft") == "abandoned"
             if (

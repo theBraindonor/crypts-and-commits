@@ -15,7 +15,7 @@ def test_prime_boss_matches_shared_core_presentation(tmp_path):
     boss.assign_campaign(tmp_path, "b001-goal", "c001-work", "Campaign")
     campaign.open_campaign(tmp_path, "c001-work")
     assert mcp_prime.prime_get() == prime.present(prime.assemble_prime(tmp_path))
-    assert mcp_prime.prime_get()["active_boss"]["body"] == "[literal]"
+    assert mcp_prime.prime_get()["active_bosses"][0]["body"] == "[literal]"
 
 
 @pytest.mark.parametrize("override", [False, True])
@@ -32,8 +32,9 @@ def test_prime_world_branch_settings_agree_with_world_tool(legacy_world: Path, o
         "regions",
         "active_campaign",
         "campaign_body",
-        "active_boss",
-        "active_boss_diagnostic",
+        "active_bosses",
+        "active_boss_diagnostics",
+        "active_boss_names",
         "truncations",
     }
     assert result["world"] == mcp_world.world_get()

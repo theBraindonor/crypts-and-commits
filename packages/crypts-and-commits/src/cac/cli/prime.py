@@ -76,13 +76,13 @@ def get_prime() -> None:
         campaign_body = payload["campaign_body"]
         console.print(campaign_body, markup=False, soft_wrap=True)
 
-    console.print("\n== Active Boss ==", markup=False)
-    if payload["active_boss_diagnostic"] is not None:
-        console.print(references.encoded(payload["active_boss_diagnostic"]), markup=False, soft_wrap=True)
-    elif payload["active_boss"] is None:
+    console.print("\n== Active Bosses ==", markup=False)
+    console.print(references.encoded(payload["active_boss_names"]), markup=False, soft_wrap=True)
+    for diagnostic in payload["active_boss_diagnostics"]:
+        console.print(references.encoded(diagnostic), markup=False, soft_wrap=True)
+    if not payload["active_boss_names"] and not payload["active_boss_diagnostics"]:
         console.print("No boss is linked to an active campaign.", markup=False)
-    else:
-        goal = payload["active_boss"]
+    for goal in payload["active_bosses"]:
         console.print(references.encoded(goal["metadata"]), markup=False, soft_wrap=True)
         console.print(goal["summary"], markup=False, soft_wrap=True)
         console.print(goal["body"], markup=False, soft_wrap=True)

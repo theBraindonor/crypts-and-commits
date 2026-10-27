@@ -21,9 +21,9 @@ def test_promotion_lifecycle_and_inspection(tmp_path):
     campaigns.campaign_open("c001")
     campaigns.campaign_complete("c001", "First")
     result = campaigns.campaign_reactivate("c001", "[feedback]")
-    assert result["status"] == "open" and result["boss"] == "b001-goal"
+    assert result["status"] == "open" and result["bosses"] == ["b001-goal"]
     assert "[feedback]" in result["body"]
-    assert campaigns.campaign_update("c001", result["body"] + "\nFix")["boss"] == "b001-goal"
+    assert campaigns.campaign_update("c001", result["body"] + "\nFix")["bosses"] == ["b001-goal"]
     campaigns.campaign_complete("c001", "Again")
     campaigns.campaign_archive("c001")
     assert bosses.boss_get("b001")["metadata"]["archived"] is True
@@ -39,7 +39,7 @@ def test_literal_campaign_creation_name_and_broken_origin_diagnostics(tmp_path):
     assert result["campaign_identity"]["short"] is None
     path = campaign.campaign_path(tmp_path, "c001")
     post = frontmatter.load(path)
-    post["boss"] = "missing-goal"
+    post["bosses"] = ["missing-goal"]
     path.write_text(frontmatter.dumps(post), encoding="utf-8")
     inspected = campaigns.campaign_get("c001-existing")
     # The malformed link is surfaced rather than mutating or inferring an assignment.
@@ -54,7 +54,7 @@ def test_abandon_releases_current_link_but_retains_origin(tmp_path):
     campaigns.campaign_abandon("c001", "Cancelled")
     assert "campaign" not in bosses.boss_get("b001")["metadata"]
     result = campaigns.campaign_get("c001")
-    assert result["metadata"]["boss"] == "b001-goal"
+    assert result["metadata"]["bosses"] == ["b001-goal"]
     assert result["boss_link"]["kind"] == "historical"
     bosses.boss_assign_campaign("b001", "c002-new", "Second")
     campaigns.campaign_archive("c001")

@@ -102,9 +102,20 @@ goals, rewritten history, guardrail suspension, or bootstrap migration. Upgrade 
 library for promotion and completed-campaign reactivation; workflow/skill adoption
 remains separate future work. Older libraries do not manage these new contracts.
 
-There are no migrations documented yet - the sourcebook schema is at
-version 1, the version this document itself introduces, and no format
-change has happened since. When `SOURCEBOOK_SCHEMA_VERSION` is next bumped,
+Within prerelease Boss Edition, campaigns now use canonical `bosses` lists while
+each boss keeps one current scalar `campaign`. This reader accepts legacy `boss`
+scalars and absent membership without writes; ordinary campaign mutations normalize
+to `bosses`, but no-op membership requests preserve bytes. Both fields together
+are an error, requiring deliberate reconciliation. No bulk conversion, schema bump,
+guardrail suspension, or bootstrap is needed. Do not use older one-boss libraries
+on plural records or downgrade without a developer-planned conversion. Campaign
+API results expose bosses; prime replaces active_boss/active_boss_diagnostic with
+active_boss_names/active_bosses/active_boss_diagnostics. Update consumers with the
+library. Preserve abandoned campaign lists as history; they are not current claims.
+
+No mandatory record migrations are documented yet; sourcebook schema remains 1.
+The compatible optional-field changes above do not require a bulk rewrite.
+When `SOURCEBOOK_SCHEMA_VERSION` is next bumped,
 its section goes here, in this form:
 
 ```

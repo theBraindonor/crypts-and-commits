@@ -49,6 +49,8 @@ def rows(root):
 
 def set_metadata(path, **values):
     post = frontmatter.load(path)
+    if "boss" in values:
+        post.metadata.pop("bosses", None)  # These fixtures intentionally exercise legacy scalar claims.
     post.metadata.update(values)
     path.write_text(frontmatter.dumps(post), encoding="utf-8")
 
@@ -65,7 +67,7 @@ def test_assignment_defaults_content_and_retry_bytes(tmp_path):
     assert result["status"] == "draft" and result["reused"] is False
     assert result["campaign_identity"]["short"] == "c001"
     metadata, body = campaign.read_metadata(tmp_path, "c001-work")
-    assert metadata["boss"] == "b001-goal" and metadata["status"] == "draft"
+    assert metadata["bosses"] == ["b001-goal"] and metadata["status"] == "draft"
     assert body == "[tactical] campaign plan"
     goal, _ = boss.read_metadata(tmp_path, "b001-goal")
     assert goal["campaign"] == "c001-work" and goal["status"] == "available"
@@ -120,7 +122,7 @@ def test_abandoned_history_never_controls_released_boss(tmp_path, later):
     assign(tmp_path)
     campaign.abandon_campaign(tmp_path, "c001-work", "Cancelled")
     assert "campaign" not in boss.read_metadata(tmp_path, "b001-goal")[0]
-    assert campaign.read_campaign(tmp_path, "c001-work").boss == "b001-goal"
+    assert campaign.read_campaign(tmp_path, "c001-work").bosses == ["b001-goal"]
     assert coupling.inspection(tmp_path, "c001-work")["kind"] == "historical"
     if later in ("withdrawn", "archived"):
         boss.withdraw(tmp_path, "b001-goal")
@@ -304,7 +306,7 @@ def test_bossless_reactivation_and_open_guard(tmp_path):
     campaign.pause_campaign(tmp_path, "other")
     campaign.reactivate_campaign(tmp_path, "legacy", "Feedback")
     assert "First" in campaign.read_campaign(tmp_path, "legacy").body
-    assert campaign.read_campaign(tmp_path, "legacy").boss is None
+    assert campaign.read_campaign(tmp_path, "legacy").bosses == []
 
 
 @pytest.mark.parametrize(
@@ -325,7 +327,7 @@ def test_damaged_ownership_rejects_mutation_before_writes(tmp_path, defect):
     path = campaign.campaign_path(tmp_path, "c001-work")
     if defect == "reverse":
         post = frontmatter.load(path)
-        post.metadata.pop("boss")
+        post.metadata.pop("bosses")
         path.write_text(frontmatter.dumps(post), encoding="utf-8")
     elif defect == "different_boss":
         available(tmp_path, "b002-other")

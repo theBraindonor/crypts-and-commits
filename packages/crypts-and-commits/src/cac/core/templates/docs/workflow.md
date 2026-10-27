@@ -236,7 +236,7 @@ app), and that lore can be scoped to.
 A long-running initiative, analogous to a Jira Epic (e.g. "Create the MVP"),
 expected to span many encounters before completion.
 
-- **Frontmatter**: `name`, `status`, optional canonical origin `boss`, `archived` (bool, default `false`), plus the common stamps.
+- **Frontmatter**: `name`, `status`, canonical `bosses` list (empty for bossless), `archived` (bool, default `false`), plus common stamps.
 - **Body**: free-form description of the initiative. Once a campaign reaches
   completed/abandoned status, a dated, attributed **postmortem log entry** is appended
   to the body and the body is locked (`campaign_update`/`cac campaign update`
@@ -764,55 +764,54 @@ explicit budget error. Cursors assume an unchanged store; no snapshot is saved.
 
 ### Promotion and campaign coupling
 
-`boss_assign_campaign(name, campaign_name, body)` / `cac boss assign-campaign
-NAME CAMPAIGN_NAME` require an eligible, unarchived, unassigned available boss.
-The boss accepts refs; the new campaign name is literal, unused live/archive, and
-unclaimed. CLI body comes from --body/-b, --body-file, or an editor seeded with
-the campaign template; MCP requires body. Supplied tactical content is not
-generated from boss notes. No campaign opens and no encounters are created.
+Campaigns have zero or more `bosses`; bosses have one current `campaign` at most.
+Canonical lists sort numerically then legacy names, not by priority. Legacy `boss`
+reads as singleton, absent/null as empty; dual/malformed/duplicate fields fail.
+Reads never write; supported mutations normalize to `bosses`. Schema stays 1;
+no bulk migration/bootstrap or primary alias. Older one-boss libraries cannot
+operate on plural records; see migration-guide.
 
-Promotion sets campaign.boss and boss.campaign to full reciprocal names, creates
-a draft, and leaves the boss available but frozen. Output contains boss, campaign,
-status, reused, boss_identity, campaign_identity, plus the standard identity.
-Same consistent current pair retries return actual state without writes/log/audit
-changes, including progressed/completed/archived pairs; changed retry body is
-ignored. Different targets or released obsolete attempts fail. Initial assignment
-uses untruncated core eligibility; retries do not recheck prerequisite readiness.
+`campaign_create(name,body,bosses=None)` / `cac campaign create NAME --boss REF`
+accepts repeated bosses; omitted/empty means bossless. New names remain literal,
+unused live/archive, and unclaimed. Body-file/editor behavior is unchanged.
+Selection atomically creates draft/links, leaves bosses available but frozen,
+and opens no campaign/encounters. Additions require eligible, unassigned,
+unarchived available bosses; co-selection never satisfies incomplete prerequisites.
 
-Completion appends its normal postmortem and vanquishes the current boss, retaining
-its link. Abandonment appends history, makes the boss available, and removes its
-current campaign link; campaign.boss stays as historical origin. A new campaign
-may pursue the released goal. Open/pause never vanquish. Reactivate requires an
-unarchived completed campaign, nonblank reason, and no other open campaign. It
-appends history, unlocks tactical notes (retain the recorded Log), and makes a linked vanquished boss
-available while still frozen/assigned. Recompletion appends another closing entry;
-completed encounters do not reopen. Bossless reactivation works too.
+`campaign_set_bosses(name,bosses,message)` / `cac campaign set-bosses NAME
+--boss REF --message REASON` replaces the complete set only on unarchived drafts.
+Repeat --boss; omit (MCP []) to clear. Require nonblank reason; resolve refs and
+reject alias duplicates. Retained members reciprocate; removals release only this
+campaign's links. Changes log old/new names and reason once; body updates preserve
+that Log. Same-set retries are read-only regardless of order. Membership locks
+after draft, including reactivation; body edits cannot change links.
 
-Completed campaign archive moves its current vanquished boss and all terminal
-encounters with consistent flags, preserving status and archived reads. Abandoned
-historical archive moves only that campaign/encounters; it never changes a released
-boss now withdrawn, archived, vanquished, or owned elsewhere. Standalone boss archive
-still requires unassigned withdrawn status. No restoration or public vanquish setter.
+Single-boss `boss_assign_campaign(name,campaign_name,body)` retains body/file/editor
+input and boss/campaign/status/reused/boss_identity/campaign_identity/identity
+output. Consistent retries are read-only after progress/archive and in groups;
+ignore retry body, never shrink membership. Different/released targets fail.
+Initial selection checks full eligibility; retries do not recheck prerequisites.
 
-Origin/reverse claims protect campaign deletion, including released history.
-Ordinary campaign create also rejects retained archive names and reverse claims.
-Competing/missing/malformed/incorrect reciprocal or lifecycle links reject mutations;
-no automatic repair/reassignment. Campaign gets add boss_link with kind
-bossless/current/historical/invalid and diagnostics; long diagnostics disclose
-truncation and inventory refs. Mutation results expose optional boss without its
-body. Candidate diagnostics include invalid_campaign_origin/orphan_campaign_claim
-so discovery cannot approve an orphan goal that assignment rejects.
+Completion records its postmortem and vanquishes all linked bosses. Abandonment
+releases all current links, retaining the historical campaign list. Reactivation
+requires unarchived completion, nonblank reason, and no other open campaign; it
+returns every linked boss to available but assigned/frozen. Prior Log and closed
+encounters remain; recompletion appends history. Bossless lifecycle still works.
+Open/pause do not vanquish; existing encounter guards apply.
 
-Coupling preserves raw boss-body bytes, summary, dependencies, creation stamps,
-and unrelated metadata. Only lifecycle/link/archive/update-audit frontmatter changes.
-Ordinary exceptions restore the entire affected file cohort and logical affected
-index rows; archive recovery includes every encounter. Assignment removes only its
-new draft on failure. Failed recovery raises RecoveryError identifying residual
-paths/rows for explicit repair, without retry/reallocation or unrelated cleanup.
-This is one-store exception recovery, not a crash journal or cross-process guarantee.
-Coupling never creates/rebuilds indexes, inspects Git, or allocates numbers.
-The optional origin field is additive within schema 1: no legacy goal inference,
-record migration, bootstrap rerun, or deployed skill update is needed.
+Completed archive moves all assigned bosses and terminal encounters, preserving
+status and readable history. Abandoned archive never controls released bosses,
+even if reassigned/archived/withdrawn/vanquished. Rumors stay live. Standalone boss
+archive still requires unassigned withdrawn status; no restoration/vanquish setter.
+Current/historical lists and reverse claims protect deletion. Broken/competing
+ownership or lifecycle state blocks mutation without repair. Campaign reads expose
+`bosses` and boss_link inspection; candidates diagnose malformed/orphan claims.
+
+Preflight covers cohort/audits/paths/output. Changed boss metadata preserves design
+bytes, summaries, dependencies and creation stamps. Exceptions restore affected
+bytes/rows/fingerprints, including encounters, preserving unrelated records/drift.
+RecoveryError identifies residual paths/rows. No automatic rebuild/retry, allocation,
+Git check, crash journal or cross-process guarantee.
 
 ## Numbered references and canonical identity
 
@@ -843,6 +842,7 @@ prerequisite edges remain campaign-local.
 | Boss assign/unassign-dependency | source name, prerequisite | missing canonical edge on explicit removal |
 | Boss assign-campaign | existing boss | new campaign_name, body |
 | Campaign get/update/delete/open/pause/complete/abandon/archive/reactivate | existing name | body, message |
+| Campaign create / set-bosses | boss list refs; existing campaign for set | new create name, body, message |
 | Encounter get/update/delete/review/open/record-message/complete/abandon | name, optional campaign | body, message |
 | Encounter assign/unassign-region | name, optional campaign | region |
 | Encounter assign/unassign-dependency | source, prerequisite, optional campaign | missing canonical edge on explicit removal |
@@ -914,11 +914,12 @@ none of them is a content type itself:
   see the Campaign section's "Archiving" above for the `include_archived`
   opt-in and the counts-vs-search asymmetry.
 
-Prime adds `active_boss={metadata,summary,body}`; metadata includes name/status/
-archived/depends_on/campaign. No active campaign or bossless means null boss;
-invalid ownership adds `active_boss_diagnostic={code:"invalid_boss_link",campaign,
-boss,message}`. Otherwise diagnostic is null. Coupling validates reciprocal,
-lifecycle/archive state. No recursive expansion or repairs.
+Prime exposes `active_boss_names` (all declared names), `active_bosses` (validated
+metadata/summary/body entries), and `active_boss_diagnostics` (code/campaign/boss/
+message entries). Boss metadata includes name/status/archived/depends_on/campaign.
+No active campaign or bossless means empty lists. Broken members remain named
+with explicit diagnostics; group/storage errors may use boss=null. Singular
+active_boss/active_boss_diagnostic are removed. No expansion, alias or repairs.
 
 Core `prime.present` budgets the serialized bundle: reserve metadata/routing,
 then divide remaining space by remaining bodies in world/campaign/boss order.

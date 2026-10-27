@@ -44,7 +44,7 @@ def test_get_campaign_returns_status_and_body(tmp_path: Path) -> None:
 
     result = _tool_by_name(tools, "get_campaign").invoke({"name": "opening-gambit"})
 
-    assert result == {"name": "opening-gambit", "status": "open", "body": "Campaign body."}
+    assert result == {"name": "opening-gambit", "status": "open", "bosses": [], "body": "Campaign body."}
 
 
 def test_get_campaign_missing_raises(tmp_path: Path) -> None:
@@ -265,3 +265,16 @@ def test_search_tool_boss_filter_and_stale_snapshot(tmp_path):
     result = tool.invoke({"phrase": "uniquebossbody"})
     assert result["available"] is False and result["stale"] is True
     assert result["hits"] == [] and "developer" in result["diagnostic"]["recovery"]
+
+
+def test_campaign_read_tool_exposes_complete_group(tmp_path):
+    from cac.core import boss, campaign, world
+    from demo_api.chat.tools import campaigns
+
+    world.initialize_world(tmp_path)
+    for name in ("b001-one", "b002-two"):
+        boss.create_boss(tmp_path, name, "Design", "Summary")
+        boss.make_available(tmp_path, name)
+    campaign.create_campaign(tmp_path, "c001-work", "Tactics", ["b002", "b001"])
+    getter = next(tool for tool in campaigns.build_tools(tmp_path) if tool.name == "get_campaign")
+    assert getter.invoke({"name": "c001-work"})["bosses"] == ["b001-one", "b002-two"]

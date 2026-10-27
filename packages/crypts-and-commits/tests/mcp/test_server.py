@@ -53,6 +53,7 @@ def test_all_domain_tools_are_registered() -> None:
         "campaign_get",
         "campaign_list",
         "campaign_create",
+        "campaign_set_bosses",
         "campaign_update",
         "campaign_delete",
         "campaign_open",

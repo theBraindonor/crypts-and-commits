@@ -59,7 +59,9 @@ def _campaign_context(root: Path, name: str, record: dict[str, Any]) -> tuple[di
             ]
         context["campaign_status"] = metadata["status"]
         issues = []
-        if metadata.get("boss") != name:
+        from cac.core import campaign_bosses
+
+        if name not in campaign_bosses.read(metadata):
             issues.append(
                 _issue(
                     name,

@@ -1,10 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import frontmatter
 
-from cac.core import coupling, frontmatter_utils, templates
+from cac.core import campaign_bosses, coupling, frontmatter_utils, templates
 from cac.core.config import (
     ARCHIVE_DIR_NAME,
     ARCHIVED_KEY,
@@ -88,7 +88,7 @@ class Campaign:
     status: str
     archived: bool
     body: str
-    boss: str | None = None
+    bosses: list[str] = field(default_factory=list)
 
 
 def campaign_dir(root: Path) -> Path:
@@ -183,7 +183,9 @@ def read_campaign(root: Path, name: str) -> Campaign:
 
 def read_metadata(root: Path, name: str) -> tuple[dict[str, Any], str]:
     post = frontmatter.load(_existing_campaign_path(root, name))
-    return dict(post.metadata), post.content
+    metadata = dict(post.metadata)
+    campaign_bosses.store(metadata, campaign_bosses.read(metadata))
+    return metadata, post.content
 
 
 def campaign_path(root: Path, name: str) -> Path:
@@ -193,18 +195,58 @@ def campaign_path(root: Path, name: str) -> Path:
     return _existing_campaign_path(root, name)
 
 
-def create_campaign(root: Path, name: str, body: str) -> Path:
+def create_campaign(root: Path, name: str, body: str, bosses: list[str] | None = None) -> Path:
+    from cac.core.recovery import Recovery
+
+    if bosses is not None and campaign_bosses.validate(bosses):
+        return coupling.create_group(root, name, body, bosses)
     path = _campaign_path(root, name)
     coupling.preflight_campaign_creation(root, name)
     if path.exists():
         raise CampaignAlreadyExistsError(f"Campaign {name!r} already exists.")
-    path.parent.mkdir(parents=True, exist_ok=True)
     post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
     post["name"] = name
     post.content = body
     frontmatter_utils.stamp_created(post, root)
-    write_post(root, path, post)
+    coupling._minimum_output(root, name, post)
+    with Recovery(root, [path]):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_campaign(root, path, post)
     return path
+
+
+def _write_campaign(root: Path, path: Path, post: frontmatter.Post) -> None:
+    campaign_bosses.store(post.metadata, campaign_bosses.read(post.metadata))
+    write_post(root, path, post)
+
+
+def set_bosses(root: Path, name: str, bosses: list[str], message: str) -> Path:
+    return coupling.set_bosses(root, name, bosses, message)
+
+
+def budget_response(root: Path, name: str, result: dict) -> dict:
+    from cac.core import budget, config, references
+
+    if len(references.encoded(result)) <= config.RESPONSE_BUDGET:
+        return result
+    body = result.get("body", "")
+    result = {**result, "body": ""}
+    allowance = config.RESPONSE_BUDGET - len(references.encoded(result))
+    if allowance < 0:
+        raise ValueError("Campaign membership/state exceeds the response budget; increase it.")
+    # Shared truncation notice, with the full envelope and JSON escaping reserved.
+    low, high = 0, allowance
+    while low < high:
+        middle = (low + high + 1) // 2
+        candidate = budget.truncate_body(body, campaign_path(root, name), budget=middle)
+        if len(references.encoded({**result, "body": candidate})) <= config.RESPONSE_BUDGET:
+            low = middle
+        else:
+            high = middle - 1
+    result["body"] = budget.truncate_body(body, campaign_path(root, name), budget=low)
+    if len(references.encoded(result)) > config.RESPONSE_BUDGET:
+        raise ValueError("Campaign metadata and truncation notice exceed the response budget; increase it.")
+    return result
 
 
 @coupling.campaign_operation("update")
@@ -223,13 +265,15 @@ def update_campaign(root: Path, name: str, body: str) -> Path:
     for line in lines:
         if line.rstrip() == f"## {_LOG_SECTION}":
             history = post.content[offset:].rstrip()
-            if "### Completed - " in history and history not in body.replace("\r\n", "\n"):
+            if ("### Completed - " in history or "### Bosses changed - " in history) and history not in body.replace(
+                "\r\n", "\n"
+            ):
                 raise CampaignNotMutableError("Preserve the recorded Log when editing a reactivated campaign.")
             break
         offset += len(line)
     post.content = body
     frontmatter_utils.stamp_updated(post, root)
-    write_post(root, path, post)
+    _write_campaign(root, path, post)
     return path
 
 
@@ -336,6 +380,7 @@ def archive_campaign(root: Path, name: str) -> tuple[Campaign, list[str]]:
     post[ARCHIVED_KEY] = True
     new_path = archive_campaign_dir(root) / f"{name}.md"
     new_path.parent.mkdir(parents=True, exist_ok=True)
+    campaign_bosses.store(post.metadata, campaign_bosses.read(post.metadata))
     frontmatter_utils.write_post(root, new_path, post)
     path.unlink()
 
@@ -386,7 +431,7 @@ def _apply_status(
     if message:
         frontmatter_utils.append_log_entry(post, section=_LOG_SECTION, heading=log_heading, message=message, user=user)
     post["status"] = to_status
-    write_post(root, path, post)
+    _write_campaign(root, path, post)
     return _to_campaign(post, name)
 
 
@@ -413,7 +458,7 @@ def _to_campaign(post: frontmatter.Post, name: str) -> Campaign:
         status=post.get("status", DEFAULT_CAMPAIGN_STATUS),
         archived=post.get(ARCHIVED_KEY, False),
         body=post.content,
-        boss=post.get("boss"),
+        bosses=campaign_bosses.read(post.metadata),
     )
 
 

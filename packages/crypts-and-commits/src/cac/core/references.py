@@ -257,7 +257,11 @@ def inputs(
                     identity.update(short=None, reason="deleted")
                 if isinstance(result, dict):
                     result = {**result, "identity": identity}
-                    if isinstance(result.get("body"), str):
+                    if domain == "campaign" and isinstance(result.get("body"), str):
+                        from cac.core import campaign as campaign_core
+
+                        result = campaign_core.budget_response(root, selection.name, result)
+                    elif isinstance(result.get("body"), str):
                         allowance = max(0, config.RESPONSE_BUDGET - len(encoded(identity)) - 14)
                         if len(result["body"]) > allowance:
                             from cac.core import boss, encounter

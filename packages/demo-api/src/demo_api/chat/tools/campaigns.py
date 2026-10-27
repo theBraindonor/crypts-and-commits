@@ -10,8 +10,8 @@ def build_tools(root: Path) -> list[BaseTool]:
         return [{"name": name, "status": status} for name, status in campaign_core.list_campaigns_with_status(root)]
 
     def get_campaign(name: str) -> dict:
-        """Get a campaign's status and full body by name."""
+        """Get a campaign's status, complete boss membership, and full body by name."""
         campaign = campaign_core.read_campaign(root, name)
-        return {"name": campaign.name, "status": campaign.status, "body": campaign.body}
+        return {"name": campaign.name, "status": campaign.status, "bosses": campaign.bosses, "body": campaign.body}
 
     return [tool(list_campaigns), tool(get_campaign)]
