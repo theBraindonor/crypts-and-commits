@@ -93,9 +93,16 @@ Region and dependency assignment are both only permitted while an encounter is `
 
 ### Draft handoff
 
-After drafting an encounter, give the developer a brief summary before asking for approval to launch the independent review. Include the encounter's name and `draft` status, intended outcome, scope, main planned changes, and how completion will be verified. For an `unscripted` encounter, summarize what was already done and why, rather than inventing a Plan or Verification section. Include a link or reference to the full encounter so the developer can decide whether to inspect it.
+After drafting an encounter, give the developer a substantive report before asking for approval to launch the independent review. Make the report understandable on its own: the developer should be able to assess the proposed work and decide about review without opening the encounter. Include a link or reference to the full encounter for deeper inspection, and explain:
 
-Use a short paragraph or a few bullets; summarize the substance rather than pasting the encounter. After revising a rejected or non-reviewable draft, summarize what changed and any unresolved questions before requesting renewed review approval. A draft summary does not authorize a reviewer or execution.
+- **Identity and purpose:** encounter and campaign names, kind, `draft` status, the problem and its motivation, and the intended behavior or outcome. Describe a concrete before/after when it helps establish what success means.
+- **Scope and approach:** affected areas and boundaries, the main implementation steps, and significant choices or tradeoffs with the reasons for them. Explain how the changes address the problem, rather than merely listing files or section titles.
+- **Risks and decisions:** dependencies, important assumptions, risks, and unresolved questions that could affect scope or readiness. State when there are no unresolved decisions rather than inventing concerns.
+- **Verification:** what will be checked, which outcomes demonstrate success, and any known limits of those checks.
+
+For an `unscripted` encounter, explain the work already performed, why that approach was taken, available evidence, and remaining follow-up; do not invent a future Plan or Verification section. After revising a rejected or non-reviewable draft, explain which changes were actually made, why they address the findings, and which concerns remain before requesting renewed review approval. A draft report does not authorize a reviewer or execution.
+
+Use several developed paragraphs or grouped bullets, scaling depth to the work's complexity and uncertainty. Explain why details matter; topic labels alone are insufficient. Do not impose a fixed word count or compress the report into a terse synopsis. Avoid padding, pasting the encounter, or repeating routine details that do not help the decision. Apply this same standard to the review report below.
 
 **`draft` → `reviewed`** — this gate is performed by an **independent, fresh reviewer subagent**, never inline by the agent that authored the draft. An agent reviewing its own draft just re-checks it against the priors that produced it — a rubber stamp — so **do not review the encounter yourself**, whatever its `kind`.
 
@@ -109,17 +116,18 @@ On **REJECT** or **NOT-REVIEWABLE**, the auto-transition does not apply: do not 
 
 ### Review handoff
 
-After every independent review, give the developer a brief summary of the review and its practical impact, with a link or reference to the full encounter. Include:
+After every independent review, give the developer a substantive report of the review and its practical impact, with the encounter's identity and a link or reference to its full record. Make the reasoning and next decision understandable without requiring the developer to read the encounter or raw reviewer output. Include:
 
-- The verdict and material findings, explicitly saying when there are no blocking issues or actionable notes.
-- What the findings mean for scope, approach, risks, verification, or readiness. Distinguish recommended or proposed changes from revisions or other actions actually taken.
-- The resulting encounter status and an explicit recommendation to **proceed** or **revise**, with a short reason and any remaining conditions.
+- **Verdict and coverage:** what the reviewer examined, the applicable standards or areas checked, and the limits of the review. Distinguish plan review from verification of implemented work; do not imply coverage or evidence the reviewer did not report.
+- **Findings and reasoning:** explain each material finding, its supporting evidence or rationale, and why it matters. Distinguish blockers, actionable notes, and flagged-but-unverified concerns, explicitly saying when none exist. Routine successful lore checks may be grouped; explain consequential checks rather than reproducing an exhaustive checklist.
+- **Impact and response:** explain consequences for scope, approach, risks, verification, or readiness and how each actionable finding should be addressed. Distinguish proposed or recommended responses from revisions, recorded messages, or other actions actually taken. Identify remaining uncertainty and conditions that still need to be satisfied.
+- **State and recommendation:** state the resulting encounter status and locking implications, and recommend **proceed** or **revise** with reasons tied to the findings. Identify the next approval needed; a passing verdict or recommendation never supplies that approval.
 
 For **PASS-WITH-NOTES**, first perform the automatic `encounter_review` transition using the reviewer's proposed message as required above, then summarize the findings and impact. State that the encounter is `reviewed` and its sections are locked. Recommend proceeding when the notes can be handled under the approved plan; if they instead call for changes, explain the needed follow-up and record it with `encounter_record_message`, without attempting to replace locked sections. Ask for separate approval before opening; a recommendation is not approval.
 
 For **REJECT** or **NOT-REVIEWABLE**, keep the encounter `draft`, summarize the review's reasons and impact, and recommend revision or clarification before a fresh review. After updating the draft, state which changes were actually made and which concerns remain, provide the revised draft summary, and ask for renewed review approval. Never imply that revisions alone have passed review. For `unscripted` encounters, explain the impact on the accuracy of the recorded work and any follow-up needed rather than implying that the recorded work awaits execution.
 
-This conversational summary supplements the independent reviewer's recorded message; do not replace or rewrite that message with your own summary. Keep summaries concise and specific enough to support the developer's decision about reading the full encounter.
+This conversational report supplements the independent reviewer's recorded message; do not replace or rewrite that message with your own report. Expand the explanation of material findings and their consequences as needed for the developer's decision, while preserving the reviewer's meaning and clearly identifying your own recommendations.
 
 #### Reviewer subagent prompt template
 

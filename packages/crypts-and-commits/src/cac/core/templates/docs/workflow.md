@@ -513,24 +513,48 @@ conversation. These handoffs supplement the encounter record and preserve
 all three approval gates above. This guidance targets the Codex skill;
 Claude's existing skill procedure is unchanged.
 
-After drafting, and before asking to launch the independent reviewer, give
-a short summary of the encounter's name, `draft` status, intended outcome,
-scope, main planned changes, and verification approach. Include a link or
-reference to the full encounter so the developer can choose whether to read
-it. For an `unscripted` encounter, summarize work already done and why;
-there is no Plan or Verification section to invent. After revising a
-rejected or non-reviewable draft, summarize the changes and remaining
-questions before requesting renewed review approval.
+Each handoff is a substantive report that stands on its own: the developer
+should understand the work or review outcome and make the next decision
+without opening the full encounter. Include its full reference for deeper
+inspection. Use several developed paragraphs or grouped bullets, scaling
+depth to complexity and uncertainty. Explain why details matter; listing
+topic labels is insufficient. Avoid a fixed word count, terse synopsis,
+padding, or pasting the encounter.
 
-After every independent review, summarize the verdict, material findings
-(or their absence), and their practical impact on scope, approach, risks,
-verification, or readiness. Distinguish proposed changes from actions
-actually taken, state the resulting encounter status, and include a link or
-reference to the full encounter. Give an explicit recommendation to proceed
-or revise, with reasons and any remaining conditions:
+After drafting, before requesting independent review, explain:
+
+- Encounter and campaign identity, kind, `draft` status, the problem and
+  motivation, and intended behavior or outcome; use a before/after when helpful.
+- Scope and boundaries, affected areas, main implementation steps, and
+  significant choices or tradeoffs with their reasons.
+- Dependencies, assumptions, risks, and unresolved decisions that affect
+  readiness; say when there are no unresolved decisions.
+- Verification approach, concrete success criteria, and known limits.
+
+For an `unscripted` encounter, explain work already performed, its rationale,
+available evidence, and remaining follow-up instead of inventing a future
+Plan or Verification. After revising a rejected or non-reviewable draft,
+explain changes actually made, why they address the findings, and concerns
+still outstanding before requesting renewed review approval.
+
+After every independent review, identify the encounter and explain:
+
+- Verdict, review coverage and limits, including which standards or areas
+  were checked. Do not imply unreported evidence or implementation verification
+  from a plan review.
+- Each material finding's evidence or reasoning and practical importance.
+  Distinguish blockers, actionable notes, and flagged-but-unverified concerns;
+  explicitly say when none exist. Group routine successful lore checks rather
+  than reproducing an exhaustive checklist.
+- Consequences for scope, approach, risks, verification, or readiness; proposed
+  responses versus actions actually taken; remaining uncertainty and conditions.
+- Resulting status and locking implications, a reasoned recommendation to
+  proceed or revise tied to the findings, and the next approval needed.
+
+Handle the verdict before delivering the report:
 
 - **PASS-WITH-NOTES:** first auto-transition using the reviewer's proposed
-  message, then give the summary. State that the encounter is `reviewed`
+  message, then give the report. State that the encounter is `reviewed`
   and its sections are locked. Explain whether notes can be handled under
   the plan or need follow-up recorded with `encounter_record_message`;
   locked sections cannot be replaced. Request separate approval to open.
@@ -543,28 +567,60 @@ or revise, with reasons and any remaining conditions:
 
 For unscripted reviews, describe the findings' impact on the recorded
 work's accuracy and any follow-up needed, rather than presenting work
-already done as future execution. Keep each handoff to a short paragraph or
-a few bullets. The conversational summary must not replace or rewrite the
-independent reviewer's message recorded by `encounter_review`, and a
+already done as future execution. The conversational report supplements the
+independent reviewer's message recorded by `encounter_review`; never replace
+or rewrite that message. Preserve the reviewer's meaning and distinguish
+your own recommendations from its findings. A
 recommendation never authorizes a reviewer, opening, or completion.
 
-Examples (use actual names and include the full encounter reference):
+Illustrative reports (use actual identities, evidence, and full references;
+adapt detail to the encounter instead of treating these as a length ceiling):
 
-- **Draft:** "`e005` is draft: add Codex summaries to the packaged skill
-  and guide; check review outcomes and gates, then pytest and Ruff.
-  May I launch independent review?" For an unscripted record, summarize
-  the change already made and its rationale instead.
-- **Pass:** "PASS-WITH-NOTES; now reviewed and locked. No blockers.
-  The reviewer requests clearer examples, already covered by the plan,
-  so scope is unchanged. I recommend proceeding. May I open it?"
-  If there are no actionable notes, say so and explain readiness.
-- **Reject:** "REJECT; still draft. Editing deployed skills would lose
-  changes on redeployment. I recommend targeting packaged templates."
-  After updating: "The draft now targets templates; may I launch a fresh
-  review?" This distinguishes the finding from the correction actually made.
-- **Not reviewable:** "NOT-REVIEWABLE; still draft. The recorded timeout
-  fix is unidentified. I recommend clarifying which change was made before
-  fresh review." An unscripted documentation gap does not imply redoing work.
+**Scripted draft:** "`c001/e010-expand-encounter-handoff-reporting` is a
+scripted draft in `c001-boss-edition`. The earlier guidance explicitly asks
+for brevity, leaving too little context to decide about review or execution.
+This draft requires reports that explain the approach and reasoning as well
+as the outcome. It changes the packaged Codex skill and matching workflow
+guidance; authoring both together keeps the instructions consistent.
+
+The plan replaces brevity limits, develops examples, and checks each review
+outcome. Report depth will follow complexity rather than a word quota, so
+simple encounters need no filler. Guide size is a known constraint: retrieval
+tests must still return the complete guide under the existing budget. Manual
+scenario checks will assess whether reports support a decision; existing
+tests and Ruff check packaging, retrieval, and repository health. No design
+decision remains unresolved. May I launch independent review?"
+
+**Passing review with a note:** "`c001/e010` passed with notes; it is now
+reviewed and its sections are locked. The reviewer checked the plan against
+all applicable lore and named sources, finding no blockers or unverified
+concerns. This establishes plan compliance, not completed implementation.
+
+The actionable note is guide size: e005 encountered truncation, so expanded
+examples could make the guide unavailable in full. The planned retrieval
+check addresses that risk without increasing budgets. I recorded the
+reviewer's message; the documentation edits and retrieval check remain to
+be done. I recommend proceeding because the note fits the existing plan,
+with full retrieval required before completion. May I open the encounter?"
+With no actionable notes, explicitly say so and explain how review coverage
+supports readiness while identifying any remaining implementation uncertainty.
+
+**Rejection and revision:** "The reviewer rejected the draft because it
+targets deployed skills, whose changes would be overwritten on bootstrap.
+The encounter remains draft and editable. I recommend revision to target
+packaged templates and leave deployment to the developer. I have now changed
+those paths and added a template/deployment check; no other concerns remain.
+These revisions address the finding but have not passed independent review.
+May I launch a fresh reviewer for the revised encounter?"
+
+**Unscripted, not reviewable:** "The reviewer could not identify the timeout
+fix from this unscripted record, so cannot assess it against applicable lore.
+The record remains draft. The gap concerns documentation of completed work;
+it does not establish that the fix failed. I recommend naming the changed
+component and recording the observed evidence before renewed review. No
+clarification has been made yet; the exact change remains unresolved."
+An unscripted draft report should likewise describe the actual change, why
+it was made, supporting observations, and follow-up rather than future execution.
 
 ## Boss planning records
 
