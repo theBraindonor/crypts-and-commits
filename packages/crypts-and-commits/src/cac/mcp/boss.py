@@ -9,6 +9,13 @@ from cac.mcp.instance import mcp
 
 @mcp.tool()
 @references.inputs("boss")
+def boss_assign_campaign(name: str, campaign_name: str, body: str) -> dict[str, Any]:
+    """Assign an eligible boss to a new literal campaign name with supplied tactical content; consistent same-assignment retries are read-only."""
+    return boss_core.assign_campaign(resolve_project_root(), name, campaign_name, body)
+
+
+@mcp.tool()
+@references.inputs("boss")
 def boss_candidates(cursor: str | None = None) -> dict[str, Any]:
     """Page local boss summaries, readiness/eligibility, blockers, and integrity diagnostics. Read-only; no proof of integration."""
     return candidates_core.candidates(resolve_project_root(), cursor)

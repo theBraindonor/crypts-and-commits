@@ -33,8 +33,13 @@ def set_metadata(path, **metadata):
 
 
 def linked_campaign(root, name, boss_name, status="open", archived=False):
-    path = campaign.create_campaign(root, name, "Campaign body should not appear.")
-    set_metadata(path, boss=boss_name, status=status, archived=archived)
+    # Fixture-only partial/future links must not bypass public creation claim guards.
+    path = campaign.campaign_dir(root) / f"{name}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    post = frontmatter.Post(
+        "Campaign body should not appear.", name=name, boss=boss_name, status=status, archived=archived
+    )
+    path.write_text(frontmatter.dumps(post), encoding="utf-8")
     if archived:
         target = campaign.archive_campaign_dir(root) / path.name
         target.parent.mkdir(parents=True, exist_ok=True)

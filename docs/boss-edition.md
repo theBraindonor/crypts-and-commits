@@ -3,10 +3,10 @@
 Status: design for the next release. The boundary below distinguishes implemented
 behavior from future proposals; this document does not approve encounter execution.
 
-Implementation boundary (e006/e007/e008): boss planning storage, lifecycle, archive,
-dependencies, candidate discovery, and short refs have core/CLI/MCP implementations in the
+Implementation boundary (e006/e007/e008/e009): boss planning, dependencies,
+candidate discovery, short refs, promotion, and campaign coupling are implemented in the
 packaged Workflow Reference Guide. Other sections describe the intended full
-release, including deferred campaign coupling, rumors,
+release, including deferred rumors,
 prime/search, and skills. The additive collection retains schema version 1:
 missing storage is empty and created lazily, without rewriting old records or
 requiring bootstrap migration. Existing targets accept canonical names and short
@@ -634,7 +634,7 @@ the blockers. No automatic promotion or automatic campaign opening is implied.
 ## Proposed interfaces and implementation surfaces
 
 The table spans the full release design. Boss planning and candidate commands
-are implemented; assignment/coupling and other deferred families remain proposals:
+and campaign coupling are implemented; remaining deferred families are proposals:
 
 | MCP tool family | CLI equivalent | Purpose |
 | --- | --- | --- |

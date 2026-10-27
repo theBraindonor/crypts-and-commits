@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from cac.core import references
+from cac.core.recovery import RecoveryError
 
 
 def reference_inputs(domain: str, **options):
@@ -22,7 +23,7 @@ def reference_inputs(domain: str, **options):
         def invoke(*args, **kwargs):
             try:
                 return adapted(*args, **kwargs)
-            except (ValueError, OSError) as exc:
+            except (ValueError, OSError, RecoveryError) as exc:
                 Console().print(str(exc), markup=False)
                 raise typer.Exit(code=1) from exc
 

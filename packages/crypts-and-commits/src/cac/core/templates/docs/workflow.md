@@ -264,11 +264,11 @@ app), and that lore can be scoped to.
 A long-running initiative, analogous to a Jira Epic (e.g. "Create the MVP"),
 expected to span many encounters before completion.
 
-- **Frontmatter**: `name`, `status`, `archived` (bool, default `false` - see "Archiving" below), plus the common stamps.
+- **Frontmatter**: `name`, `status`, optional canonical origin `boss`, `archived` (bool, default `false`), plus the common stamps.
 - **Body**: free-form description of the initiative. Once a campaign reaches
-  a terminal status, a dated, attributed **postmortem log entry** is appended
+  completed/abandoned status, a dated, attributed **postmortem log entry** is appended
   to the body and the body is locked (`campaign_update`/`cac campaign update`
-  will fail).
+  will fail while closed; explicit reactivation can reopen completed campaigns).
 - **Status lifecycle**:
 
   | From | To | Trigger | Notes |
@@ -281,7 +281,7 @@ expected to span many encounters before completion.
   | `paused` | `open` | `campaign_open` | Same only-one-open-campaign guard as `draft` -> `open`. |
   | `paused` | `completed` | `campaign_complete` | Same guard/message/locking as `open` -> `completed`. |
   | `paused` | `abandoned` | `campaign_abandon` | Same guard/message/locking as `open` -> `abandoned`. |
-  | `completed` | - | - | Terminal; no further transitions. |
+  | `completed` | `open` | `campaign_reactivate` | Unarchived only; nonblank reason and single-open guard required. Preserves closing history. |
   | `abandoned` | - | - | Terminal; no further transitions. |
 
   ```mermaid
@@ -295,6 +295,7 @@ expected to span many encounters before completion.
       paused --> open : open
       paused --> completed : complete
       paused --> abandoned : abandon
+      completed --> open : reactivate
       completed --> [*]
       abandoned --> [*]
   ```
@@ -351,12 +352,13 @@ no live/archived split.
 | List (name + status) | `campaign_list` | `cac campaign list` |
 | Create (starts `draft`) | `campaign_create` | `cac campaign create` |
 | Replace body | `campaign_update` | `cac campaign update` |
-| Delete | `campaign_delete` | `cac campaign delete` |
+| Delete (bossless only, no reverse claims) | `campaign_delete` | `cac campaign delete` |
 | Open | `campaign_open` | `cac campaign open` |
 | Pause | `campaign_pause` | `cac campaign pause` |
 | Complete (+ postmortem message) | `campaign_complete` | `cac campaign complete` |
 | Abandon (+ postmortem message) | `campaign_abandon` | `cac campaign abandon` |
 | Archive (campaign + all its encounters) | `campaign_archive` | `cac campaign archive` |
+| Reopen completed (+ reason) | `campaign_reactivate` | `cac campaign reactivate` |
 
 ## Encounter
 
@@ -634,9 +636,8 @@ is needed. Upgrade the library to use these interfaces; older libraries do not
 manage bosses. Storage links and namespace/path collisions are rejected rather
 than followed outside record locations.
 
-The four statuses include vanquished for future campaign coupling; reads preserve
-optional campaign links. Assignment, campaign coupling,
-number allocation, rumors operations, active-boss priming, and boss
+Vanquished is set by campaign completion; reads preserve optional campaign links.
+Number allocation, rumors operations, active-boss priming, and boss
 search indexing remain deferred. Boss endpoints perform no branch inspection,
 switching, or merge automation; world settings do not change endpoint behavior.
 
@@ -685,6 +686,58 @@ diagnostics_ref: boss_list routes omitted problems to inventory and reads.
 Bodies are never included. If required fields/identifiers cannot fit, return an
 explicit budget error. Cursors assume an unchanged store; no snapshot is saved.
 
+### Promotion and campaign coupling
+
+`boss_assign_campaign(name, campaign_name, body)` / `cac boss assign-campaign
+NAME CAMPAIGN_NAME` require an eligible, unarchived, unassigned available boss.
+The boss accepts refs; the new campaign name is literal, unused live/archive, and
+unclaimed. CLI body comes from --body/-b, --body-file, or an editor seeded with
+the campaign template; MCP requires body. Supplied tactical content is not
+generated from boss notes. No campaign opens and no encounters are created.
+
+Promotion sets campaign.boss and boss.campaign to full reciprocal names, creates
+a draft, and leaves the boss available but frozen. Output contains boss, campaign,
+status, reused, boss_identity, campaign_identity, plus the standard identity.
+Same consistent current pair retries return actual state without writes/log/audit
+changes, including progressed/completed/archived pairs; changed retry body is
+ignored. Different targets or released obsolete attempts fail. Initial assignment
+uses untruncated core eligibility; retries do not recheck prerequisite readiness.
+
+Completion appends its normal postmortem and vanquishes the current boss, retaining
+its link. Abandonment appends history, makes the boss available, and removes its
+current campaign link; campaign.boss stays as historical origin. A new campaign
+may pursue the released goal. Open/pause never vanquish. Reactivate requires an
+unarchived completed campaign, nonblank reason, and no other open campaign. It
+appends history, unlocks tactical notes (retain the recorded Log), and makes a linked vanquished boss
+available while still frozen/assigned. Recompletion appends another closing entry;
+completed encounters do not reopen. Bossless reactivation works too.
+
+Completed campaign archive moves its current vanquished boss and all terminal
+encounters with consistent flags, preserving status and archived reads. Abandoned
+historical archive moves only that campaign/encounters; it never changes a released
+boss now withdrawn, archived, vanquished, or owned elsewhere. Standalone boss archive
+still requires unassigned withdrawn status. No restoration or public vanquish setter.
+
+Origin/reverse claims protect campaign deletion, including released history.
+Ordinary campaign create also rejects retained archive names and reverse claims.
+Competing/missing/malformed/incorrect reciprocal or lifecycle links reject mutations;
+no automatic repair/reassignment. Campaign gets add boss_link with kind
+bossless/current/historical/invalid and diagnostics; long diagnostics disclose
+truncation and inventory refs. Mutation results expose optional boss without its
+body. Candidate diagnostics include invalid_campaign_origin/orphan_campaign_claim
+so discovery cannot approve an orphan goal that assignment rejects.
+
+Coupling preserves raw boss-body bytes, summary, dependencies, creation stamps,
+and unrelated metadata. Only lifecycle/link/archive/update-audit frontmatter changes.
+Ordinary exceptions restore the entire affected file cohort and logical affected
+index rows; archive recovery includes every encounter. Assignment removes only its
+new draft on failure. Failed recovery raises RecoveryError identifying residual
+paths/rows for explicit repair, without retry/reallocation or unrelated cleanup.
+This is one-store exception recovery, not a crash journal or cross-process guarantee.
+No boss indexing, index creation/rebuild, Git integration/branch checks, or allocation.
+The optional origin field is additive within schema 1: no legacy goal inference,
+record migration, bootstrap rerun, or deployed skill update is needed.
+
 ## Numbered references and canonical identity
 
 Existing boss/campaign/encounter selectors accept `bNNN`, `cNNN`, and
@@ -715,7 +768,8 @@ Encounter IDs remain campaign-local. Cross-campaign prerequisite edges are rejec
 | --- | --- | --- |
 | Boss get/update/make-available/withdraw/reactivate/archive | existing name | body, summary |
 | Boss assign/unassign-dependency | source name, prerequisite | missing canonical edge on explicit removal |
-| Campaign get/update/delete/open/pause/complete/abandon/archive | existing name | body, message |
+| Boss assign-campaign | existing boss | new campaign_name, body |
+| Campaign get/update/delete/open/pause/complete/abandon/archive/reactivate | existing name | body, message |
 | Encounter get/update/delete/review/open/record-message/complete/abandon | name, optional campaign | body, message |
 | Encounter assign/unassign-region | name, optional campaign | region |
 | Encounter assign/unassign-dependency | source, prerequisite, optional campaign | missing canonical edge on explicit removal |
@@ -726,8 +780,7 @@ Encounter IDs remain campaign-local. Cross-campaign prerequisite edges are rejec
 
 Lore/region/doc names, arbitrary keys/values, messages, bodies, summaries, and
 search phrases are untouched even if they resemble numbered refs. There is no
-new resolver endpoint. No boss deletion, assignment/coupling, or reactivation
-operation beyond those already shipped is added.
+new resolver endpoint. There is no boss deletion or generic status setter.
 
 Creation names are literal canonical names, never expansions into existing goals.
 Encounter create may select its existing campaign by ref but cannot create a
@@ -769,7 +822,7 @@ canonical names so damaged stored references cannot acquire new meaning. A
 request-local inventory may be cached; no persistent map, index, file/audit write,
 number reservation, branch/network lookup, or migration occurs during resolution.
 Schema version stays 1. Planning/branching skill adoption and Git collision checks
-remain later work. The dedicated docs budget is 56,000 characters so this full
+remain later work. The dedicated docs budget is 64,000 characters so this full
 canonical reference remains retrievable; ordinary response budgets are unchanged.
 
 ## Cross-cutting: priming, search, and docs

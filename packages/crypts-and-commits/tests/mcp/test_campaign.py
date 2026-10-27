@@ -35,6 +35,7 @@ def test_campaign_create_returns_new_campaign() -> None:
 
     assert result == {
         "name": "mvp",
+        "boss": None,
         "status": "draft",
         "archived": False,
         "body": "Campaign body.",

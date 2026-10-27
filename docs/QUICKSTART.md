@@ -110,8 +110,8 @@ Archive accepts only unassigned withdrawn bosses. Archived names are retained;
 get still reads them. There is no deletion/restoration operation. Missing storage
 is empty; first create provisions it without migrating existing records.
 All commands have matching `boss_*` MCP tools. See `cac docs get workflow` for
-state guards, dependency validation, paging, and response contracts. Assignment,
-campaign coupling, rumors operations, boss search/prime integration,
+state guards, dependency validation, paging, and response contracts.
+Rumors operations, boss search/prime integration,
 and automated numbering remain future work.
 
 ### Discover the next goal
@@ -152,6 +152,34 @@ parallel identities; candidates include identity in their existing bounded JSON.
 
 Create names remain literal: `cac boss create b001-new-goal ...` creates that
 name; it never expands into an existing record. Newly written dependencies use
-canonical names. No automatic allocation, rename, Git discovery, migration, or
-campaign assignment is performed. See `cac docs get workflow` for exact grammar,
+canonical names. Reference resolution does not allocate, rename, discover Git
+branches, migrate, or assign campaigns. See `cac docs get workflow` for exact grammar,
 legacy-name precedence, context rules, operation coverage, and response budgets.
+
+### Pursue a boss with a campaign
+
+Prepare tactical campaign notes, then promote an eligible available boss:
+
+```bash
+cac boss assign-campaign b001 c001-planning --body-file "notes/campaign.md"
+cac campaign get c001
+cac campaign open c001
+```
+
+Promotion creates a draft with reciprocal links; it does not open it or create
+encounters. Complete the campaign's approved encounters before recording its
+outcome. Completion vanquishes the linked boss; abandonment releases it for a
+new campaign while retaining the old campaign's origin/history.
+
+For feedback on a completed, unarchived campaign, use
+`cac campaign reactivate c001 --message "Address PR feedback"`. Earlier closing
+entries and completed encounters remain intact; create new follow-up encounters,
+then complete again. Archive completed campaigns to archive their current boss
+and terminal encounters together. Archiving an abandoned old attempt never
+changes a reassigned boss. Origin/reverse links prevent campaign deletion.
+
+`boss_assign_campaign` and `campaign_reactivate` provide MCP parity. Same current
+assignment retries are read-only and never replace campaign content. Inconsistent
+ownership fails with diagnostics; recovery failures identify residual records
+for explicit repair. These operations use local records, with no automatic Git,
+merge verification, allocation, or record migration.

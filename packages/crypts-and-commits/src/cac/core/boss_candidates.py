@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from cac.core import boss, budget, campaign, config, references
+from cac.core import boss, budget, campaign, config, coupling, references
 from cac.core.frontmatter_utils import SUMMARY_ABSENT_MESSAGE
 
 _DETAIL_LIMIT = 16
@@ -144,6 +144,8 @@ def _snapshot(root: Path) -> tuple[dict, dict, dict, dict, list[str]]:
                 issues[name].append(
                     _issue(name, "missing_prerequisite", "Prerequisite record is missing.", prerequisite=target)
                 )
+    for name, diagnostics in coupling.boss_diagnostics(root, records).items():
+        issues.setdefault(name, []).extend(diagnostics)
     return records, edges, issues, contexts, live
 
 
@@ -321,3 +323,12 @@ def candidates(root: Path, cursor: str | None = None) -> dict[str, Any]:
     page = budget.paginate(bounded, cursor, budget=item_budget, render=_json)
     result["items"], result["next_cursor"] = page.items, page.next_cursor
     return result
+
+
+def assess(root: Path, name: str) -> dict:
+    """Untruncated eligibility shared by discovery and first assignment."""
+    items, _, _ = _evaluate(root)
+    for item in items:
+        if item["name"] == name:
+            return item
+    raise boss.BossError(f"Boss {name!r} is not in the live unassigned planning pool.")

@@ -96,8 +96,11 @@ provides boss create/read/update, planning transitions, withdrawn-boss archive,
 and dependency operations. Missing boss storage is empty and directories are
 created lazily. Existing worlds, campaigns, and encounters are not rewritten;
 no record migration, guardrail suspension, or bootstrap rerun is needed for
-these operations. Older libraries do not manage the new collection. Campaign
-coupling and workflow adoption remain separate future work.
+these operations. Optional campaign origin boss links and lifecycle coupling are
+also additive within schema 1: legacy campaigns remain bossless, with no inferred
+goals, rewritten history, guardrail suspension, or bootstrap migration. Upgrade the
+library for promotion and completed-campaign reactivation; workflow/skill adoption
+remains separate future work. Older libraries do not manage these new contracts.
 
 There are no migrations documented yet - the sourcebook schema is at
 version 1, the version this document itself introduces, and no format

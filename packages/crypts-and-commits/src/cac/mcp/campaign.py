@@ -1,9 +1,16 @@
 from typing import Any
 
 from cac.core import campaign as campaign_core
-from cac.core import references
+from cac.core import coupling, references
 from cac.core.paths import resolve_project_root
 from cac.mcp.instance import mcp
+
+
+@mcp.tool()
+@references.inputs("campaign")
+def campaign_reactivate(name: str, message: str) -> dict[str, Any]:
+    """Reopen an unarchived completed campaign for review feedback with an attributed nonblank reason; preserve earlier closing history."""
+    return campaign_to_dict(campaign_core.reactivate_campaign(resolve_project_root(), name, message))
 
 
 def campaign_to_dict(campaign: campaign_core.Campaign) -> dict[str, Any]:
@@ -12,6 +19,7 @@ def campaign_to_dict(campaign: campaign_core.Campaign) -> dict[str, Any]:
         "status": campaign.status,
         "archived": campaign.archived,
         "body": campaign.body,
+        "boss": campaign.boss,
     }
 
 
@@ -23,7 +31,7 @@ def campaign_get(name: str) -> dict[str, Any]:
     the file directly at the reported path if truncated."""
     root = resolve_project_root()
     metadata, body = campaign_core.read_metadata(root, name)
-    return {"metadata": metadata, "body": body}
+    return {"metadata": metadata, "body": body, "boss_link": coupling.inspection(root, name)}
 
 
 @mcp.tool()
@@ -58,7 +66,7 @@ def campaign_update(name: str, body: str) -> dict[str, Any]:
 @mcp.tool()
 @references.inputs("campaign")
 def campaign_delete(name: str) -> dict[str, str]:
-    """Delete a campaign file."""
+    """Delete a bossless campaign only; origin history and reverse boss claims protect deletion."""
     path = campaign_core.delete_campaign(resolve_project_root(), name)
     return {"deleted": str(path)}
 
@@ -83,7 +91,7 @@ def campaign_pause(name: str) -> dict[str, Any]:
 def campaign_complete(name: str, message: str) -> dict[str, Any]:
     """Move a campaign from 'open' or 'paused' to 'completed'. Fails if the campaign has an open
     encounter. message is a required postmortem, recorded as a dated, attributed log entry; the
-    campaign's body is locked thereafter."""
+    campaign's body is locked while completed. A current boss is vanquished without changing its design."""
     return campaign_to_dict(campaign_core.complete_campaign(resolve_project_root(), name, message))
 
 
@@ -92,7 +100,7 @@ def campaign_complete(name: str, message: str) -> dict[str, Any]:
 def campaign_abandon(name: str, message: str) -> dict[str, Any]:
     """Move a campaign from 'draft', 'open', or 'paused' to 'abandoned'. Fails if the campaign has
     an open encounter. message is a required postmortem, recorded as a dated, attributed log entry;
-    the campaign's body is locked thereafter."""
+    the campaign's body is locked. Release its current boss but retain the campaign's historical origin."""
     return campaign_to_dict(campaign_core.abandon_campaign(resolve_project_root(), name, message))
 
 
@@ -101,6 +109,6 @@ def campaign_abandon(name: str, message: str) -> dict[str, Any]:
 def campaign_archive(name: str) -> dict[str, Any]:
     """Archive a campaign and all its encounters, moving them into .sourcebook/archive/ and setting
     archived: true on each. The campaign must already be 'completed' or 'abandoned', and every one
-    of its encounters must also be 'completed' or 'abandoned' - status is preserved, not replaced."""
+    of its encounters must also be 'completed' or 'abandoned' - status is preserved. Archive a completed campaign's current boss too; abandoned history never controls a released boss."""
     campaign, archived_encounters = campaign_core.archive_campaign(resolve_project_root(), name)
     return {**campaign_to_dict(campaign), "archived_encounters": archived_encounters}

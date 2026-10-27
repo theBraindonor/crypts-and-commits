@@ -9,6 +9,7 @@ from cac.cli.common import edit_markdown, reference_inputs, resolve_body_input
 from cac.core import boss as boss_core
 from cac.core import boss_candidates as candidates_core
 from cac.core import budget as budget_core
+from cac.core import campaign as campaign_core
 from cac.core import references
 from cac.core.git_utils import GitIdentityError
 from cac.core.paths import resolve_project_root
@@ -17,6 +18,24 @@ app = typer.Typer(
     help="Capture and manage boss planning records.", context_settings={"help_option_names": ["-h", "--help"]}
 )
 console = Console()
+
+
+@app.command("assign-campaign")
+@reference_inputs("boss")
+def assign_campaign(
+    name: str = typer.Argument(..., help="Existing boss name or short reference."),
+    campaign_name: str = typer.Argument(..., help="New literal canonical campaign name; never allocated or resolved."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Tactical campaign Markdown; opens editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(None, "--body-file", help="Read UTF-8 campaign body; conflicts with --body."),
+) -> None:
+    """Create a draft campaign and freeze the eligible boss through reciprocal current links."""
+    content = resolve_body_input(body, body_file)
+    if content is None:
+        content = edit_markdown(campaign_core.template_body())
+    result = _call(boss_core.assign_campaign, resolve_project_root(), name, campaign_name, content)
+    console.print(references.encoded(result), markup=False, highlight=False, soft_wrap=True)
 
 
 @app.command("candidates")

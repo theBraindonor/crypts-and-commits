@@ -275,3 +275,10 @@ def assign_dependency(root: Path, name: str, dependency: str) -> Path:
 
 def unassign_dependency(root: Path, name: str, dependency: str) -> Path:
     return _change_dependency(root, name, dependency, remove=True)
+
+
+def assign_campaign(root: Path, name: str, campaign_name: str, body: str) -> dict[str, Any]:
+    """Promote an eligible boss into a new, deliberately supplied draft campaign."""
+    from cac.core import coupling
+
+    return coupling.assign_campaign(root, name, campaign_name, body)

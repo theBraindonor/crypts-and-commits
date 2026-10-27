@@ -11,6 +11,7 @@ def test_all_domain_tools_are_registered() -> None:
     assert tool_names == {
         "boss_create",
         "boss_candidates",
+        "boss_assign_campaign",
         "boss_get",
         "boss_list",
         "boss_update",
@@ -54,6 +55,7 @@ def test_all_domain_tools_are_registered() -> None:
         "campaign_complete",
         "campaign_abandon",
         "campaign_archive",
+        "campaign_reactivate",
         "encounter_get",
         "encounter_list",
         "encounter_order",

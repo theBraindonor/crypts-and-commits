@@ -4,7 +4,7 @@ from rich.console import Console
 from cac.cli.common import edit_markdown, fail, reference_inputs, resolve_body_input
 from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
-from cac.core import references
+from cac.core import coupling, references
 from cac.core.git_utils import GitIdentityError
 from cac.core.paths import resolve_project_root
 
@@ -24,10 +24,23 @@ app = typer.Typer(
         "'completed' or 'abandoned', the campaign's body is locked: 'update' fails, since the "
         "postmortem is meant to be that campaign's closing record. Once a campaign and every one "
         "of its encounters are 'completed'/'abandoned', it may be 'archive'd - moved into "
-        ".sourcebook/archive/, out of the way of active work, without changing its status."
+        ".sourcebook/archive/, out of the way of active work, without changing its status. "
+        "Use 'reactivate' with a nonblank reason to reopen an unarchived completed campaign for review feedback; "
+        "prior closing history is preserved. Origin/reverse boss links protect deletion."
     )
 )
 console = Console()
+
+
+@app.command("reactivate")
+@reference_inputs("campaign")
+def reactivate_campaign(
+    name: str = typer.Argument(..., help="Completed campaign name or short reference."),
+    message: str = typer.Option(..., "--message", "-m", help="Nonblank reason for reopening review work."),
+) -> None:
+    """Reopen an unarchived completed campaign; preserve history and the assigned boss design."""
+    campaign_core.reactivate_campaign(resolve_project_root(), name, message)
+    console.print(f"Reactivated {name}.", markup=False)
 
 
 @app.command("get")
@@ -43,6 +56,11 @@ def get_campaign(
 
     for key, value in metadata.items():
         console.print(f"{key}: {value}", markup=False)
+    console.print(
+        "boss_link: " + references.encoded(coupling.inspection(resolve_project_root(), name)),
+        markup=False,
+        soft_wrap=True,
+    )
     console.print()
     body = budget_core.truncate_body(
         body,
