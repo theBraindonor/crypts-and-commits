@@ -17,7 +17,7 @@ time. `.sourcebook/` is where that context and work history live.
 ### This document
 
 This guide is the single source of truth for the structure of the `.sourcebook`
-domain model: the six content types it holds, the attributes and body shape
+domain model: its six record types and optional campaign rumors documents, the attributes and body shape
 of each, the workflow/status lifecycle each one follows (where it has one),
 and how the types connect to one another. It exists so that implementation-
 specific agent skills (Claude Code, Codex, and any future assistant flavor)
@@ -44,7 +44,7 @@ not step-by-step usage instructions - those live in the `world-manager` and
 ## CLI body input
 
 All CLI operations with `--body/-b` also accept `--body-file PATH`: world
-`set-body`, and lore, region, boss, campaign, and encounter `create`/`update`.
+`set-body`, and lore, region, boss, campaign, encounter, and rumors `create`/`update`.
 These options are mutually exclusive, even when the inline body is empty.
 
 The shared CLI resolver reads file input as UTF-8, preserving newline characters
@@ -67,7 +67,7 @@ no domain operation and does not change response budgets or literal body output.
 
 ## Domain model at a glance
 
-Six content types, each stored as a markdown file with YAML frontmatter
+Six record types, each stored as a markdown file with YAML frontmatter
 under `.sourcebook/`:
 
 | Type      | Cardinality           | Has a status lifecycle? |
@@ -78,6 +78,9 @@ under `.sourcebook/`:
 | Boss      | Many                   | Yes: proposed -> available -> withdrawn; reactivate -> proposed |
 | Campaign  | Many (one active/`open` at a time) | Yes: `draft` -> `open` -> `paused`/`completed`/`abandoned` |
 | Encounter | Many, nested under a campaign | Yes: `draft` -> `reviewed` -> `open` -> `completed`/`abandoned` |
+
+Campaign rumors are an additional plain markdown document type: at most one per
+campaign, with no frontmatter schema or lifecycle. See "Campaign rumors" below.
 
 ### How the types connect
 
@@ -627,7 +630,7 @@ it was made, supporting observations, and follow-up rather than future execution
 Bosses capture goals before campaign selection. Records live at
 `.sourcebook/bosses/<name>.md`; archives at
 `.sourcebook/archive/bosses/<name>.md`. The nested `bosses/rumors/` namespace
-is reserved and excluded from enumeration; rumors operations are deferred.
+is reserved for campaign rumors and excluded from boss enumeration.
 
 Frontmatter contains `name`, required `summary` (maximum 500 characters),
 `status`, `archived`, `depends_on` (direct canonical names), optional
@@ -693,9 +696,58 @@ manage bosses. Storage links and namespace/path collisions are rejected rather
 than followed outside record locations.
 
 Vanquished is set by campaign completion; reads preserve optional campaign links.
-Number allocation, rumors operations, active-boss priming, and boss
+Number allocation, active-boss priming, and boss
 search indexing remain deferred. Boss endpoints perform no branch inspection,
 switching, or merge automation; world settings do not change endpoint behavior.
+
+## Campaign rumors
+
+Rumors preserve discoveries at `.sourcebook/bosses/rumors/<canonical-campaign-name>.md`:
+one optional plain UTF-8 document per existing campaign, created lazily. Missing
+storage lists as empty. There is no frontmatter parsing, audit metadata, status,
+summary, required structure, review gate, or rumor number. All text, including
+empty strings, YAML-looking delimiters, brackets, Unicode, and newlines, round-trips
+exactly. Capture does not expand scope, create bosses, or require conversion/lineage.
+
+| Operation | MCP tool | CLI command |
+| --- | --- | --- |
+| List | `rumors_list(cursor=None)` | `cac rumors list` |
+| Read | `rumors_get(campaign=None, cursor=None)` | `cac rumors get` |
+| Create | `rumors_create(body, campaign=None)` | `cac rumors create` |
+| Replace | `rumors_update(body, campaign=None)` | `cac rumors update` |
+| Delete | `rumors_delete(campaign=None)` | `cac rumors delete` |
+
+CLI campaign is `--campaign/-c`; cursor is `--cursor`. Campaign accepts canonical
+or legacy names, cNNN refs, or active fallback. Missing/ambiguous owners fail. Create rejects existing
+documents; get/update/delete reject absent ones. CLI create/update use the shared
+body/body-file resolver or an editor initialized with empty/current text. MCP
+requires body, allowing empty text. CLI delete confirms unless `--yes/-y`; MCP
+delete is unconditional. Unsafe names, storage links/junctions, and path/type
+collisions fail before writes.
+
+Both surfaces return identical compact JSON; CLI prints it literally. Mutations
+return canonical `campaign` and campaign `identity`. Get adds raw `body` chunk,
+`truncated`, `next_cursor`, and separate `notice`. Complete reads have false
+truncation and null cursor/notice. For a `TRUNCATED` response, pass `next_cursor`
+as `cursor`/`--cursor` with the same campaign until null; concatenate only body
+fields. Digest/character-offset cursors reject malformed, out-of-range, or stale
+values; restart after edits. No direct-file-read fallback. The serialized envelope,
+including escaped text, fits the shared response budget or fails if too small.
+Other domains' get behavior is unchanged.
+
+List returns bounded `{items, next_cursor}` in filename order with shared cursor
+semantics. Items contain `campaign`, `identity`, and `diagnostic`; archived owners
+are included. Missing owners yield null identity and an orphan diagnostic requiring
+history reconciliation. Rumors never count/resolve as bosses, reserve boss numbers,
+or affect candidates/dependencies. Rumor indexing is deferred.
+
+All document operations allow terminal and archived owners; campaign/boss guards
+remain intact. Completion, abandonment, reactivation, and archival leave rumors'
+bytes and live path unchanged. No rumor archiving or automatic cleanup.
+
+Execution edits/integrates its own rumors; planning distills, retains, or deletes
+integrated notes. Assigned bosses stay frozen; Git retains history. Endpoints
+never inspect Git or enforce branches.
 
 ### Candidate discovery
 

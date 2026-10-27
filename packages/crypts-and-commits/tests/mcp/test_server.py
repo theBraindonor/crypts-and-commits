@@ -9,6 +9,11 @@ def test_all_domain_tools_are_registered() -> None:
     tool_names = {tool.name for tool in tools}
 
     assert tool_names == {
+        "rumors_list",
+        "rumors_get",
+        "rumors_create",
+        "rumors_update",
+        "rumors_delete",
         "boss_create",
         "boss_candidates",
         "boss_assign_campaign",

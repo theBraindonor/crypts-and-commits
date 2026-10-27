@@ -3,11 +3,10 @@
 Status: design for the next release. The boundary below distinguishes implemented
 behavior from future proposals; this document does not approve encounter execution.
 
-Implementation boundary (e006/e007/e008/e009): boss planning, dependencies,
-candidate discovery, short refs, promotion, and campaign coupling are implemented in the
+Implementation boundary (e006/e007/e008/e009/e011): boss planning, dependencies,
+candidate discovery, short refs, promotion, campaign coupling, and campaign rumors are implemented in the
 packaged Workflow Reference Guide. Other sections describe the intended full
-release, including deferred rumors,
-prime/search, and skills. The additive collection retains schema version 1:
+release, including deferred prime/search and skills. The additive collection retains schema version 1:
 missing storage is empty and created lazily, without rewriting old records or
 requiring bootstrap migration. Existing targets accept canonical names and short
 refs; new create names stay literal. Endpoints do not allocate numbers.
@@ -350,6 +349,19 @@ own rumors file, and general rumor editing and distillation belong on
 `planning`. The endpoints themselves do not check the branch, and reads are
 available wherever the file is present. Existing MCP/CLI-only content access still applies, using
 simple document operations rather than imposing a structured rumor workflow.
+
+Implemented rumor contract (e011): `cac rumors list/get/create/update/delete`
+and matching `rumors_*` MCP tools manage plain UTF-8 documents without parsing
+frontmatter. Campaign inputs accept canonical names/cNNN refs or active fallback.
+Create rejects an existing document, and get/update/delete reject a missing one.
+Terminal and archived campaign owners remain eligible for document operations,
+including creating notes after completion. Lists include archived owners and
+diagnose orphan documents. CLI create/update support body-file/editor input;
+MCP requires an explicit body, allowing empty text. CLI deletion confirms unless
+`--yes` is supplied; MCP deletion is unconditional. Get returns bounded JSON
+with a raw body chunk, separate truncation notice, and content-bound continuation
+cursor; edits invalidate old cursors. These choices are specified in the packaged
+Workflow Reference Guide. Rumor indexing remains out of scope for e011.
 
 ## Domain model
 

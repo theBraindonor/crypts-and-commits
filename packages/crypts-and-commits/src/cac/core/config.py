@@ -6,6 +6,7 @@ REGION_DIR_NAME = "region"
 CAMPAIGN_DIR_NAME = "campaigns"
 ENCOUNTER_DIR_NAME = "encounters"
 BOSS_DIR_NAME = "bosses"
+RUMORS_DIR_NAME = "rumors"
 BOSS_STATUSES = ("proposed", "available", "withdrawn", "vanquished")
 DEFAULT_BOSS_STATUS = "proposed"
 BOSS_NUMBER_PATTERN = re.compile(r"^b([0-9]+)-.+$")
