@@ -8,6 +8,26 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+def test_prime_boss_and_tiny_budget_errors_are_literal(tmp_path, monkeypatch):
+    from cac.core import boss, campaign, world
+
+    world.initialize_world(tmp_path)
+    boss.create_boss(tmp_path, "b001-goal", "[tool.ruff] 🐉", "[summary]")
+    boss.make_available(tmp_path, "b001-goal")
+    boss.assign_campaign(tmp_path, "b001-goal", "c001-work", "Campaign")
+    campaign.open_campaign(tmp_path, "c001-work")
+    result = runner.invoke(app, ["prime", "get"])
+    assert result.exit_code == 0, result.output
+    assert "[tool.ruff] 🐉" in result.output and "[summary]" in result.output
+    boss.boss_path(tmp_path, "b001-goal").unlink()
+    result = runner.invoke(app, ["prime", "get"])
+    assert result.exit_code == 0
+    assert "invalid_boss_link" in result.output and "b001-goal" in result.output
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    result = runner.invoke(app, ["prime", "get"])
+    assert result.exit_code == 1 and "metadata/state" in result.output
+
+
 @pytest.mark.parametrize("override", [False, True])
 def test_prime_shows_legacy_branch_settings_literally_without_writes(legacy_world: Path, override: bool) -> None:
     if override:
@@ -185,14 +205,15 @@ def test_get_truncates_world_body_over_budget(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, seed_world: Callable[[], None]
 ) -> None:
     seed_world()
-    runner.invoke(app, ["world", "set-body", "--body", "x" * 200])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    runner.invoke(app, ["world", "set-body", "--body", "x" * 4000])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 1200)
 
     result = runner.invoke(app, ["prime", "get"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    assert str(tmp_path / ".sourcebook" / "world.md") in result.output
+    assert "TRUNCATED" in result.output
+    assert "world_get" in result.output
+    assert "x" * 4000 not in result.output
 
 
 def test_get_truncates_campaign_body_over_budget(
@@ -203,15 +224,17 @@ def test_get_truncates_campaign_body_over_budget(
     open_campaign: Callable[..., None],
 ) -> None:
     seed_world()
-    create_campaign(body="x" * 200)
+    create_campaign(body="x" * 4000)
     open_campaign()
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 1600)
 
     result = runner.invoke(app, ["prime", "get"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    assert str(tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md") in result.output
+    assert "TRUNCATED" in result.output
+    assert "campaign_get" in result.output
+    assert "opening-gambit" in result.output
+    assert "x" * 4000 not in result.output
 
 
 def test_applicable_lore_pages_under_budget_and_cursor_resumes(

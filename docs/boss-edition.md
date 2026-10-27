@@ -3,10 +3,11 @@
 Status: design for the next release. The boundary below distinguishes implemented
 behavior from future proposals; this document does not approve encounter execution.
 
-Implementation boundary (e006/e007/e008/e009/e011): boss planning, dependencies,
-candidate discovery, short refs, promotion, campaign coupling, and campaign rumors are implemented in the
+Implementation boundary (e006/e007/e008/e009/e011/e012): boss planning, dependencies,
+candidate discovery, short refs, promotion, campaign coupling, rumors, active-boss prime,
+boss search, and content-based index freshness are implemented in the
 packaged Workflow Reference Guide. Other sections describe the intended full
-release, including deferred prime/search and skills. The additive collection retains schema version 1:
+release, including deferred skills and adoption guidance. The additive collection retains schema version 1:
 missing storage is empty and created lazily, without rewriting old records or
 requiring bootstrap migration. Existing targets accept canonical names and short
 refs; new create names stay literal. Endpoints do not allocate numbers.
@@ -636,7 +637,20 @@ Apply the existing shared response budget. Truncate the boss body when needed,
 with an explicit notice and a reference for `boss_get`, preserving identifiers
 and state. A missing or inconsistent boss link must produce an explicit integrity
 diagnostic rather than masquerade as a bossless campaign. The prime integration
-encounter will specify the exact diagnostic and truncation serialization.
+implementation uses active_boss_diagnostic (code/campaign/boss/message) and a
+truncations list with field/notice/ref entries. Healthy/bossless diagnostics are
+null. Whole-response budgeting reserves metadata/routing before body shares;
+unfit metadata fails explicitly. The packaged workflow specifies the full contract.
+
+Search now indexes boss body plus summary across all statuses, excluding archives
+unless requested. It compares indexed SHA-256 fingerprints and relative source
+locations against current records before returning hits; sourcebook schema stays
+at version 1, independently of the SQLite manifest format. Legacy/unsupported
+indexes require developer rebuild. Core raises StaleIndexError; MCP returns
+stale=true with no hits and a recovery diagnostic; CLI exits nonzero. Status
+distinguishes missing/fresh/stale and labels stale counts as snapshot counts.
+Incremental writes update only affected evidence; lifecycle rollback restores it.
+Rumors are excluded. See the packaged workflow for serialization and guarantees.
 
 Do not append the full boss knowledgebase to every prime response. Discovery must
 remain paged and bounded. A response should distinguish "no proposed

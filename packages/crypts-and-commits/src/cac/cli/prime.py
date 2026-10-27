@@ -6,6 +6,7 @@ from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
 from cac.core import prime as prime_core
+from cac.core import references
 from cac.core import world as world_core
 from cac.core.paths import resolve_project_root
 
@@ -34,15 +35,17 @@ def get_prime() -> None:
     region map (summary + path + assigned-lore edges) + active campaign (full body)."""
     try:
         bundle = prime_core.assemble_prime(resolve_project_root())
-    except world_core.WorldNotFoundError as exc:
-        fail(console, str(exc))
+        payload = prime_core.present(bundle)
+    except (world_core.WorldNotFoundError, ValueError) as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(1) from exc
 
     console.print("== World ==", markup=False)
     for key, value in bundle.world.metadata.items():
         console.print(f"{key}:", style="bold", markup=False, end=" ")
         console.print(value, markup=False)
     console.print()
-    world_body = budget_core.truncate_body(bundle.world.body, world_core.world_path(resolve_project_root()))
+    world_body = payload["world"]["body"]
     console.print(world_body, markup=False, soft_wrap=True)
 
     console.print()
@@ -70,10 +73,21 @@ def get_prime() -> None:
     else:
         console.print(f"{bundle.active_campaign}", markup=False)
         console.print()
-        campaign_body = budget_core.truncate_body(
-            bundle.campaign_body, campaign_core.campaign_path(resolve_project_root(), bundle.active_campaign)
-        )
+        campaign_body = payload["campaign_body"]
         console.print(campaign_body, markup=False, soft_wrap=True)
+
+    console.print("\n== Active Boss ==", markup=False)
+    if payload["active_boss_diagnostic"] is not None:
+        console.print(references.encoded(payload["active_boss_diagnostic"]), markup=False, soft_wrap=True)
+    elif payload["active_boss"] is None:
+        console.print("No boss is linked to an active campaign.", markup=False)
+    else:
+        goal = payload["active_boss"]
+        console.print(references.encoded(goal["metadata"]), markup=False, soft_wrap=True)
+        console.print(goal["summary"], markup=False, soft_wrap=True)
+        console.print(goal["body"], markup=False, soft_wrap=True)
+    for notice in payload["truncations"]:
+        console.print(references.encoded(notice), markup=False, soft_wrap=True)
 
 
 @app.command("applicable-lore")

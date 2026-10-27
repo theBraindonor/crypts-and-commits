@@ -21,13 +21,9 @@ def _hit_to_dict(hit: search_index_core.SearchHit) -> dict[str, Any]:
 
 @mcp.tool()
 def index_status() -> dict[str, Any]:
-    """Show how many items are indexed, by object type. `built` is False if the index has never
-    been built - run `index_rebuild` via the `cac` CLI to build one (index rebuild is
-    developer-only and not exposed over MCP)."""
-    counts = search_index_core.index_counts(resolve_project_root())
-    if counts is None:
-        return {"built": False, "counts": {}}
-    return {"built": True, "counts": counts}
+    """Read freshness and indexed snapshot counts. Missing/stale indexes require developer-run
+    cac index rebuild; reads never rebuild or migrate the cache."""
+    return search_index_core.status(resolve_project_root())
 
 
 @mcp.tool()
@@ -40,18 +36,25 @@ def index_search(
     include_archived: bool = False,
 ) -> dict[str, Any]:
     """Search the index for a phrase, ranked by relevance, with a matching excerpt per result.
-    Archived campaigns/encounters are excluded by default - pass include_archived=True to include
-    them. `built` is False if the index has never been built - run `index_rebuild` via the `cac`
-    CLI to build one (index rebuild is developer-only and not exposed over MCP)."""
-    hits = search_index_core.search(
-        resolve_project_root(),
-        phrase,
-        object_type=object_type,
-        limit=max_results,
-        offset=skip,
-        snippet_tokens=snippet_tokens,
-        include_archived=include_archived,
-    )
+    Boss summary/body is searchable. Archives are excluded unless requested. Missing indexes
+    return built=false; stale indexes return stale=true with no hits and a recovery diagnostic.
+    Rebuild is developer-only via cac index rebuild, never automatic or exposed over MCP."""
+    try:
+        hits = search_index_core.search(
+            resolve_project_root(),
+            phrase,
+            object_type=object_type,
+            limit=max_results,
+            offset=skip,
+            snippet_tokens=snippet_tokens,
+            include_archived=include_archived,
+        )
+    except search_index_core.StaleIndexError as exc:
+        return search_index_core.bounded_response(
+            {"built": True, "stale": True, "hits": [], "diagnostic": exc.diagnostic}
+        )
     if hits is None:
-        return {"built": False, "hits": []}
-    return {"built": True, "hits": [_hit_to_dict(hit) for hit in hits]}
+        return search_index_core.bounded_response({"built": False, "stale": False, "hits": []})
+    return search_index_core.bounded_response(
+        {"built": True, "stale": False, "hits": [_hit_to_dict(hit) for hit in hits]}
+    )

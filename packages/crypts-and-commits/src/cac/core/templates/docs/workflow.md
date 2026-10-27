@@ -4,42 +4,17 @@
 
 ### Crypts and Commits
 
-Crypts and Commits ("CAC") is a Coding Assistant Continuity Framework: a way
-of structuring collaboration between a developer and an AI coding assistant
-using a tabletop-gaming metaphor. The developer plays Game Master,
-establishing context, making judgment calls, and retaining final authority
-over the session; the assistant plays through that context to get work done.
-The `cac` CLI and its MCP server are how an assistant records project context
-and tracks its own work across sessions, so continuity survives context
-resets and session boundaries instead of being rebuilt from scratch each
-time. `.sourcebook/` is where that context and work history live.
+Crypts and Commits ("CAC") preserves coding-assistant context and work history
+across sessions in `.sourcebook/`. The developer is Game Master, setting context
+and retaining final authority; assistants use CAC's MCP server or CLI to act on it.
 
 ### This document
 
-This guide is the single source of truth for the structure of the `.sourcebook`
-domain model: its six record types and optional campaign rumors documents, the attributes and body shape
-of each, the workflow/status lifecycle each one follows (where it has one),
-and how the types connect to one another. It exists so that implementation-
-specific agent skills (Claude Code, Codex, and any future assistant flavor)
-can be authored *against* this shared spec instead of one flavor being
-treated as the de facto "primary" and the others hand-forked from it.
-
-This is a reference to the domain model's current, real behavior - not a
-design proposal and not a historical record of how it used to work. When the
-model changes, this document should change with it.
-
-This guide is itself one of the framework's packaged "docs" (see "Cross-cutting:
-priming, search, and docs" below) - retrievable in full, on demand, via
-`docs_get("workflow")` (MCP) or `cac docs get workflow` (CLI), rather than
-needing to be pasted into a consuming project's `CLAUDE.md`/`AGENTS.md`.
-
-Two interaction surfaces exist over this model: the `crypts-and-commits` MCP
-server (the primary surface for an agent session) and the `cac` CLI (a
-fallback for when the MCP server isn't available, and the surface a human
-developer uses directly). Both expose the same operations; this guide notes
-the MCP tool name and CLI command for each, but describes the model itself,
-not step-by-step usage instructions - those live in the `world-manager` and
-`campaign-manager` agent skills.
+This is the shared source of truth for current record structures, lifecycles,
+relationships, and agent procedures. Update it with observable model changes;
+agent-specific skills follow this spec. Retrieve it using `docs_get("workflow")`
+or `cac docs get workflow`. MCP is the primary agent interface; CLI is the fallback
+and human interface. Both expose equivalent operations except developer maintenance.
 
 ## CLI body input
 
@@ -47,23 +22,17 @@ All CLI operations with `--body/-b` also accept `--body-file PATH`: world
 `set-body`, and lore, region, boss, campaign, encounter, and rumors `create`/`update`.
 These options are mutually exclusive, even when the inline body is empty.
 
-The shared CLI resolver reads file input as UTF-8, preserving newline characters
-before passing the body through the ordinary core operation. Existing core
-storage normalization, body validation, summary requirements, and lifecycle
-guards apply equally to inline and file input. CAC neither modifies nor removes
-the input file. An empty file is an explicitly supplied empty body, not a request
-to open an editor. If neither option is supplied, the command keeps its existing
-editor/template behavior, including encounter-kind-specific templates.
+The shared resolver reads UTF-8 with newlines preserved, then applies ordinary core
+normalization, validation, summary requirements, and lifecycle guards. Input files
+are untouched; empty files supply empty bodies. Without either option, existing
+editor/template behavior applies, including encounter-kind templates. Missing,
+unreadable, directory, invalid UTF-8, or conflicting input fails before writes.
+Explicit file input never opens an editor. Paths are relative to the caller's cwd,
+independently of project-root discovery.
 
-Missing files, directory paths, unreadable files, invalid UTF-8, and conflicting
-options produce CLI usage errors before any record write. Explicit file input
-does not open an editor. Paths are resolved relative to the caller's working
-directory, independently of project-root discovery.
-
-For example, `cac campaign create opening-gambit --body-file "notes/campaign plan.md"`
-creates a draft campaign from an ordinary input file. Corresponding MCP tools
-still receive body strings; they do not accept local file paths. File input adds
-no domain operation and does not change response budgets or literal body output.
+Example: `cac campaign create opening-gambit --body-file "notes/campaign plan.md"`.
+MCP receives body strings, never file paths; file input changes no domain operation,
+response budget, or literal output rule.
 
 ## Domain model at a glance
 
@@ -630,7 +599,7 @@ it was made, supporting observations, and follow-up rather than future execution
 Bosses capture goals before campaign selection. Records live at
 `.sourcebook/bosses/<name>.md`; archives at
 `.sourcebook/archive/bosses/<name>.md`. The nested `bosses/rumors/` namespace
-is reserved for campaign rumors and excluded from boss enumeration.
+is reserved for campaign rumors and excluded from boss enumeration and indexing.
 
 Frontmatter contains `name`, required `summary` (maximum 500 characters),
 `status`, `archived`, `depends_on` (direct canonical names), optional
@@ -696,8 +665,7 @@ manage bosses. Storage links and namespace/path collisions are rejected rather
 than followed outside record locations.
 
 Vanquished is set by campaign completion; reads preserve optional campaign links.
-Number allocation, active-boss priming, and boss
-search indexing remain deferred. Boss endpoints perform no branch inspection,
+Number allocation remains deferred. Boss endpoints perform no branch inspection,
 switching, or merge automation; world settings do not change endpoint behavior.
 
 ## Campaign rumors
@@ -739,7 +707,7 @@ List returns bounded `{items, next_cursor}` in filename order with shared cursor
 semantics. Items contain `campaign`, `identity`, and `diagnostic`; archived owners
 are included. Missing owners yield null identity and an orphan diagnostic requiring
 history reconciliation. Rumors never count/resolve as bosses, reserve boss numbers,
-or affect candidates/dependencies. Rumor indexing is deferred.
+or affect candidates/dependencies. Rumors are excluded from index freshness checks.
 
 All document operations allow terminal and archived owners; campaign/boss guards
 remain intact. Completion, abandonment, reactivation, and archival leave rumors'
@@ -842,18 +810,17 @@ index rows; archive recovery includes every encounter. Assignment removes only i
 new draft on failure. Failed recovery raises RecoveryError identifying residual
 paths/rows for explicit repair, without retry/reallocation or unrelated cleanup.
 This is one-store exception recovery, not a crash journal or cross-process guarantee.
-No boss indexing, index creation/rebuild, Git integration/branch checks, or allocation.
+Coupling never creates/rebuilds indexes, inspects Git, or allocates numbers.
 The optional origin field is additive within schema 1: no legacy goal inference,
 record migration, bootstrap rerun, or deployed skill update is needed.
 
 ## Numbered references and canonical identity
 
-Existing boss/campaign/encounter selectors accept `bNNN`, `cNNN`, and
-`cNNN/eNNN` alongside canonical names. A bare `eNNN` requires an explicit or
-active campaign. Prefixes are lowercase, short refs have at least three ASCII
-digits and a positive integer ID; zero padding normalizes numerically. `b999`
-and `b1000` need no special transition. Full canonical names retain permissive
-validation; numbering and allocation are conventions, not creation gates.
+Selectors accept `bNNN`, `cNNN`, `cNNN/eNNN`, and canonical names. Bare `eNNN`
+needs an explicit/active campaign. Short refs use lowercase prefixes and at least
+three ASCII digits with positive IDs; padding normalizes numerically, including
+the 999/1000 transition. Canonical validation stays permissive; numbering/allocation
+are conventions, not creation gates.
 
 Resolution inventories live and archived records in the current project. A
 numbered full name has prefix/digits/hyphen/nonempty slug. Numeric collisions,
@@ -864,11 +831,9 @@ matches: it works alone but cannot shadow a colliding `b001-slug`. Duplicate
 canonical files in live/archive are integrity errors even for full-name lookups.
 Rumors do not participate. Malformed/unknown/wrong-domain refs fail before writes.
 
-A qualified encounter supplies its campaign before active-campaign fallback;
-it works when none is active or another campaign is active. An explicit campaign
-must independently resolve to the same campaign or the request fails. Qualification
-does not bypass closed-campaign, frozen-record, lifecycle, or archive guards.
-Encounter IDs remain campaign-local. Cross-campaign prerequisite edges are rejected.
+Qualification overrides active fallback; explicit campaign must resolve identically.
+It bypasses no closed-campaign/frozen/lifecycle/archive guard. Encounter IDs and
+prerequisite edges remain campaign-local.
 
 ### Operation/input matrix
 
@@ -886,18 +851,14 @@ Encounter IDs remain campaign-local. Cross-campaign prerequisite edges are rejec
 | Prime applicable-lore | encounter, optional campaign | returned lore refs unchanged |
 | Boss/campaign lists and candidates | none | cursor, flags |
 
-Lore/region/doc names, arbitrary keys/values, messages, bodies, summaries, and
-search phrases are untouched even if they resemble numbered refs. There is no
-new resolver endpoint. There is no boss deletion or generic status setter.
+Lore/region/doc names, keys/values, messages, bodies, summaries, and search phrases
+are literal. No resolver endpoint, boss deletion, or generic status setter exists.
 
-Creation names are literal canonical names, never expansions into existing goals.
-Encounter create may select its existing campaign by ref but cannot create a
-qualified path. Dependencies normalize to full boss names, or full encounter
-names within the selected canonical campaign, before graph checks and persistence.
-Mixed short/full spelling cannot bypass self/duplicate/cycle guards. Removing
-a missing literal canonical edge remains supported; ambiguous shorthand cannot
-remove an arbitrary edge. Stored links and graph names are never reinterpreted
-as shorthand or rewritten merely by reading them.
+Creation names stay literal; encounter create may select a campaign ref but not
+create a qualified path. Dependencies canonicalize before graph checks/persistence;
+mixed spellings cannot bypass self/duplicate/cycle guards. Explicit removal may
+target a missing canonical edge; ambiguous shorthand cannot choose one. Reads
+never reinterpret or rewrite stored links/graph names.
 
 ### Identity and budgets
 
@@ -912,8 +873,8 @@ retain canonical identity but use null short and reason `deleted`.
 
 Boss/campaign/encounter paged lists retain original `items` and `next_cursor`,
 adding parallel `identities` for that page only. Encounter order rows and candidate
-items add identity. Applicable-lore keeps its lore-entry result shape; global
-prime and search shapes are unchanged. Names in stored relationships remain
+items add identity. Applicable-lore keeps its lore-entry result shape.
+Prime and search expose canonical stored names. Names in stored relationships remain
 canonical, independently of identity display metadata.
 
 List paging measures compact JSON for items plus identities and envelope before
@@ -941,17 +902,57 @@ none of them is a content type itself:
 - **Prime** (`prime_get` / `cac prime get`, `prime_applicable_lore` /
   `cac prime applicable-lore`) assembles cross-object context in one call
   instead of chaining individual reads: the world, world-assigned enabled
-  lore summaries, the region map, and the active campaign's body in one
+  lore summaries, the region map, and active campaign and boss bodies in one
   round trip; and, for a specific encounter, the exact enabled lore set that
   applies to it (world-assigned union its assigned regions' lore).
 - **Search index** (`index_status` / `cac index status`, `index_search` /
   `cac index search`) is a full-text index over `.sourcebook` content kept in
-  sync automatically for world, lore, region, campaign, and encounter records
-  as content changes through `cac`. Boss indexing is deferred. Rebuilding it
+  sync automatically for world, lore, region, boss, campaign, and encounter records
+  as content changes through `cac`. Rebuilding it
   (`cac index rebuild`) is developer-only and intentionally not exposed over
-  MCP. `index_search` excludes archived campaigns/encounters by default -
+  MCP. `index_search` excludes archived campaigns/encounters/bosses by default -
   see the Campaign section's "Archiving" above for the `include_archived`
   opt-in and the counts-vs-search asymmetry.
+
+Prime adds `active_boss={metadata,summary,body}`; metadata includes name/status/
+archived/depends_on/campaign. No active campaign or bossless means null boss;
+invalid ownership adds `active_boss_diagnostic={code:"invalid_boss_link",campaign,
+boss,message}`. Otherwise diagnostic is null. Coupling validates reciprocal,
+lifecycle/archive state. No recursive expansion or repairs.
+
+Core `prime.present` budgets the serialized bundle: reserve metadata/routing,
+then divide remaining space by remaining bodies in world/campaign/boss order.
+`truncations` is empty if all fit; each cut adds
+`{field,notice:"TRUNCATED",ref:{tool,name?}}` with world_get/campaign_get/boss_get.
+Unfit metadata fails; routing is never silently dropped. CLI renders the same
+facts literally; in-process assembly retains full bodies.
+
+Boss search indexes summary plus body with name/status/audit/archive metadata.
+All statuses are searchable, not an eligibility assertion. Existing phrase,
+filter, ranking, paging and snippet semantics remain. Oversized responses fail
+with guidance to lower max_results/snippet_tokens; hits are not silently dropped.
+
+Freshness compares identity, relative location, and SHA-256 of raw UTF-8 records
+(metadata included) to a versioned SQLite manifest. Inventory covers world/lore/
+region and live/archived boss/campaign/encounter records, including orphaned
+encounters; excludes rumors, unrelated files, and cache. No Git/mtime inference.
+Missing stays missing. Legacy/unsupported, divergent, unreadable, or invalid data
+requires developer `cac index rebuild`; reads never write/migrate/rebuild.
+Returning to the indexed source snapshot restores freshness.
+
+Core search returns list-or-None or raises `StaleIndexError` before stale hits.
+CLI exits nonzero without hits; MCP returns
+`{built:true,stale:true,hits:[],diagnostic:{code:"stale_index",message,recovery}}`.
+Normal/missing MCP results add stale=false to built/hits. Status adds freshness
+(missing/fresh/stale) and nullable diagnostic to built/counts; stale counts are
+snapshot counts. Demo's read-only core adapter reports unavailable/stale/no hits.
+
+Writes atomically sync affected rows/fingerprints without blessing unrelated drift.
+Archive changes that identity's location; source removal finishes before return.
+Scoped rollback restores bytes/rows/fingerprints or reports incomplete recovery.
+Rebuild publishes transactionally, never as automatic failure recovery. Guarantees
+cover local operations, not concurrent writers/crashes. Index format is independent
+of sourcebook schema.
 - **Docs** (`docs_list` / `cac docs list`, `docs_get` / `cac docs get`) is a
   small, read-only set of reference guides packaged with `cac` itself -
   framework-owned, not `.sourcebook` content, and not user-editable. `docs_list`

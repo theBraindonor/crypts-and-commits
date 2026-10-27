@@ -181,25 +181,19 @@ def reactivate(root: Path, name: str) -> Path:
 
 
 def archive_boss(root: Path, name: str) -> Path:
+    from cac.core.recovery import Recovery
+
     path, post = _load(root, name)
     _editable(post, name, ("withdrawn",))
     destination = _locations(root, name)[1]
     if destination.exists():
         raise BossAlreadyExistsError(f"Archive destination already exists for boss {name!r}.")
-    original = path.read_bytes()
     post["archived"] = True
     frontmatter_utils.stamp_updated(post, root)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    try:
+    with Recovery(root, [path, destination]):
         frontmatter_utils.write_post(root, destination, post)
         path.unlink()
-    except Exception:
-        # Restore exact bytes, including audit values, even if unlink failed after the move.
-        if not path.exists() or path.read_bytes() != original:
-            path.write_bytes(original)
-        if destination.exists():
-            destination.unlink()
-        raise
     return destination
 
 

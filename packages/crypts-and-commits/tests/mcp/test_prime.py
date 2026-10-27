@@ -6,6 +6,18 @@ from cac.mcp import prime as mcp_prime
 from cac.mcp import world as mcp_world
 
 
+def test_prime_boss_matches_shared_core_presentation(tmp_path):
+    from cac.core import boss, prime
+
+    world.initialize_world(tmp_path)
+    boss.create_boss(tmp_path, "b001-goal", "[literal]", "Summary")
+    boss.make_available(tmp_path, "b001-goal")
+    boss.assign_campaign(tmp_path, "b001-goal", "c001-work", "Campaign")
+    campaign.open_campaign(tmp_path, "c001-work")
+    assert mcp_prime.prime_get() == prime.present(prime.assemble_prime(tmp_path))
+    assert mcp_prime.prime_get()["active_boss"]["body"] == "[literal]"
+
+
 @pytest.mark.parametrize("override", [False, True])
 def test_prime_world_branch_settings_agree_with_world_tool(legacy_world: Path, override: bool) -> None:
     if override:
@@ -14,7 +26,16 @@ def test_prime_world_branch_settings_agree_with_world_tool(legacy_world: Path, o
 
     result = mcp_prime.prime_get()
 
-    assert set(result) == {"world", "world_lore", "regions", "active_campaign", "campaign_body"}
+    assert set(result) == {
+        "world",
+        "world_lore",
+        "regions",
+        "active_campaign",
+        "campaign_body",
+        "active_boss",
+        "active_boss_diagnostic",
+        "truncations",
+    }
     assert result["world"] == mcp_world.world_get()
     assert result["world"]["metadata"]["merge_target_branch"] == ("release/next" if override else "main")
     assert result["world"]["metadata"]["planning_branch"] == "planning"

@@ -1,7 +1,6 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import fail
 from cac.core import search_index as search_index_core
 from cac.core.paths import resolve_project_root
 
@@ -17,15 +16,24 @@ console = Console()
 
 @app.command("status")
 def status() -> None:
-    """Show how many items are indexed, by type."""
-    counts = search_index_core.index_counts(resolve_project_root())
-    if counts is None:
+    """Show index freshness and snapshot counts by type."""
+    try:
+        result = search_index_core.status(resolve_project_root())
+    except ValueError as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(1) from exc
+    counts = result["counts"]
+    if not result["built"]:
         console.print("No index has been built yet. Run [bold]cac index rebuild[/bold] to build one.")
         return
+    console.print("Freshness: " + result["freshness"], markup=False)
+    if result["freshness"] == "stale":
+        console.print("Counts describe the indexed snapshot. " + result["diagnostic"]["message"], markup=False)
+        console.print(result["diagnostic"]["recovery"], markup=False)
     total = sum(counts.values())
     console.print(f"[bold]{total}[/bold] item(s) indexed.")
     for object_type, count in sorted(counts.items()):
-        console.print(f"  {object_type}: {count}")
+        console.print(f"  {object_type}: {count}", markup=False)
 
 
 @app.command("rebuild")
@@ -51,11 +59,11 @@ def search(
         help="Snippet excerpt length, in tokens (1-64).",
     ),
     include_archived: bool = typer.Option(
-        False, "--include-archived", help="Also include archived campaigns/encounters, excluded by default."
+        False, "--include-archived", help="Also include archived campaigns/encounters/bosses, excluded by default."
     ),
 ) -> None:
     """Search the index for a phrase, ranked by relevance, with a matching excerpt per result.
-    Archived campaigns/encounters are excluded by default - pass --include-archived to include them."""
+    Archives are excluded by default. Stale snapshots report an error without hits."""
     try:
         hits = search_index_core.search(
             resolve_project_root(),
@@ -66,8 +74,13 @@ def search(
             snippet_tokens=snippet_tokens,
             include_archived=include_archived,
         )
-    except (search_index_core.EmptySearchPhraseError, search_index_core.InvalidSearchQueryError) as exc:
-        fail(console, str(exc))
+    except (
+        search_index_core.EmptySearchPhraseError,
+        search_index_core.InvalidSearchQueryError,
+        search_index_core.StaleIndexError,
+    ) as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(1) from exc
 
     if hits is None:
         console.print("No index has been built yet. Run [bold]cac index rebuild[/bold] to build one.")

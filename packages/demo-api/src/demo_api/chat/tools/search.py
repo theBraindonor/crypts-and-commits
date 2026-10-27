@@ -10,13 +10,16 @@ def build_tools(root: Path) -> list[BaseTool]:
         phrase: str, object_type: str | None = None, limit: int = 10, include_archived: bool = False
     ) -> dict:
         """Full-text search the sourcebook index for phrase, ranked by relevance. object_type
-        optionally filters to one of: encounter, campaign, lore, region, world. Returns
+        optionally filters to one of: boss, encounter, campaign, lore, region, world. Returns
         {"available": False, "hits": []} if the search index hasn't been built yet - that is
         distinct from a built index returning zero matches, so treat "available": False as
         "search isn't ready" rather than "no results"."""
-        hits = search_index_core.search(
-            root, phrase, object_type=object_type, limit=limit, include_archived=include_archived
-        )
+        try:
+            hits = search_index_core.search(
+                root, phrase, object_type=object_type, limit=limit, include_archived=include_archived
+            )
+        except search_index_core.StaleIndexError as exc:
+            return {"available": False, "stale": True, "hits": [], "diagnostic": exc.diagnostic}
         if hits is None:
             return {"available": False, "hits": []}
         return {"available": True, "hits": [asdict(hit) for hit in hits]}

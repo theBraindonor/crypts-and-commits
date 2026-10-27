@@ -7,7 +7,7 @@ import sqlite3
 from collections import Counter
 from pathlib import Path
 
-from cac.core import config, search_index
+from cac.core import config, index_snapshot, search_index
 from cac.core.paths import search_index_db_path
 
 _COLUMNS = "object_type,campaign,name,status,updated_on,archived,body"
@@ -24,8 +24,10 @@ class Recovery:
         self.index = search_index_db_path(root)
         self.keys = sorted({classified[:3] for path in paths if (classified := search_index._classify(root, path))})
         self.rows = []
+        self.snapshot = None
         if self.index.exists():
             with sqlite3.connect(self.index) as connection:
+                self.snapshot = index_snapshot.capture(connection, self.keys)
                 for key in self.keys:
                     self.rows.extend(
                         connection.execute(
@@ -39,10 +41,11 @@ class Recovery:
 
     def _restore_index(self):
         if not self.index.exists():
-            if self.rows:
+            if self.rows or self.snapshot is not None:
                 raise RecoveryError(f"Existing index disappeared: {self.index}")
             return
         with sqlite3.connect(self.index) as connection:
+            index_snapshot.restore(connection, self.keys, self.snapshot)
             current = []
             for key in self.keys:
                 current.extend(
@@ -77,7 +80,7 @@ class Recovery:
                 failed.append(f"{path} (expected {'original bytes' if original is not None else 'absent'}): {failure}")
         try:
             self._restore_index()
-        except (sqlite3.Error, RecoveryError, OSError) as failure:
+        except (sqlite3.Error, RecoveryError, OSError, ValueError) as failure:
             failed.append(f"index rows {self.keys}: {failure}")
         if failed:
             raise RecoveryError(

@@ -1,11 +1,15 @@
 import sqlite3
-from dataclasses import dataclass
+from contextlib import closing
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import frontmatter
+import yaml
 
+from cac.core import config, index_snapshot
 from cac.core.config import (
     ARCHIVE_DIR_NAME,
+    BOSS_DIR_NAME,
     CAMPAIGN_DIR_NAME,
     ENCOUNTER_DIR_NAME,
     LORE_DIR_NAME,
@@ -42,6 +46,55 @@ class InvalidSearchQueryError(ValueError):
     pass
 
 
+class StaleIndexError(ValueError):
+    """No current search evidence; only a developer rebuild may recover it."""
+
+    def __init__(self, reason: str):
+        self.diagnostic = {
+            "code": "stale_index",
+            "message": reason[:300],
+            "recovery": "Ask the developer to run cac index rebuild.",
+        }
+        super().__init__(f"Stale index: {reason[:300]} Ask the developer to run cac index rebuild.")
+
+
+def bounded_response(result: dict) -> dict:
+    from cac.core.references import encoded
+
+    if len(encoded(result)) > config.RESPONSE_BUDGET:
+        raise InvalidSearchQueryError("Index response exceeds the budget; lower max_results/snippet_tokens.")
+    return result
+
+
+def _read_connection(root: Path) -> sqlite3.Connection:
+    return sqlite3.connect(search_index_db_path(root).resolve().as_uri() + "?mode=ro", uri=True)
+
+
+def _check_fresh(connection: sqlite3.Connection, root: Path) -> None:
+    try:
+        index_snapshot.check(connection, root)
+    except (ValueError, OSError, sqlite3.Error, yaml.YAMLError, TypeError) as exc:
+        raise StaleIndexError(str(exc)) from exc
+
+
+def status(root: Path) -> dict:
+    if not search_index_db_path(root).exists():
+        return bounded_response({"built": False, "counts": {}, "freshness": "missing", "diagnostic": None})
+    counts = {}
+    try:
+        with closing(_read_connection(root)) as connection:
+            counts = dict(
+                connection.execute(
+                    f"SELECT object_type,COUNT(*) FROM {SEARCH_INDEX_FTS_TABLE} GROUP BY object_type"
+                ).fetchall()
+            )
+            _check_fresh(connection, root)
+    except (StaleIndexError, sqlite3.Error, OSError) as exc:
+        error = exc if isinstance(exc, StaleIndexError) else StaleIndexError(str(exc))
+        return bounded_response({"built": True, "counts": counts, "freshness": "stale", "diagnostic": error.diagnostic})
+    return bounded_response({"built": True, "counts": counts, "freshness": "fresh", "diagnostic": None})
+
+
 @dataclass(frozen=True)
 class SearchHit:
     rank: int
@@ -74,6 +127,8 @@ def rebuild_index(root: Path) -> int:
     merge. Returns the total number of items indexed."""
     conn = _connect(root)
     try:
+        conn.execute("BEGIN")
+        snapshot = index_snapshot.inventory(root)
         conn.execute(f"DROP TABLE IF EXISTS {SEARCH_INDEX_FTS_TABLE}")
         conn.execute(_CREATE_TABLE_SQL)
         count = (
@@ -82,26 +137,55 @@ def rebuild_index(root: Path) -> int:
             + _reindex_lore(root, conn)
             + _reindex_regions(root, conn)
             + _reindex_campaigns(root, conn)
+            + _reindex_bosses(root, conn)
         )
+        index_snapshot.initialize(conn, snapshot)
+        index_snapshot.check(conn, root)
         conn.commit()
         return count
     finally:
         conn.close()
 
 
+def _reindex_bosses(root: Path, conn: sqlite3.Connection) -> int:
+    from cac.core import boss
+
+    if not boss.boss_dir(root).exists() and not boss.boss_dir(root, archived=True).exists():
+        return 0
+    names = boss.list_bosses(root, include_archived=True)
+    for name in names:
+        metadata, body = boss.read_metadata(root, name)
+        conn.execute(
+            f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
+            "(object_type,campaign,name,status,updated_on,archived,body) VALUES (?,?,?,?,?,?,?)",
+            (
+                "boss",
+                "",
+                name,
+                metadata["status"],
+                metadata.get("updated_on", ""),
+                metadata.get("archived", False),
+                metadata.get("summary", "") + "\n\n" + body,
+            ),
+        )
+    return len(names)
+
+
 def _reindex_encounters(root: Path, conn: sqlite3.Connection) -> int:
     """Index every encounter, live and archived alike - a rebuild must not drop archived content
     from the index, since archiving is a physical move, not a deletion."""
-    from cac.core import campaign as campaign_core
     from cac.core import encounter as encounter_core
 
     count = 0
-    for campaign in campaign_core.list_campaigns(root):
-        for name in encounter_core.list_encounters(root, campaign):
-            count += _insert_encounter_row(root, conn, campaign, name, archived=False)
-    for campaign in campaign_core.list_archived_campaigns(root):
-        for name in encounter_core.list_archived_encounters(root, campaign):
-            count += _insert_encounter_row(root, conn, campaign, name, archived=True)
+    for location, archived in (
+        (sourcebook_dir(root) / ENCOUNTER_DIR_NAME, False),
+        (sourcebook_dir(root) / ARCHIVE_DIR_NAME / ENCOUNTER_DIR_NAME, True),
+    ):
+        for parent in sorted(location.iterdir()) if location.exists() else []:
+            if parent.is_dir():
+                names = encounter_core.list_archived_encounters if archived else encounter_core.list_encounters
+                for name in names(root, parent.name):
+                    count += _insert_encounter_row(root, conn, parent.name, name, archived=archived)
     return count
 
 
@@ -242,6 +326,10 @@ def _classify(root: Path, path: Path) -> tuple[str, str, str, bool] | None:
     if rel == Path(WORLD_FILE_NAME):
         return SEARCH_INDEX_OBJECT_TYPE_WORLD, "", path.stem, False
     parts = rel.parts
+    if len(parts) == 2 and parts[0] == BOSS_DIR_NAME:
+        return "boss", "", path.stem, False
+    if len(parts) == 3 and parts[0] == ARCHIVE_DIR_NAME and parts[1] == BOSS_DIR_NAME:
+        return "boss", "", path.stem, True
     if len(parts) == 2 and parts[0] == LORE_DIR_NAME:
         return SEARCH_INDEX_OBJECT_TYPE_LORE, "", path.stem, False
     if len(parts) == 2 and parts[0] == REGION_DIR_NAME:
@@ -281,6 +369,8 @@ def sync_write(root: Path, path: Path, post: frontmatter.Post) -> None:
 
     conn = _connect(root)
     try:
+        if object_type == SEARCH_INDEX_OBJECT_TYPE_WORLD:
+            conn.execute(f"DELETE FROM {SEARCH_INDEX_FTS_TABLE} WHERE object_type=?", (object_type,))
         conn.execute(
             f"DELETE FROM {SEARCH_INDEX_FTS_TABLE} WHERE object_type = ? AND campaign = ? AND name = ?",
             (object_type, campaign, name),
@@ -288,8 +378,17 @@ def sync_write(root: Path, path: Path, post: frontmatter.Post) -> None:
         conn.execute(
             f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
             "(object_type, campaign, name, status, updated_on, archived, body) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (object_type, campaign, name, status, post.get("updated_on", ""), archived, post.content),
+            (
+                object_type,
+                campaign,
+                name,
+                status,
+                post.get("updated_on", ""),
+                archived,
+                post.get("summary", "") + "\n\n" + post.content if object_type == "boss" else post.content,
+            ),
         )
+        index_snapshot.sync(conn, root, path)
         conn.commit()
     finally:
         conn.close()
@@ -311,6 +410,7 @@ def sync_delete(root: Path, path: Path) -> None:
             f"DELETE FROM {SEARCH_INDEX_FTS_TABLE} WHERE object_type = ? AND campaign = ? AND name = ?",
             (object_type, campaign, name),
         )
+        index_snapshot.sync(conn, root, path, delete=True)
         conn.commit()
     finally:
         conn.close()
@@ -373,8 +473,12 @@ def search(
     if not path.exists():
         return None
 
-    conn = sqlite3.connect(path)
     try:
+        conn = _read_connection(root)
+    except (sqlite3.Error, OSError) as exc:
+        raise StaleIndexError(str(exc)) from exc
+    try:
+        _check_fresh(conn, root)
         sql = (
             "SELECT object_type, campaign, name, status, updated_on, archived, "
             f"snippet({SEARCH_INDEX_FTS_TABLE}, {_BODY_COLUMN_INDEX}, '**', '**', '...', {snippet_tokens}), "
@@ -391,7 +495,7 @@ def search(
         params.extend([limit, offset])
 
         rows = conn.execute(sql, params).fetchall()
-        return [
+        hits = [
             SearchHit(
                 rank=offset + position,
                 score=row[7],
@@ -405,5 +509,9 @@ def search(
             )
             for position, row in enumerate(rows, start=1)
         ]
+        bounded_response({"built": True, "stale": False, "hits": [asdict(hit) for hit in hits]})
+        return hits
+    except sqlite3.Error as exc:
+        raise StaleIndexError(str(exc)) from exc
     finally:
         conn.close()

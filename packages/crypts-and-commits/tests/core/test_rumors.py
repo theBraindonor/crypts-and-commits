@@ -169,5 +169,5 @@ def test_rumors_excluded_from_boss_discovery_dependencies_and_index(tmp_path):
     assert search_index._classify(tmp_path, rumors._path(tmp_path, "c001-work")) is None
     search_index.rebuild_index(tmp_path)
     assert search_index.search(tmp_path, "uniquerumorcontent") == []
-    assert "boss" not in config.SEARCH_INDEX_OBJECT_TYPES
+    assert search_index.search(tmp_path, "uniquerumorcontent", object_type="boss") == []
     assert json.loads(references.encoded(rumors.get(tmp_path, "c001")))["body"].startswith("uniquerumorcontent")

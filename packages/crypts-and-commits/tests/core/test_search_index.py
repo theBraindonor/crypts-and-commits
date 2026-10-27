@@ -465,9 +465,8 @@ def test_delete_campaign_removes_its_own_row_but_leaves_encounters(tmp_path: Pat
     assert search_index.search(tmp_path, "goblins")[0].name == "goblin-ambush"
 
 
-def test_external_file_change_is_invisible_until_rebuild(tmp_path: Path) -> None:
-    """Simulates content that changed outside `cac` (e.g. a `git pull`) - it must stay
-    invisible to incremental sync until the next explicit `rebuild_index`."""
+def test_external_file_change_requires_rebuild_before_search(tmp_path: Path) -> None:
+    """External changes must report stale evidence until explicit rebuild."""
     search_index.rebuild_index(tmp_path)
 
     path = lore.lore_path(tmp_path, "manual-lore")
@@ -475,7 +474,8 @@ def test_external_file_change_is_invisible_until_rebuild(tmp_path: Path) -> None
     post = frontmatter.Post("Body mentioning externally-added-phrase.", name="manual-lore", enabled=True)
     path.write_text(frontmatter.dumps(post) + "\n", encoding="utf-8")
 
-    assert search_index.search(tmp_path, "externally-added-phrase") == []
+    with pytest.raises(search_index.StaleIndexError):
+        search_index.search(tmp_path, "externally-added-phrase")
 
     search_index.rebuild_index(tmp_path)
 
