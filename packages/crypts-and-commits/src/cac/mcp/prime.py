@@ -2,6 +2,7 @@ from typing import Any
 
 from cac.core import campaign as campaign_core
 from cac.core import prime as prime_core
+from cac.core import references
 from cac.core.paths import resolve_project_root
 from cac.mcp.instance import mcp
 from cac.mcp.world import world_to_dict
@@ -34,6 +35,7 @@ def prime_get() -> dict[str, Any]:
 
 
 @mcp.tool()
+@references.inputs("encounter")
 def prime_applicable_lore(encounter: str, campaign: str | None = None) -> list[dict[str, Any]]:
     """Resolve the enabled lore set applicable to an encounter: world-assigned lore union
     lore assigned to the encounter's region(s). Returns name/summary/ref entries for

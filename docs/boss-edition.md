@@ -3,14 +3,14 @@
 Status: design for the next release. The boundary below distinguishes implemented
 behavior from future proposals; this document does not approve encounter execution.
 
-Implementation boundary (e006/e007): boss planning storage, lifecycle, archive,
-dependencies, and candidate discovery now have core/CLI/MCP implementations in the
+Implementation boundary (e006/e007/e008): boss planning storage, lifecycle, archive,
+dependencies, candidate discovery, and short refs have core/CLI/MCP implementations in the
 packaged Workflow Reference Guide. Other sections describe the intended full
-release, including deferred campaign coupling, short refs, rumors,
+release, including deferred campaign coupling, rumors,
 prime/search, and skills. The additive collection retains schema version 1:
 missing storage is empty and created lazily, without rewriting old records or
-requiring bootstrap migration. Boss inputs currently accept full canonical
-names only; endpoints do not allocate numbers.
+requiring bootstrap migration. Existing targets accept canonical names and short
+refs; new create names stay literal. Endpoints do not allocate numbers.
 
 ## Problem
 

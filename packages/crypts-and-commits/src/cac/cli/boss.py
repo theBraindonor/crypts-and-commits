@@ -5,10 +5,11 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, resolve_body_input
+from cac.cli.common import edit_markdown, reference_inputs, resolve_body_input
 from cac.core import boss as boss_core
 from cac.core import boss_candidates as candidates_core
 from cac.core import budget as budget_core
+from cac.core import references
 from cac.core.git_utils import GitIdentityError
 from cac.core.paths import resolve_project_root
 
@@ -19,6 +20,7 @@ console = Console()
 
 
 @app.command("candidates")
+@reference_inputs("boss")
 def candidates(
     cursor: str | None = typer.Option(None, "--cursor", help="Resume candidate discovery from a previous page."),
 ) -> None:
@@ -38,6 +40,7 @@ def _call(operation: Callable, *args, **kwargs):
 
 
 @app.command("get")
+@reference_inputs("boss")
 def get_boss(name: str = typer.Argument(...)) -> None:
     """Show boss metadata, summary, and a budgeted body."""
     root = resolve_project_root()
@@ -45,17 +48,26 @@ def get_boss(name: str = typer.Argument(...)) -> None:
     for key, value in metadata.items():
         console.print(f"{key}: {value}", markup=False)
     console.print()
-    console.print(budget_core.truncate_body(body, boss_core.boss_path(root, name)), markup=False, soft_wrap=True)
+    console.print(
+        budget_core.truncate_body(
+            body, boss_core.boss_path(root, name), budget=references.body_allowance(root, "boss", name)
+        ),
+        markup=False,
+        soft_wrap=True,
+    )
 
 
 @app.command("list")
+@reference_inputs("boss")
 def list_bosses(
     cursor: str | None = typer.Option(None, "--cursor"),
     include_archived: bool = typer.Option(False, "--include-archived"),
 ) -> None:
     """List canonical boss names; ordering does not imply priority."""
     names = _call(boss_core.list_bosses, resolve_project_root(), include_archived=include_archived)
-    page = _call(budget_core.paginate, names, cursor)
+    page_data = _call(references.identity_page, resolve_project_root(), "boss", names, cursor)
+    page = budget_core.Page(items=page_data["items"], next_cursor=page_data["next_cursor"])
+    console.print(references.encoded({"identities": page_data["identities"]}), markup=False, soft_wrap=True)
     for name in page.items:
         console.print(name, markup=False)
     if page.next_cursor is not None:
@@ -74,6 +86,7 @@ def _body_write(name: str, body: str | None, body_file: str | None, summary: str
 
 
 @app.command("create")
+@reference_inputs("boss", create=True)
 def create_boss(
     name: str = typer.Argument(...),
     body: str | None = typer.Option(
@@ -89,6 +102,7 @@ def create_boss(
 
 
 @app.command("update")
+@reference_inputs("boss")
 def update_boss(
     name: str = typer.Argument(...),
     body: str | None = typer.Option(
@@ -104,6 +118,7 @@ def update_boss(
 
 
 @app.command("make-available")
+@reference_inputs("boss")
 def make_available(name: str = typer.Argument(...)) -> None:
     """Mark an unassigned proposed boss available, regardless of prerequisites."""
     path: Path = _call(boss_core.make_available, resolve_project_root(), name)
@@ -111,6 +126,7 @@ def make_available(name: str = typer.Argument(...)) -> None:
 
 
 @app.command("withdraw")
+@reference_inputs("boss")
 def withdraw(name: str = typer.Argument(...)) -> None:
     """Withdraw an unassigned proposed or available boss."""
     path: Path = _call(boss_core.withdraw, resolve_project_root(), name)
@@ -118,6 +134,7 @@ def withdraw(name: str = typer.Argument(...)) -> None:
 
 
 @app.command("reactivate")
+@reference_inputs("boss")
 def reactivate(name: str = typer.Argument(...)) -> None:
     """Return an unarchived, unassigned withdrawn boss to proposed."""
     path: Path = _call(boss_core.reactivate, resolve_project_root(), name)
@@ -125,6 +142,7 @@ def reactivate(name: str = typer.Argument(...)) -> None:
 
 
 @app.command("archive")
+@reference_inputs("boss")
 def archive_boss(name: str = typer.Argument(...)) -> None:
     """Archive an unassigned withdrawn boss, retaining its name and status."""
     path: Path = _call(boss_core.archive_boss, resolve_project_root(), name)
@@ -132,6 +150,7 @@ def archive_boss(name: str = typer.Argument(...)) -> None:
 
 
 @app.command("assign-dependency")
+@reference_inputs("boss")
 def assign_dependency(name: str = typer.Argument(...), dependency: str = typer.Argument(...)) -> None:
     """Assign a direct canonical prerequisite; validate the resulting graph."""
     path = _call(boss_core.assign_dependency, resolve_project_root(), name, dependency)
@@ -139,6 +158,7 @@ def assign_dependency(name: str = typer.Argument(...), dependency: str = typer.A
 
 
 @app.command("unassign-dependency")
+@reference_inputs("boss", remove=True)
 def unassign_dependency(name: str = typer.Argument(...), dependency: str = typer.Argument(...)) -> None:
     """Unassign a direct canonical prerequisite; validate the resulting graph."""
     path = _call(boss_core.unassign_dependency, resolve_project_root(), name, dependency)

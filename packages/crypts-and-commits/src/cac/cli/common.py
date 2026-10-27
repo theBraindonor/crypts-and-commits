@@ -1,9 +1,36 @@
 import sys
+from functools import wraps
 from typing import NoReturn
 
 import click
 import typer
 from rich.console import Console
+
+from cac.core import references
+
+
+def reference_inputs(domain: str, **options):
+    """Adapt CLI inputs through the shared core boundary and render its errors literally."""
+
+    def decorate(function):
+        def report(identity):
+            Console().print("identity: " + references.encoded(identity), markup=False, highlight=False, soft_wrap=True)
+
+        adapted = references.inputs(domain, reporter=report, **options)(function)
+
+        @wraps(function)
+        def invoke(*args, **kwargs):
+            try:
+                return adapted(*args, **kwargs)
+            except (ValueError, OSError) as exc:
+                Console().print(str(exc), markup=False)
+                raise typer.Exit(code=1) from exc
+
+        invoke.reference_contract = adapted.reference_contract
+        invoke.__doc__ = adapted.__doc__
+        return invoke
+
+    return decorate
 
 
 def configure_output_encoding() -> None:

@@ -101,7 +101,7 @@ cac boss list --include-archived
 
 Create/update require a summary (at most 500 characters) and accept inline body,
 `--body-file`, or an editor if neither body option is supplied. Use full names;
-numbered names are optional and short refs are deferred. Make-available records
+numbered names are optional; existing targets accept short refs. Make-available records
 readiness even if prerequisites remain unsatisfied. Unassigned proposed/available
 goals can be edited; available goals stay available. Linked, vanquished, withdrawn,
 and archived goals cannot have their designs edited.
@@ -129,3 +129,29 @@ Counts distinguish an empty collection from blocked or not-ready goals. Check
 Hydrate named records with `cac boss get` or `cac campaign get`; discovery omits
 bodies and bounds explanation lists. It neither selects work nor proves a goal's
 implementation merged; confirm integration through your normal Git workflow.
+
+### Use short references
+
+Existing targets accept `b001`, `c001`, and `c001/e001`; bare `e001` uses an
+explicit or active campaign. For example:
+
+```bash
+cac boss get b001
+cac campaign get c001
+cac encounter get c001/e001
+cac encounter list --campaign c001
+cac boss assign-dependency b002 b001
+```
+
+Qualified encounter refs supply their own campaign, even when another campaign
+is active. A conflicting explicit campaign is an error. Live and archived
+records participate; duplicate numeric IDs are ambiguous. Use full canonical
+names to inspect colliding records. Returned identity metadata shows canonical
+names and usable refs, or null with a reason. Lists retain canonical items with
+parallel identities; candidates include identity in their existing bounded JSON.
+
+Create names remain literal: `cac boss create b001-new-goal ...` creates that
+name; it never expands into an existing record. Newly written dependencies use
+canonical names. No automatic allocation, rename, Git discovery, migration, or
+campaign assignment is performed. See `cac docs get workflow` for exact grammar,
+legacy-name precedence, context rules, operation coverage, and response budgets.

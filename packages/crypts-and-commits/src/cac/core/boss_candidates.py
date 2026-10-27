@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from cac.core import boss, budget, campaign, config
+from cac.core import boss, budget, campaign, config, references
 from cac.core.frontmatter_utils import SUMMARY_ABSENT_MESSAGE
 
 _DETAIL_LIMIT = 16
@@ -191,6 +191,7 @@ def _evaluate(root: Path) -> tuple[list[dict], dict[str, int], list[dict]]:
         "invalid": 0,
     }
     items = []
+    inventory = references.Inventory(root)
     for name in sorted(live, key=_order):
         record = records.get(name)
         if record is None:
@@ -240,6 +241,7 @@ def _evaluate(root: Path) -> tuple[list[dict], dict[str, int], list[dict]]:
         items.append(
             {
                 "name": name,
+                "identity": inventory.identity("boss", name),
                 "summary": summary if isinstance(summary, str) else SUMMARY_ABSENT_MESSAGE,
                 "status": record["status"],
                 "classification": classification,

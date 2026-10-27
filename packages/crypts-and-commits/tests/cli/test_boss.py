@@ -116,7 +116,7 @@ def test_errors_and_budget(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RESPONSE_BUDGET", 500)
     assert "TRUNCATED" in invoke("get", "goal").output
     create("other")
-    monkeypatch.setattr(config, "RESPONSE_BUDGET", 6)
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 150)
     first = invoke("list")
     assert "goal" in first.output and "Next cursor: 1" in first.output
     second = invoke("list", "--cursor", "1")

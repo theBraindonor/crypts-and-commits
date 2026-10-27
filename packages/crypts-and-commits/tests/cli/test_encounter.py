@@ -739,6 +739,7 @@ def test_order_prints_status_and_dependencies_without_stripping_brackets(create_
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
+        '{"identities":[{"canonical":"foundation","short":null,"reason":"unnumbered","campaign":"opening-gambit"},{"canonical":"feature","short":null,"reason":"unnumbered","campaign":"opening-gambit"}]}',
         "foundation [draft] depends_on: (none)",
         "feature [draft] depends_on: foundation",
     ]

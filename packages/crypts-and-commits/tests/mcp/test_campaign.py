@@ -33,7 +33,13 @@ def test_campaign_list_returns_items_and_cursor(tmp_path: Path) -> None:
 def test_campaign_create_returns_new_campaign() -> None:
     result = mcp_campaign.campaign_create("mvp", "Campaign body.")
 
-    assert result == {"name": "mvp", "status": "draft", "archived": False, "body": "Campaign body."}
+    assert result == {
+        "name": "mvp",
+        "status": "draft",
+        "archived": False,
+        "body": "Campaign body.",
+        "identity": {"canonical": "mvp", "short": None, "reason": "unnumbered"},
+    }
 
 
 def test_campaign_update_replaces_body(tmp_path: Path) -> None:

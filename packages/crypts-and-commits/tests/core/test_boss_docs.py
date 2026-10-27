@@ -8,6 +8,8 @@ def test_boss_template_and_workflow_remain_packaged_and_readable():
     assert "## Boss planning records" in guide
     assert "### Candidate discovery" in guide
     assert "boss_candidates" in guide
+    assert "## Numbered references and canonical identity" in guide
+    assert "### Operation/input matrix" in guide
     assert len(guide) <= config.DOCS_RESPONSE_BUDGET
     assert api.docs_get("workflow")["body"] == guide
     for operation in (

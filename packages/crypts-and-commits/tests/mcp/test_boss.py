@@ -23,7 +23,11 @@ def test_all_operations_and_structured_results():
     assert api.boss_reactivate("goal")["metadata"]["status"] == "proposed"
     api.boss_withdraw("goal")
     assert api.boss_archive("goal")["metadata"]["archived"] is True
-    assert api.boss_list() == {"items": ["other"], "next_cursor": None}
+    assert api.boss_list() == {
+        "items": ["other"],
+        "next_cursor": None,
+        "identities": [{"canonical": "other", "short": None, "reason": "unnumbered"}],
+    }
     assert api.boss_list(include_archived=True)["items"] == ["goal", "other"]
     assert api.boss_get("goal")["metadata"]["status"] == "withdrawn"
     with pytest.raises(boss.BossError):
@@ -40,10 +44,18 @@ def test_paging_and_all_body_responses_budgeted(monkeypatch):
     api.boss_create("b", "Body", "Summary")
     api.boss_withdraw("b")
     api.boss_archive("b")
-    monkeypatch.setattr(config, "RESPONSE_BUDGET", 2)
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 150)
     first = api.boss_list(include_archived=True)
-    assert first == {"items": ["a"], "next_cursor": "1"}
-    assert api.boss_list(first["next_cursor"], include_archived=True) == {"items": ["b"], "next_cursor": None}
+    assert first == {
+        "items": ["a"],
+        "next_cursor": "1",
+        "identities": [{"canonical": "a", "short": None, "reason": "unnumbered"}],
+    }
+    assert api.boss_list(first["next_cursor"], include_archived=True) == {
+        "items": ["b"],
+        "next_cursor": None,
+        "identities": [{"canonical": "b", "short": None, "reason": "unnumbered"}],
+    }
     with pytest.raises(ValueError):
         api.boss_list("invalid")
 

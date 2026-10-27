@@ -617,7 +617,7 @@ Live/archive ambiguity is an error. There is no delete, rename, restoration,
 arbitrary metadata setter, or public vanquish operation.
 
 Dependencies persist full canonical names under existing permissive validation.
-Numbered names are optional; short refs and allocation are deferred. Adding edges
+Numbered names are optional; short refs are supported as below; allocation is deferred. Adding edges
 rejects self references, duplicates, unknown/withdrawn targets, and cycles.
 Graph changes validate stored dependency types, missing references, live/archive
 ambiguity, and cycles before writes. Existing edges to later-withdrawn bosses
@@ -636,7 +636,7 @@ than followed outside record locations.
 
 The four statuses include vanquished for future campaign coupling; reads preserve
 optional campaign links. Assignment, campaign coupling,
-short refs, number allocation, rumors operations, active-boss priming, and boss
+number allocation, rumors operations, active-boss priming, and boss
 search indexing remain deferred. Boss endpoints perform no branch inspection,
 switching, or merge automation; world settings do not change endpoint behavior.
 
@@ -684,6 +684,93 @@ remain intact. Hydrate names with boss_get/campaign_get; collection
 diagnostics_ref: boss_list routes omitted problems to inventory and reads.
 Bodies are never included. If required fields/identifiers cannot fit, return an
 explicit budget error. Cursors assume an unchanged store; no snapshot is saved.
+
+## Numbered references and canonical identity
+
+Existing boss/campaign/encounter selectors accept `bNNN`, `cNNN`, and
+`cNNN/eNNN` alongside canonical names. A bare `eNNN` requires an explicit or
+active campaign. Prefixes are lowercase, short refs have at least three ASCII
+digits and a positive integer ID; zero padding normalizes numerically. `b999`
+and `b1000` need no special transition. Full canonical names retain permissive
+validation; numbering and allocation are conventions, not creation gates.
+
+Resolution inventories live and archived records in the current project. A
+numbered full name has prefix/digits/hyphen/nonempty slug. Numeric collisions,
+including different padding or archived matches, raise ambiguity rather than
+choosing a slug. Full slugged names and other exact legacy names remain inspection
+routes. A historical literal name such as `b001` participates in the numeric
+matches: it works alone but cannot shadow a colliding `b001-slug`. Duplicate
+canonical files in live/archive are integrity errors even for full-name lookups.
+Rumors do not participate. Malformed/unknown/wrong-domain refs fail before writes.
+
+A qualified encounter supplies its campaign before active-campaign fallback;
+it works when none is active or another campaign is active. An explicit campaign
+must independently resolve to the same campaign or the request fails. Qualification
+does not bypass closed-campaign, frozen-record, lifecycle, or archive guards.
+Encounter IDs remain campaign-local. Cross-campaign prerequisite edges are rejected.
+
+### Operation/input matrix
+
+| Surface | Reference inputs | Literal inputs |
+| --- | --- | --- |
+| Boss get/update/make-available/withdraw/reactivate/archive | existing name | body, summary |
+| Boss assign/unassign-dependency | source name, prerequisite | missing canonical edge on explicit removal |
+| Campaign get/update/delete/open/pause/complete/abandon/archive | existing name | body, message |
+| Encounter get/update/delete/review/open/record-message/complete/abandon | name, optional campaign | body, message |
+| Encounter assign/unassign-region | name, optional campaign | region |
+| Encounter assign/unassign-dependency | source, prerequisite, optional campaign | missing canonical edge on explicit removal |
+| Encounter list/order, encounter create | existing campaign | new create name, body, kind, cursor |
+| Boss/campaign create | none | new name, body, summary where applicable |
+| Prime applicable-lore | encounter, optional campaign | returned lore refs unchanged |
+| Boss/campaign lists and candidates | none | cursor, flags |
+
+Lore/region/doc names, arbitrary keys/values, messages, bodies, summaries, and
+search phrases are untouched even if they resemble numbered refs. There is no
+new resolver endpoint. No boss deletion, assignment/coupling, or reactivation
+operation beyond those already shipped is added.
+
+Creation names are literal canonical names, never expansions into existing goals.
+Encounter create may select its existing campaign by ref but cannot create a
+qualified path. Dependencies normalize to full boss names, or full encounter
+names within the selected canonical campaign, before graph checks and persistence.
+Mixed short/full spelling cannot bypass self/duplicate/cycle guards. Removing
+a missing literal canonical edge remains supported; ambiguous shorthand cannot
+remove an arbitrary edge. Stored links and graph names are never reinterpreted
+as shorthand or rewritten merely by reading them.
+
+### Identity and budgets
+
+MCP object get/mutation results add `identity` without replacing existing fields.
+CLI target commands print an `identity:` JSON line. Identity contains `canonical`,
+`short` (usable normalized ref or null), and `reason` (null when usable).
+Encounter identities also contain canonical `campaign`; when a qualified ref is
+usable they include contextual `bare_short`. An unavailable ref reports
+`unnumbered`, `ambiguous`, `missing`, or `invalid_storage`; encounters may report
+`campaign_unnumbered`/`campaign_ambiguous`/other parent reasons. Deleted results
+retain canonical identity but use null short and reason `deleted`.
+
+Boss/campaign/encounter paged lists retain original `items` and `next_cursor`,
+adding parallel `identities` for that page only. Encounter order rows and candidate
+items add identity. Applicable-lore keeps its lore-entry result shape; global
+prime and search shapes are unchanged. Names in stored relationships remain
+canonical, independently of identity display metadata.
+
+List paging measures compact JSON for items plus identities and envelope before
+selection, using shared cursor semantics. Candidate identities participate in
+the existing whole-page bound before explanation truncation. Required identities
+are never cut into different identifiers; if the minimum cannot fit, return an
+explicit budget error. Oversized encounter order requires inspecting paged lists
+instead of silently dropping rows. Get bodies reserve identity space before
+truncation; normal metadata and literal markdown contracts remain intact.
+
+The public core input boundary is `references.select` and its `inputs` adapter,
+shared by CLI/MCP. Domain/storage routines below it deliberately consume exact
+canonical names so damaged stored references cannot acquire new meaning. A
+request-local inventory may be cached; no persistent map, index, file/audit write,
+number reservation, branch/network lookup, or migration occurs during resolution.
+Schema version stays 1. Planning/branching skill adoption and Git collision checks
+remain later work. The dedicated docs budget is 56,000 characters so this full
+canonical reference remains retrievable; ordinary response budgets are unchanged.
 
 ## Cross-cutting: priming, search, and docs
 

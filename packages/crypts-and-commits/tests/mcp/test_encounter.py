@@ -49,8 +49,18 @@ def test_encounter_order_returns_dependency_order(tmp_path: Path) -> None:
     result = mcp_encounter.encounter_order()
 
     assert result == [
-        {"name": "first", "status": "draft", "depends_on": []},
-        {"name": "second", "status": "draft", "depends_on": ["first"]},
+        {
+            "name": "first",
+            "status": "draft",
+            "depends_on": [],
+            "identity": {"canonical": "first", "campaign": "opening-gambit", "short": None, "reason": "unnumbered"},
+        },
+        {
+            "name": "second",
+            "status": "draft",
+            "depends_on": ["first"],
+            "identity": {"canonical": "second", "campaign": "opening-gambit", "short": None, "reason": "unnumbered"},
+        },
     ]
 
 

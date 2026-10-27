@@ -1,9 +1,10 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail, resolve_body_input
+from cac.cli.common import edit_markdown, fail, reference_inputs, resolve_body_input
 from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
+from cac.core import references
 from cac.core.git_utils import GitIdentityError
 from cac.core.paths import resolve_project_root
 
@@ -30,6 +31,7 @@ console = Console()
 
 
 @app.command("get")
+@reference_inputs("campaign")
 def get_campaign(
     name: str = typer.Argument(..., help="Campaign name to show."),
 ) -> None:
@@ -40,13 +42,18 @@ def get_campaign(
         fail(console, str(exc))
 
     for key, value in metadata.items():
-        console.print(f"[bold]{key}[/bold]: {value}")
+        console.print(f"{key}: {value}", markup=False)
     console.print()
-    body = budget_core.truncate_body(body, campaign_core.campaign_path(resolve_project_root(), name))
+    body = budget_core.truncate_body(
+        body,
+        campaign_core.campaign_path(resolve_project_root(), name),
+        budget=references.body_allowance(resolve_project_root(), "campaign", name),
+    )
     console.print(body, markup=False, soft_wrap=True)
 
 
 @app.command("list")
+@reference_inputs("campaign")
 def list_campaigns(
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
 ) -> None:
@@ -54,21 +61,28 @@ def list_campaigns(
     the response budget."""
     entries = campaign_core.list_campaigns_with_status(resolve_project_root())
     if not entries:
-        console.print("No campaign files found.")
+        console.print("No campaign files found.", markup=False)
         return
 
     try:
-        page = budget_core.paginate(entries, cursor, render=lambda entry: f"{entry[0]} ({entry[1]})")
+        page_data = references.identity_page(
+            resolve_project_root(), "campaign", [{"name": n, "status": s} for n, s in entries], cursor
+        )
+        page = budget_core.Page(
+            items=[(e["name"], e["status"]) for e in page_data["items"]], next_cursor=page_data["next_cursor"]
+        )
+        console.print(references.encoded({"identities": page_data["identities"]}), markup=False, soft_wrap=True)
     except budget_core.InvalidCursorError as exc:
         fail(console, str(exc))
 
     for name, status in page.items:
-        console.print(f"{name} ({status})")
+        console.print(f"{name} ({status})", markup=False)
     if page.next_cursor is not None:
-        console.print(f"[dim]More results - pass --cursor {page.next_cursor} to continue.[/dim]")
+        console.print(f"More results - pass --cursor {page.next_cursor} to continue.", markup=False)
 
 
 @app.command("create")
+@reference_inputs("campaign", create=True)
 def create_campaign(
     name: str = typer.Argument(..., help="Campaign name (letters, numbers, underscores, hyphens, periods)."),
     body: str | None = typer.Option(
@@ -87,10 +101,11 @@ def create_campaign(
     except (campaign_core.InvalidCampaignNameError, campaign_core.CampaignAlreadyExistsError, GitIdentityError) as exc:
         fail(console, str(exc))
 
-    console.print(f"Created [bold green]{path}[/bold green]")
+    console.print(f"Created {path}", markup=False)
 
 
 @app.command("update")
+@reference_inputs("campaign")
 def update_campaign(
     name: str = typer.Argument(..., help="Campaign name to update."),
     body: str | None = typer.Option(
@@ -114,10 +129,11 @@ def update_campaign(
     except (campaign_core.CampaignNotMutableError, GitIdentityError) as exc:
         fail(console, str(exc))
 
-    console.print(f"Updated [bold green]{path}[/bold green]")
+    console.print(f"Updated {path}", markup=False)
 
 
 @app.command("delete")
+@reference_inputs("campaign")
 def delete_campaign(
     name: str = typer.Argument(..., help="Campaign name to delete."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
@@ -131,10 +147,11 @@ def delete_campaign(
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
 
-    console.print(f"Deleted [bold green]{path}[/bold green]")
+    console.print(f"Deleted {path}", markup=False)
 
 
 @app.command("open")
+@reference_inputs("campaign")
 def open_campaign(
     name: str = typer.Argument(..., help="Campaign name to open."),
 ) -> None:
@@ -150,10 +167,11 @@ def open_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Opened [bold]{name}[/bold].")
+    console.print(f"Opened {name}.", markup=False)
 
 
 @app.command("pause")
+@reference_inputs("campaign")
 def pause_campaign(
     name: str = typer.Argument(..., help="Campaign name to pause."),
 ) -> None:
@@ -168,10 +186,11 @@ def pause_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Paused [bold]{name}[/bold].")
+    console.print(f"Paused {name}.", markup=False)
 
 
 @app.command("complete")
+@reference_inputs("campaign")
 def complete_campaign(
     name: str = typer.Argument(..., help="Campaign name to complete."),
     message: str = typer.Option(..., "--message", "-m", help="Postmortem for this campaign. Required."),
@@ -190,10 +209,11 @@ def complete_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Completed [bold]{name}[/bold].")
+    console.print(f"Completed {name}.", markup=False)
 
 
 @app.command("abandon")
+@reference_inputs("campaign")
 def abandon_campaign(
     name: str = typer.Argument(..., help="Campaign name to abandon."),
     message: str = typer.Option(..., "--message", "-m", help="Postmortem for this campaign. Required."),
@@ -212,10 +232,11 @@ def abandon_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Abandoned [bold]{name}[/bold].")
+    console.print(f"Abandoned {name}.", markup=False)
 
 
 @app.command("archive")
+@reference_inputs("campaign")
 def archive_campaign(
     name: str = typer.Argument(..., help="Campaign name to archive."),
 ) -> None:
@@ -234,4 +255,4 @@ def archive_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Archived [bold]{campaign.name}[/bold] and {len(archived_encounters)} encounter(s).")
+    console.print(f"Archived {campaign.name} and {len(archived_encounters)} encounter(s).", markup=False)

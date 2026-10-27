@@ -398,7 +398,7 @@ def test_list_pages_under_budget_and_cursor_resumes(monkeypatch: pytest.MonkeyPa
     runner.invoke(app, ["campaign", "create", "alpha", "--body", "b"])
     runner.invoke(app, ["campaign", "create", "beta", "--body", "b"])
     runner.invoke(app, ["campaign", "create", "gamma", "--body", "b"])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 20)
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 200)
 
     first = runner.invoke(app, ["campaign", "list"])
 
