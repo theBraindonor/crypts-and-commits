@@ -1,6 +1,11 @@
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+import frontmatter
+import yaml
+
+from cac.core import boss, campaign_bosses, config, coupling
 from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
 from cac.core import lore as lore_core
@@ -32,6 +37,9 @@ class PrimeBundle:
     regions: list[RegionEntry]
     active_campaign: str | None
     campaign_body: str | None
+    active_bosses: list[dict] = field(default_factory=list)
+    active_boss_diagnostics: list[dict] = field(default_factory=list)
+    active_boss_names: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -44,19 +52,110 @@ class ApplicableLoreEntry:
 def assemble_prime(root: Path) -> PrimeBundle:
     """Assemble the global prime bundle: world (full) + world-assigned enabled lore
     (summaries) + region map (summary + path + assigned-lore edge names per region) +
-    active campaign (full body, not its encounter list)."""
+    active campaign and linked boss (full bodies, not recursive collections)."""
     world = world_core.read_world(root)
     world_lore = _enabled_lore_summaries(root, world.metadata.get(world_core.ASSIGNED_LORE_KEY, []) or [])
     regions = [_region_entry(root, name) for name in region_core.list_regions(root)]
     active_campaign = campaign_core.active_campaign(root)
-    campaign_body = campaign_core.read_campaign(root, active_campaign).body if active_campaign else None
+    campaign_body = (
+        frontmatter.load(campaign_core.campaign_path(root, active_campaign)).content if active_campaign else None
+    )
+    names, goals, diagnostics = _active_bosses(root, active_campaign)
     return PrimeBundle(
         world=world,
         world_lore=world_lore,
         regions=regions,
         active_campaign=active_campaign,
         campaign_body=campaign_body,
+        active_bosses=goals,
+        active_boss_diagnostics=diagnostics,
+        active_boss_names=names,
     )
+
+
+def _active_bosses(root: Path, campaign: str | None) -> tuple[list[str], list[dict], list[dict]]:
+    if campaign is None:
+        return [], [], []
+    names, goals, diagnostics = [], [], []
+
+    def diagnostic(member, error):
+        return {"code": "invalid_boss_link", "campaign": campaign, "boss": member, "message": str(error)[:300]}
+
+    try:
+        post = frontmatter.load(campaign_core.campaign_path(root, campaign))
+        names = campaign_bosses.read(post.metadata)
+        links = coupling.Links(root, campaigns=[campaign])
+        if not names:
+            links.current(campaign)
+        for member in names:
+            try:
+                links._pair(member, campaign)
+                metadata, body = boss.read_metadata(root, member)
+                goals.append(
+                    {
+                        "metadata": {
+                            key: metadata.get(key) for key in ("name", "status", "archived", "depends_on", "campaign")
+                        },
+                        "summary": metadata.get("summary", ""),
+                        "body": body,
+                    }
+                )
+            except (ValueError, OSError, TypeError, KeyError, yaml.YAMLError) as error:
+                diagnostics.append(diagnostic(member, error))
+    except (ValueError, OSError, TypeError, KeyError, yaml.YAMLError) as error:
+        diagnostics.append(diagnostic(None, error))
+    return names, goals, diagnostics
+
+
+def present(bundle: PrimeBundle) -> dict:
+    """One serialized budget for both surfaces; raw in-process context stays intact."""
+    result = asdict(bundle)
+    result["truncations"] = []
+
+    def size() -> int:
+        return len(json.dumps(result, ensure_ascii=False, default=str, separators=(",", ":")))
+
+    if size() <= config.RESPONSE_BUDGET:
+        return result
+    fields = [("world.body", result["world"], "body", {"tool": "world_get"})]
+    if bundle.campaign_body is not None:
+        fields.append(
+            ("campaign_body", result, "campaign_body", {"tool": "campaign_get", "name": bundle.active_campaign})
+        )
+    for index, goal in enumerate(result["active_bosses"]):
+        fields.append(
+            (
+                f"active_bosses[{index}].body",
+                goal,
+                "body",
+                {"tool": "boss_get", "name": goal["metadata"]["name"]},
+            )
+        )
+    originals = []
+    for field_name, owner, key, ref in fields:
+        text = owner[key]
+        if text:
+            notice = {"field": field_name, "notice": "TRUNCATED", "ref": ref}
+            result["truncations"].append(notice)
+            originals.append((owner, key, text, notice))
+            owner[key] = ""
+    if size() > config.RESPONSE_BUDGET:
+        raise ValueError("Prime routing metadata/state exceeds the response budget; increase it.")
+    for index, (owner, key, text, notice) in enumerate(originals):
+        allowance = (config.RESPONSE_BUDGET - size()) // (len(originals) - index)
+        baseline = size()
+        low, high = 0, len(text)
+        while low < high:
+            middle = (low + high + 1) // 2
+            owner[key] = text[:middle]
+            if size() - baseline <= allowance:
+                low = middle
+            else:
+                high = middle - 1
+        owner[key] = text[:low]
+        if low == len(text):
+            result["truncations"].remove(notice)
+    return result
 
 
 def applicable_lore(root: Path, campaign: str, encounter_name: str) -> list[ApplicableLoreEntry]:

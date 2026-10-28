@@ -48,19 +48,30 @@ A region documents a path within the repository that needs its own conventions, 
 
 `prime` assembles cross-object context server-side, in one call, instead of chaining individual world/lore/region reads by hand:
 
-- `mcp__crypts-and-commits__prime_get()` — the global prime bundle: world (full — frontmatter + body) + world-assigned enabled lore (`name` + `summary` only) + region map (per region: `summary` + `path` + assigned-lore *names*, not their summaries or bodies) + the active campaign's full body (not its encounter list — that stays a separate, on-demand `mcp__crypts-and-commits__encounter_list` call). CLI fallback: `cac prime get --help`.
+- `mcp__crypts-and-commits__prime_get()` — the global prime bundle: world (full — frontmatter + body) + world-assigned enabled lore (`name` + `summary` only) + region map (per region: `summary` + `path` + assigned-lore *names*, not their summaries or bodies) + the active campaign's full body plus plural active_boss_names, active_bosses, and active_boss_diagnostics (not its encounter list — that stays a separate, on-demand `mcp__crypts-and-commits__encounter_list` call). CLI fallback: `cac prime get --help`.
 - `mcp__crypts-and-commits__prime_applicable_lore(encounter, campaign, cursor)` — the exact enabled lore set that applies to a specific encounter (world-assigned lore ∪ lore assigned to that encounter's region(s)), as `name` + `summary` + `ref` entries. `ref` is the lore name — hydrate it with `mcp__crypts-and-commits__lore_get(ref)` when you need the exact rule text, not just its summary. Paged under the response budget; pass the cursor from a truncated page's notice to continue. CLI fallback: `cac prime applicable-lore --help`.
 
-Both calls return **summaries**, never lore bodies — summaries are a routing signal (what exists, roughly), not a substitute for the governing text. When a lore entry has no summary yet, the field carries an explicit placeholder saying so; treat that as a prompt to read the body directly rather than assuming there's nothing to know.
+Both calls return **summaries**, never lore bodies — summaries are a routing signal (what exists, roughly), not a substitute for the governing text. When a lore entry has no summary yet, the field carries an explicit placeholder saying so; treat that as a prompt to read the body with `mcp__crypts-and-commits__lore_get` rather than assuming there's nothing to know.
+
+**Long bodies.** Every get tool fits its result to the response budget. When a result carries `next_cursor` (with a `notice`), call the same get again with `cursor=next_cursor` (CLI `--cursor`) until it is absent, then join the `body` fields. Never read managed files to get the rest.
 
 ## Docs
 
 Docs are read-only, framework-owned reference guides packaged with `cac` itself — not `.sourcebook` content, and not user-editable. They exist so deep procedural or structural detail can be pulled into context on demand instead of being carried in every project's `CLAUDE.md`/`AGENTS.md`.
 
 - `mcp__crypts-and-commits__docs_list(cursor)` — list registered docs by `name` + `summary`, paged under the response budget. CLI fallback: `cac docs list --help`.
-- `mcp__crypts-and-commits__docs_get(name)` — show a doc's full body, e.g. `docs_get("workflow")` for the Workflow Reference Guide (the `.sourcebook` domain model's structure, status lifecycles, and workflow procedure in full). CLI fallback: `cac docs get --help`.
+- `mcp__crypts-and-commits__docs_get(name)` — show a doc's full body, e.g. `docs_get("workflow")` for the Workflow Reference Guide (the `.sourcebook` domain model's structure, status lifecycles and guards, cross-type connections, approval gates, and workflow procedure) or `docs_get("tool-reference")` for the Tool Reference (MCP tool and CLI command names, arguments, result shapes, errors, budgets, and cursor continuation). CLI fallback: `cac docs get --help`.
 
 ## Sourcebook schema version
+
+For library/workflow adoption, read mcp__crypts-and-commits__docs_get("migration-guide") /
+cac docs get migration-guide even when schema_version is current. It separates
+library upgrade, developer-run skill/hook redeployment, targeted user-owned
+instruction edits, branch adoption and actual record migration. An older installed
+guide may require obtaining the target guide from verified source/distribution
+first. Do not stop a workflow-adoption request merely because no schema change is
+needed. For worked branch examples use mcp__crypts-and-commits__docs_get("branching-guide") /
+cac docs get branching-guide; workflow stays authoritative.
 
 `world.md` carries a `schema_version` frontmatter attribute — present on every sourcebook `cac bootstrap init` creates; a sourcebook bootstrapped before this attribute existed has none, which means version 1. `cac bootstrap init` reports when an existing sourcebook is behind or ahead of what the installed `cac` expects, but never migrates it itself — that's this skill's job, on request.
 
@@ -78,7 +89,7 @@ Never assume a sourcebook is out of date, and never start suspending a guardrail
 
 The **procedure** below for going deeper is authored once, here in the skill — it does not live in any tool payload. Tool calls return only the data traversed on (bundles, summaries, edge names); re-sending this traversal prose on every call would be the per-call token churn the ladder exists to avoid. Four steps, each going one tier deeper only when the task actually needs it:
 
-1. **Orient** — `mcp__crypts-and-commits__prime_get()`, once at the start of a session or before other work (this is also `campaign-manager`'s first step, since the bundle already includes the active campaign body). Gives world full + world-lore summaries + region map + campaign body in one round trip. Summarize what you found rather than dumping raw tool output.
+1. **Orient** — `mcp__crypts-and-commits__prime_get()`, once at the start of a session or before other work (this is also `campaign-manager`'s first step, since the bundle already includes the active campaign body). Gives world full + world-lore summaries + region map + campaign body and plural active-boss context in one round trip. Empty membership differs from named missing/broken members; hydrate diagnostics and truncation refs, never select a singular first-boss alias. Summarize what you found rather than dumping raw tool output.
 2. **Focus a task** — once a specific region is in scope (e.g. the region(s) an encounter is assigned to), `mcp__crypts-and-commits__region_get(region)` for its full body and its `assigned_lore` names, then `mcp__crypts-and-commits__lore_get(name)` per assigned name to read that lore's `summary` (not yet its body) — enough to judge which of that region's lore looks relevant before going further.
 3. **Review a plan** — the only step that needs exact, ground-truth text. Run `mcp__crypts-and-commits__prime_applicable_lore(encounter)` to resolve the finite applicable set (world-assigned ∪ the encounter's region-assigned enabled lore) as summaries, then hydrate each one with `mcp__crypts-and-commits__lore_get(ref)` and check the plan against the full body — never the summary. Summaries route which lore is in scope; only the body is authoritative for a compliance verdict. This is the step the reviewer subagent in `campaign-manager`'s draft → reviewed gate performs.
-4. **Go deeper** — when a task needs full procedural or structural detail beyond what any summary above covers (e.g. the exact status-transition rules or cross-type connections behind this skill), `mcp__crypts-and-commits__docs_list()` to see what's registered, then `mcp__crypts-and-commits__docs_get(name)` to pull one in whole. Most sessions never need this step — reach for it only when the ladder above genuinely isn't enough.
+4. **Go deeper** — when a task needs full procedural or structural detail beyond what any summary above covers (e.g. the exact status-transition rules or cross-type connections behind this skill), `mcp__crypts-and-commits__docs_list()` to see what's registered, then `mcp__crypts-and-commits__docs_get(name)` to pull one in whole: `workflow` for a rule, lifecycle, gate or branch procedure; `tool-reference` for an exact argument, result shape, error or budget; `branching-guide` for a worked Git example; `migration-guide` for upgrades and adoption. `campaign-manager` and `world-planner` follow the same rule and do not read these during routine orientation. Most sessions never need this step — reach for it only when the ladder above genuinely isn't enough.

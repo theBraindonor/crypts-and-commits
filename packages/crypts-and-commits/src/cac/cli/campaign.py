@@ -1,9 +1,20 @@
+from typing import Annotated
+
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail
+from cac.cli.common import (
+    CURSOR_HELP,
+    edit_markdown,
+    fail,
+    fitted,
+    print_body,
+    reference_inputs,
+    resolve_body_input,
+)
 from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
+from cac.core import references
 from cac.core.git_utils import GitIdentityError
 from cac.core.paths import resolve_project_root
 
@@ -23,71 +34,124 @@ app = typer.Typer(
         "'completed' or 'abandoned', the campaign's body is locked: 'update' fails, since the "
         "postmortem is meant to be that campaign's closing record. Once a campaign and every one "
         "of its encounters are 'completed'/'abandoned', it may be 'archive'd - moved into "
-        ".sourcebook/archive/, out of the way of active work, without changing its status."
+        ".sourcebook/archive/, out of the way of active work, without changing its status. "
+        "Use 'reactivate' with a nonblank reason to reopen an unarchived completed campaign for review feedback; "
+        "prior closing history is preserved. Origin/reverse boss links protect deletion."
     )
 )
 console = Console()
 
 
+@app.command("reactivate")
+@reference_inputs("campaign")
+def reactivate_campaign(
+    name: str = typer.Argument(..., help="Completed campaign name or short reference."),
+    message: str = typer.Option(..., "--message", "-m", help="Nonblank reason for reopening review work."),
+) -> None:
+    """Reopen an unarchived completed campaign; preserve history and the assigned boss design."""
+    campaign_core.reactivate_campaign(resolve_project_root(), name, message)
+    console.print(f"Reactivated {name}.", markup=False)
+
+
 @app.command("get")
+@reference_inputs("campaign")
 def get_campaign(
     name: str = typer.Argument(..., help="Campaign name to show."),
+    cursor: str | None = typer.Option(None, "--cursor", help=CURSOR_HELP),
 ) -> None:
-    """Show a campaign file's frontmatter and body."""
+    """Show a campaign file's frontmatter and body; long bodies continue with --cursor."""
+    root = resolve_project_root()
     try:
-        metadata, body = campaign_core.read_metadata(resolve_project_root(), name)
+        payload = campaign_core.get_payload(root, name)
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
-
-    for key, value in metadata.items():
-        console.print(f"[bold]{key}[/bold]: {value}")
+    response = fitted(console, lambda: references.get_response(root, "campaign", payload, name, cursor))
+    for key, value in response["metadata"].items():
+        console.print(f"{key}: {value}", markup=False)
+    console.print("boss_link: " + references.encoded(response["boss_link"]), markup=False, soft_wrap=True)
     console.print()
-    body = budget_core.truncate_body(body, campaign_core.campaign_path(resolve_project_root(), name))
-    console.print(body, markup=False, soft_wrap=True)
+    print_body(console, response)
 
 
 @app.command("list")
+@reference_inputs("campaign")
 def list_campaigns(
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
+    include_archived: bool = typer.Option(False, "--include-archived", help="Include retained archived allocations."),
 ) -> None:
-    """List the campaign files in .sourcebook/campaigns, with their current status, paged under
-    the response budget."""
-    entries = campaign_core.list_campaigns_with_status(resolve_project_root())
+    """Page campaign names/statuses, optionally including archived allocations."""
+    entries = campaign_core.list_campaigns_with_status(resolve_project_root(), include_archived=include_archived)
     if not entries:
-        console.print("No campaign files found.")
+        references.identity_page(resolve_project_root(), "campaign", [], cursor)
+        console.print("No campaign files found.", markup=False)
         return
 
     try:
-        page = budget_core.paginate(entries, cursor, render=lambda entry: f"{entry[0]} ({entry[1]})")
+        page_data = references.identity_page(
+            resolve_project_root(), "campaign", [{"name": n, "status": s} for n, s in entries], cursor
+        )
+        page = budget_core.Page(
+            items=[(e["name"], e["status"]) for e in page_data["items"]], next_cursor=page_data["next_cursor"]
+        )
+        console.print(references.encoded({"identities": page_data["identities"]}), markup=False, soft_wrap=True)
     except budget_core.InvalidCursorError as exc:
         fail(console, str(exc))
 
     for name, status in page.items:
-        console.print(f"{name} ({status})")
+        console.print(f"{name} ({status})", markup=False)
     if page.next_cursor is not None:
-        console.print(f"[dim]More results - pass --cursor {page.next_cursor} to continue.[/dim]")
+        console.print(f"More results - pass --cursor {page.next_cursor} to continue.", markup=False)
 
 
 @app.command("create")
+@reference_inputs("campaign", create=True)
 def create_campaign(
     name: str = typer.Argument(..., help="Campaign name (letters, numbers, underscores, hyphens, periods)."),
-    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Markdown body. Opens an editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(
+        None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
+    ),
+    bosses: Annotated[
+        list[str] | None, typer.Option("--boss", help="Existing boss name/ref; repeat to select several.")
+    ] = None,
 ) -> None:
     """Create a new campaign file."""
+    body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(campaign_core.template_body())
 
     try:
-        path = campaign_core.create_campaign(resolve_project_root(), name, content)
+        path = campaign_core.create_campaign(resolve_project_root(), name, content, bosses if bosses else None)
     except (campaign_core.InvalidCampaignNameError, campaign_core.CampaignAlreadyExistsError, GitIdentityError) as exc:
         fail(console, str(exc))
 
-    console.print(f"Created [bold green]{path}[/bold green]")
+    console.print(f"Created {path}", markup=False)
+
+
+@app.command("set-bosses")
+@reference_inputs("campaign")
+def set_bosses(
+    name: str = typer.Argument(...),
+    message: str = typer.Option(..., "--message", "-m", help="Nonblank reason for changing draft membership."),
+    bosses: Annotated[
+        list[str] | None, typer.Option("--boss", help="Complete new set; repeat, or omit to clear.")
+    ] = None,
+) -> None:
+    path = campaign_core.set_bosses(resolve_project_root(), name, bosses or [], message)
+    console.print(f"Updated boss membership: {path}", markup=False)
 
 
 @app.command("update")
+@reference_inputs("campaign")
 def update_campaign(
     name: str = typer.Argument(..., help="Campaign name to update."),
-    body: str | None = typer.Option(None, "--body", "-b", help="Markdown body. Opens an editor if omitted."),
+    body: str | None = typer.Option(
+        None, "--body", "-b", help="Markdown body. Opens an editor if neither body option is supplied."
+    ),
+    body_file: str | None = typer.Option(
+        None, "--body-file", metavar="PATH", help="UTF-8 body file; cannot be combined with --body/-b."
+    ),
 ) -> None:
     """Update an existing campaign file's body. Fails once the campaign is 'completed' or
     'abandoned' - its body is locked once its postmortem is recorded."""
@@ -96,16 +160,18 @@ def update_campaign(
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
 
+    body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(current.body)
     try:
         path = campaign_core.update_campaign(resolve_project_root(), name, content)
     except (campaign_core.CampaignNotMutableError, GitIdentityError) as exc:
         fail(console, str(exc))
 
-    console.print(f"Updated [bold green]{path}[/bold green]")
+    console.print(f"Updated {path}", markup=False)
 
 
 @app.command("delete")
+@reference_inputs("campaign")
 def delete_campaign(
     name: str = typer.Argument(..., help="Campaign name to delete."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
@@ -119,10 +185,11 @@ def delete_campaign(
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
 
-    console.print(f"Deleted [bold green]{path}[/bold green]")
+    console.print(f"Deleted {path}", markup=False)
 
 
 @app.command("open")
+@reference_inputs("campaign")
 def open_campaign(
     name: str = typer.Argument(..., help="Campaign name to open."),
 ) -> None:
@@ -138,10 +205,11 @@ def open_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Opened [bold]{name}[/bold].")
+    console.print(f"Opened {name}.", markup=False)
 
 
 @app.command("pause")
+@reference_inputs("campaign")
 def pause_campaign(
     name: str = typer.Argument(..., help="Campaign name to pause."),
 ) -> None:
@@ -156,10 +224,11 @@ def pause_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Paused [bold]{name}[/bold].")
+    console.print(f"Paused {name}.", markup=False)
 
 
 @app.command("complete")
+@reference_inputs("campaign")
 def complete_campaign(
     name: str = typer.Argument(..., help="Campaign name to complete."),
     message: str = typer.Option(..., "--message", "-m", help="Postmortem for this campaign. Required."),
@@ -178,10 +247,11 @@ def complete_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Completed [bold]{name}[/bold].")
+    console.print(f"Completed {name}.", markup=False)
 
 
 @app.command("abandon")
+@reference_inputs("campaign")
 def abandon_campaign(
     name: str = typer.Argument(..., help="Campaign name to abandon."),
     message: str = typer.Option(..., "--message", "-m", help="Postmortem for this campaign. Required."),
@@ -200,10 +270,11 @@ def abandon_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Abandoned [bold]{name}[/bold].")
+    console.print(f"Abandoned {name}.", markup=False)
 
 
 @app.command("archive")
+@reference_inputs("campaign")
 def archive_campaign(
     name: str = typer.Argument(..., help="Campaign name to archive."),
 ) -> None:
@@ -222,4 +293,4 @@ def archive_campaign(
     ) as exc:
         fail(console, str(exc))
 
-    console.print(f"Archived [bold]{campaign.name}[/bold] and {len(archived_encounters)} encounter(s).")
+    console.print(f"Archived {campaign.name} and {len(archived_encounters)} encounter(s).", markup=False)

@@ -1,7 +1,7 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import fail
+from cac.cli.common import CURSOR_HELP, fail, fitted, print_body
 from cac.core import budget as budget_core
 from cac.core import docs as docs_core
 from cac.core.config import DOCS_RESPONSE_BUDGET
@@ -40,12 +40,19 @@ def list_docs(
 @app.command("get")
 def get_doc(
     name: str = typer.Argument(..., help="Doc name to show."),
+    cursor: str | None = typer.Option(None, "--cursor", help=CURSOR_HELP),
 ) -> None:
-    """Show a registered doc's full body."""
+    """Show a registered doc's full body; a long body continues with --cursor."""
     try:
         body = docs_core.read_doc(name)
     except docs_core.DocNotFoundError as exc:
         fail(console, str(exc))
 
-    body = budget_core.truncate_body(body, docs_core.doc_source_path(name), budget=DOCS_RESPONSE_BUDGET)
-    console.print(body, markup=False, soft_wrap=True)
+    payload = {"body": body}
+    response = fitted(
+        console,
+        lambda: budget_core.fit_response(
+            payload, cursor, "docs_get", budget=DOCS_RESPONSE_BUDGET, measure=lambda page: len(page["body"])
+        ),
+    )
+    print_body(console, response)

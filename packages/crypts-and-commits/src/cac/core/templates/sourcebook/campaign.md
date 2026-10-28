@@ -2,6 +2,7 @@
 name: ""
 status: "draft"
 archived: false
+bosses: []
 ---
 
 # Campaign

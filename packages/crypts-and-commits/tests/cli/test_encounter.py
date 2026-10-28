@@ -10,6 +10,47 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+def test_archive_inventory_accepts_explicit_archived_parent(tmp_path):
+    from cac.core import campaign, encounter
+
+    campaign.create_campaign(tmp_path, "c999-history", "History")
+    encounter.create_encounter(tmp_path, "c999-history", "e1000-old", "History")
+    encounter.abandon_encounter(tmp_path, "c999-history", "e1000-old", "Done")
+    campaign.abandon_campaign(tmp_path, "c999-history", "Done")
+    campaign.archive_campaign(tmp_path, "c999-history")
+    result = runner.invoke(app, ["encounter", "list", "--campaign", "c999", "--include-archived"])
+    assert result.exit_code == 0, result.output
+    assert "e1000-old" in result.output and "c999/e1000" in result.output
+    assert "e1000-old" not in runner.invoke(app, ["encounter", "list", "--campaign", "c999"]).output
+    assert runner.invoke(app, ["encounter", "list", "--campaign", "c999", "--cursor", "bad"]).exit_code == 1
+
+
+@pytest.mark.parametrize("explicit_campaign", [False, True])
+def test_body_file_preserves_encounter_kind_and_update_lock(
+    tmp_path: Path, create_campaign: Callable[..., None], open_campaign: Callable[..., None], explicit_campaign: bool
+) -> None:
+    from cac.core import encounter
+
+    create_campaign()
+    open_campaign()
+    source = tmp_path / "encounter body.md"
+    source.write_text("Recorded work.", encoding="utf-8")
+    options = ["--campaign", "opening-gambit"] if explicit_campaign else []
+    result = runner.invoke(
+        app, ["encounter", "create", "goblin-ambush", *options, "--kind", "unscripted", "--body-file", str(source)]
+    )
+    assert result.exit_code == 0, result.output
+    assert encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")[0]["kind"] == "unscripted"
+    assert _review().exit_code == 0
+    before = encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush")
+
+    result = runner.invoke(app, ["encounter", "update", "goblin-ambush", *options, "--body-file", str(source)])
+
+    assert result.exit_code == 1
+    assert "draft" in result.output
+    assert encounter.read_metadata(tmp_path, "opening-gambit", "goblin-ambush") == before
+
+
 def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(root: Path) -> str:
         raise git_utils.GitIdentityError("git user.name is not configured.")
@@ -637,15 +678,14 @@ def test_get_truncates_body_over_budget(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, create_campaign: Callable[..., None]
 ) -> None:
     create_campaign()
-    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "x" * 200])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "x" * 2000])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 800)
 
     result = runner.invoke(app, ["encounter", "get", "goblin-ambush", "--campaign", "opening-gambit"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    expected_path = tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md"
-    assert str(expected_path) in result.output
+    assert "[TRUNCATED" in result.output and "next_cursor: " in result.output
+    assert ".sourcebook" not in result.output
 
 
 def test_list_rejects_invalid_cursor(create_campaign: Callable[..., None]) -> None:
@@ -713,6 +753,7 @@ def test_order_prints_status_and_dependencies_without_stripping_brackets(create_
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
+        '{"identities":[{"canonical":"foundation","short":null,"reason":"unnumbered","campaign":"opening-gambit"},{"canonical":"feature","short":null,"reason":"unnumbered","campaign":"opening-gambit"}]}',
         "foundation [draft] depends_on: (none)",
         "feature [draft] depends_on: foundation",
     ]

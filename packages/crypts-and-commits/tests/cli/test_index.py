@@ -207,3 +207,21 @@ def test_search_excludes_archived_campaign_by_default_and_includes_with_flag(
     assert included_result.exit_code == 0
     assert "opening-gambit" in included_result.output
     assert "(archived)" in included_result.output
+
+
+def test_stale_search_exits_without_hits_and_status_explains_recovery(tmp_path):
+    from cac.cli.app import app
+    from cac.core import campaign, search_index
+    from typer.testing import CliRunner
+
+    campaign.create_campaign(tmp_path, "c001-work", "Secretmatch")
+    search_index.rebuild_index(tmp_path)
+    path = campaign.campaign_path(tmp_path, "c001-work")
+    path.write_bytes(path.read_bytes() + b"\nChanged")
+    result = CliRunner().invoke(app, ["index", "search", "Secretmatch"])
+    assert result.exit_code == 1
+    assert "Stale index" in result.output and "Secretmatch" not in result.output
+    assert "developer" in result.output and "cac index rebuild" in result.output
+    result = CliRunner().invoke(app, ["index", "status"])
+    assert result.exit_code == 0
+    assert "indexed snapshot" in result.output and "stale" in result.output

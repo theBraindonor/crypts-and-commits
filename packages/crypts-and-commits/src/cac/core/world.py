@@ -6,7 +6,7 @@ import frontmatter
 
 from cac.core import frontmatter_utils, templates
 from cac.core import lore as lore_core
-from cac.core.config import SCHEMA_VERSION_KEY, SOURCEBOOK_SCHEMA_VERSION, WORLD_FILE_NAME
+from cac.core.config import SCHEMA_VERSION_KEY, SOURCEBOOK_SCHEMA_VERSION, WORLD_BRANCH_DEFAULTS, WORLD_FILE_NAME
 from cac.core.frontmatter_utils import toggle_list_attribute, write_post
 from cac.core.paths import sourcebook_dir
 
@@ -54,8 +54,9 @@ def initialize_world(root: Path) -> tuple[Path, bool]:
 
 
 def read_world(root: Path) -> World:
+    """Read the world with effective branch defaults, without writing the record."""
     post = frontmatter.load(_existing_world_path(root))
-    return World(metadata=dict(post.metadata), body=post.content)
+    return _to_world(post)
 
 
 def check_schema_version(root: Path) -> SchemaVersionStatus:
@@ -75,12 +76,13 @@ def check_schema_version(root: Path) -> SchemaVersionStatus:
 
 
 def set_attribute(root: Path, key: str, value: str) -> World:
+    """Persist an explicit attribute; expose effective defaults only in the returned World."""
     path = _existing_world_path(root)
     post = frontmatter.load(path)
     post[key] = value
     frontmatter_utils.stamp_updated(post, root)
     write_post(root, path, post)
-    return World(metadata=dict(post.metadata), body=post.content)
+    return _to_world(post)
 
 
 def update_body(root: Path, body: str) -> World:
@@ -89,7 +91,7 @@ def update_body(root: Path, body: str) -> World:
     post.content = body
     frontmatter_utils.stamp_updated(post, root)
     write_post(root, path, post)
-    return World(metadata=dict(post.metadata), body=post.content)
+    return _to_world(post)
 
 
 def assign_lore(root: Path, name: str) -> World:
@@ -116,7 +118,15 @@ def _update_assigned_lore(root: Path, *, add: str | None = None, remove: str | N
     toggle_list_attribute(post, ASSIGNED_LORE_KEY, add=add, remove=remove)
     frontmatter_utils.stamp_updated(post, root)
     write_post(root, path, post)
-    return World(metadata=dict(post.metadata), body=post.content)
+    return _to_world(post)
+
+
+def _to_world(post: frontmatter.Post) -> World:
+    """Expose effective branch defaults without changing the persisted post."""
+    metadata = dict(post.metadata)
+    for key, default in WORLD_BRANCH_DEFAULTS.items():
+        metadata.setdefault(key, default)
+    return World(metadata=metadata, body=post.content)
 
 
 def _existing_world_path(root: Path) -> Path:
@@ -124,3 +134,9 @@ def _existing_world_path(root: Path) -> Path:
     if not path.exists():
         raise WorldNotFoundError("world.md does not exist. Run 'cac bootstrap init' first.")
     return path
+
+
+def get_payload(root: Path) -> dict[str, Any]:
+    """The unbudgeted world_get result shared by CLI and MCP; callers fit it with budget.fit_response."""
+    world = read_world(root)
+    return {"metadata": world.metadata, "body": world.body}

@@ -1,55 +1,156 @@
 ---
 name: campaign-manager
-description: Manage this project's active work-tracking loop - campaigns (long-running initiatives, like a Jira Epic) and encounters (concrete units of work, either 'scripted' with Requirements/Rationale/Plan/Verification sections or 'unscripted' with just Requirements/Rationale, recording manual work done outside the plan-first flow) - through the crypts-and-commits MCP server, falling back to the cac CLI when the server is unavailable. Use when asked to start a new initiative, move a campaign through its draft/open/paused/completed/abandoned lifecycle, plan a new unit of work, record already-done manual work, move an encounter through its draft/reviewed/open/completed/abandoned lifecycle, or assign an encounter to one or more regions.
-allowed-tools: Bash(cac *), Task, mcp__crypts-and-commits
+allowed-tools: Bash(cac *), Bash(git status *), Bash(git for-each-ref *), Bash(git rev-parse *), Bash(git merge-base *), Bash(git switch -c *), Bash(git switch -- *), Task, mcp__crypts-and-commits
+description: Select goals into tactical campaigns, manage campaign execution and review fixes, and draft, independently review, execute, and close encounters with the required developer approvals.
 ---
 
 # Campaign Manager
 
-Owns the project's active work-tracking loop: campaigns and the encounters within them. Work exclusively through the `crypts-and-commits` MCP server's tools when they are available for this session — never create, read, edit, move, or delete anything under `.sourcebook/` directly, whether with file tools or shell commands. Fall back to the `cac` CLI only when the MCP server is not connected for this session; the CLI covers the exact same operations (see each tool's "CLI fallback" pointer below).
+Own tactical commitment and execution. world-planner owns goal planning/readiness,
+roadmap adoption, integrated rumor triage and planning-side archival;
+world-manager owns static context and the disclosure ladder. Use connected
+crypts-and-commits MCP tools first, cac CLI only when unavailable. Managed records
+are MCP/CLI-only, never direct filesystem inspection/repair. Missing bootstrap
+and stale index recovery are developer-only; never run bootstrap/index rebuild,
+disable guardrails, or edit deployed skill copies.
 
-If a command reports that the project hasn't been bootstrapped, stop and ask the developer to run `cac bootstrap init` themselves. Never run it on their behalf — this applies regardless of whether you'd otherwise reach for the MCP server or the CLI, since `bootstrap` is intentionally not exposed over MCP at all.
+## Orient and reconcile the branch
 
-## Priming
+For worked Git examples, read mcp__crypts-and-commits__docs_get("branching-guide") /
+cac docs get branching-guide. For adoption from older installations and targeted
+local instruction updates, use mcp__crypts-and-commits__docs_get("migration-guide") /
+cac docs get migration-guide; workflow remains the procedural authority.
 
-Before starting any work in this loop — planning a new encounter, reviewing one, or resuming an open one — run the disclosure ladder's **Orient** step first: `mcp__crypts-and-commits__prime_get()`. That call (and the rest of the ladder — "Focus a task" / "Review a plan") is owned and documented by `world-manager`; see that skill for the full procedure. Its bundle already includes the active campaign's full body, so no separate campaign read is needed just to orient.
+Start with mcp__crypts-and-commits__prime_get / cac prime get and world-manager's disclosure ladder.
+Use active_boss_names, active_bosses and active_boss_diagnostics for all selected
+goals. Hydrate missing/truncated bodies and integrity diagnostics; never choose
+a first-boss alias or treat broken membership as bossless. Encounter lists remain
+on demand. Full-text mcp__crypts-and-commits__index_search can find encounter text; it is not a dedicated
+encounter graph/discovery API or a complete retained-allocation inventory.
 
-From there, this skill appends the active-loop context prime doesn't cover:
+Do not read the workflow guide or tool reference during routine orientation.
+When a procedural question arises (configured planning/merge-target branches,
+numbering, collision checkpoints, reconciliation), read mcp__crypts-and-commits__docs_get("workflow") /
+cac docs get workflow and use its "Agent planning and campaign workflow" section;
+for lifecycle guards use its Campaign, Encounter and Bosses sections. For an exact
+argument, result shape, error or budget, read mcp__crypts-and-commits__docs_get("tool-reference") /
+cac docs get tool-reference. Check Git branch/worktree,
+dirty changes and detached HEAD before mutations. Explain mismatches and reconcile
+without silently switching/overwriting; endpoints remain branch-agnostic.
+For authorized local branch setup use git switch -c NAME BASE or git switch -- NAME;
+these declarations do not authorize force/discard options. Use existing authorization without repeat prompts. Invoking this skill does not
+authorize publication, pushing/merging, destructive cleanup, or messages to others.
 
-- `mcp__crypts-and-commits__encounter_list(campaign, cursor)` for the campaign's encounters — a separate, on-demand, paged call, never part of prime, since the encounter list is the one thing in this loop that grows without bound. CLI fallback: `cac encounter list --help`.
+## Allocate, select, and register
 
-There is no encounter search yet — that capability is deferred (see `docs/encounter-search-design.md`). Don't reference or imply one exists; until it lands, `mcp__crypts-and-commits__encounter_list` plus reading names is the only way to find an encounter.
+1. Inventory every mcp__crypts-and-commits__campaign_list(include_archived=True) page / cac campaign list
+   --include-archived [--cursor TOKEN], plus known local/remote campaign branch
+   names. A branch reserves its c number without a committed record; the matching
+   cNNN-slug-assignment/cNNN-slug pair counts once. Choose numeric max+1, 001..999
+   then 1000, never lexical/time/search order or a partial page. Disclose missing
+   remote refresh/integration evidence; do not infer no collision from offline refs.
+2. For developer-selected goals, hydrate mcp__crypts-and-commits__boss_get and mcp__crypts-and-commits__boss_candidates /
+   cac boss get / cac boss candidates. Confirm every goal available, unassigned,
+   eligible and graph/link-consistent. Order is not business priority or approval.
+   Selecting a prerequisite with its incomplete dependent does not satisfy it.
+   If goals need refinement, hand back to world-planner rather than editing frozen
+   design or inventing eligibility. Roadmap provenance is an original snapshot.
+3. Craft tactical content addressing all selected goals and success conditions.
+   Create the assignment branch from synchronized merge target under project Git
+   policy; mcp__crypts-and-commits__campaign_create(name,body,bosses=[...]) registers the draft and links.
+   mcp__crypts-and-commits__boss_assign_campaign(name,campaign_name,body) is the single-goal convenience.
+   Exact single-goal retries preserve an existing group's membership/tactics.
+   Inspect atomic/recovery errors; never publish a partial assignment.
+4. Integrate the assignment registration before execution through the project's
+   PR/direct-merge process. Create cNNN-slug from accepted registration/merge target;
+   if starting from the assignment branch, reconcile accepted registration first.
+   A bossless campaign can skip registration and start on cNNN-slug with the same
+   allocation checks. Selection does not open a campaign or create encounters.
+5. Open only with authorization on the matching execution branch. Under the
+   recommended workflow main/planning have no open campaign; paused work remains
+   on execution. These are skill guidance, not endpoint gates or mandatory CI/PR
+   hosting. Custom configured branch names apply.
 
-## Campaigns
+Check logical collisions at creation, after integrating another branch (pull,
+merge/rebase), and before completion for implementation integration; repeat after
+review fixes. Inspect numeric IDs/names, encounter IDs within this campaign, and
+reciprocal ownership for every boss. A clean Git merge can still contain logical
+collisions. Reconcile manually, not by silent renumbering/branch deletion or direct
+managed-file edits. Existing unnumbered history remains valid.
 
-A campaign is a long-running initiative, similar to an "Epic" in Jira-style work tracking (e.g. "Create the MVP", "Add Payment Processing", a version increment). It's expected to require many encounters, completed over time, before it's done.
+## Campaign operations
 
-- `mcp__crypts-and-commits__campaign_list(cursor)` — list all campaigns by name, with their current status. CLI fallback: `cac campaign list --help`.
-- `mcp__crypts-and-commits__campaign_get(name)` — show a campaign's frontmatter (`status`, `created_on`/`created_by`/`updated_on`/`updated_by`) and body. CLI fallback: `cac campaign get --help`.
-- `mcp__crypts-and-commits__campaign_create(name, body)` — create a new campaign, in `draft` status. CLI fallback: `cac campaign create --help`.
-- `mcp__crypts-and-commits__campaign_update(name, body)` — replace a campaign's body. Fails once the campaign is `completed` or `abandoned` — its body is locked once its postmortem is recorded. CLI fallback: `cac campaign update --help`.
-- `mcp__crypts-and-commits__campaign_open(name)` — move `draft` or `paused` → `open` and begin work. Only one campaign may be `open` at a time. CLI fallback: `cac campaign open --help`.
-- `mcp__crypts-and-commits__campaign_pause(name)` — move `open` → `paused`. Fails if the campaign has an encounter that is currently `open`. CLI fallback: `cac campaign pause --help`.
-- `mcp__crypts-and-commits__campaign_complete(name, message)` — move `open` or `paused` → `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required — a postmortem, appended as a dated, attributed log entry on the campaign body. CLI fallback: `cac campaign complete --help`.
-- `mcp__crypts-and-commits__campaign_abandon(name, message)` — move `draft`, `open`, or `paused` → `abandoned`. Not available once `completed`. Fails if the campaign has an encounter that is currently `open`. The message is required, recorded the same way as `complete`'s. CLI fallback: `cac campaign abandon --help`.
-- `mcp__crypts-and-commits__campaign_delete(name)` — remove a campaign, unconditionally. CLI fallback: `cac campaign delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
-- `mcp__crypts-and-commits__campaign_archive(name)` — archive a campaign and every one of its encounters, moving them into `.sourcebook/archive/` and setting `archived: true` on each. Requires the campaign to already be `completed`/`abandoned`, not already archived, and every one of its encounters to also be `completed`/`abandoned`. CLI fallback: `cac campaign archive --help`.
+| Intent | MCP | CLI fallback |
+| --- | --- | --- |
+| Read | mcp__crypts-and-commits__campaign_get(name) | cac campaign get NAME |
+| List with status/identities | mcp__crypts-and-commits__campaign_list(cursor,include_archived=False) | cac campaign list [--include-archived] [--cursor TOKEN] |
+| Create tactical draft | mcp__crypts-and-commits__campaign_create(name,body,bosses=None) | cac campaign create NAME [--boss REF ...] --body-file PATH |
+| Single-goal selection | mcp__crypts-and-commits__boss_assign_campaign(name,campaign_name,body) | cac boss assign-campaign BOSS CAMPAIGN --body-file PATH |
+| Replace entire draft membership | mcp__crypts-and-commits__campaign_set_bosses(name,bosses,message) | cac campaign set-bosses NAME [--boss REF ...] --message REASON |
+| Edit tactics | mcp__crypts-and-commits__campaign_update(name,body) | cac campaign update NAME --body-file PATH |
+| Open/pause | mcp__crypts-and-commits__campaign_open / mcp__crypts-and-commits__campaign_pause | cac campaign open / pause NAME |
+| Complete/abandon | mcp__crypts-and-commits__campaign_complete / mcp__crypts-and-commits__campaign_abandon | cac campaign complete / abandon NAME --message TEXT |
+| Reopen for pre-merge fixes | mcp__crypts-and-commits__campaign_reactivate(name,message) | cac campaign reactivate NAME --message REASON |
+| Delete permitted bossless draft/history | mcp__crypts-and-commits__campaign_delete(name) | cac campaign delete NAME |
+| Archive integrated terminal history | mcp__crypts-and-commits__campaign_archive(name) | cac campaign archive NAME |
 
-## Campaign Lifecycle
+MCP body arguments are strings. CLI --body and --body-file conflict; absent both,
+editor behavior applies. Repeat --boss per member; omitted bosses creates bossless,
+and no --boss on set-bosses clears the set. Draft replacement requires a reason
+and valid reciprocal retained members; same-set requests are read-only. Membership
+locks after opening, including reactivation. Assigned boss designs remain frozen;
+campaign body text cannot change links. Zero/one/many goals have no primary boss.
 
-**`draft`** — the campaign was just created and hasn't started yet.
+Only one campaign can be open in the checkout. Pause/complete/abandon fail with
+open encounters; archive also requires every encounter completed/abandoned.
+Completion needs a postmortem and achieves every selected goal. Abandonment
+needs a reason, releases all current boss links and retains historical membership.
+Closed bodies lock; mcp__crypts-and-commits__campaign_reactivate with a reason reopens only unarchived
+completed campaigns for pre-merge review fixes. Keep membership and earlier Logs,
+draft new follow-up encounters (completed encounters never reopen), verify and
+recomplete before integration. Post-merge new scope goes back to planning.
+No campaign completion/push/merge is implied by completing one encounter.
 
-**`draft`/`paused` → `open`** — run `mcp__crypts-and-commits__campaign_open(name)`. Only one campaign may be `open` at a time; if another campaign is already `open`, this fails naming that campaign — pause or complete it first.
+Deletion is not unconditional: a non-empty bosses list (current or historical
+membership) or a reverse boss claim blocks it; archiving does not protect a
+bossless campaign. MCP has no interactive deletion prompt; CLI
+can prompt or accept --yes, without bypassing core guards. Do not use deletion
+as a rollback/renumber shortcut. world-planner archives integrated terminal history
+on synchronized planning: current bosses move; released/reassigned goals and
+rumors stay untouched.
 
-**`open` → `paused`** — run `mcp__crypts-and-commits__campaign_pause(name)` to set work aside without completing it. Fails, naming the offending encounter(s), if any encounter under the campaign is currently `open`; complete or abandon those encounters first (or wait for them to finish).
+## Discoveries and unusual handoffs
 
-**`open`/`paused` → `completed`** — run `mcp__crypts-and-commits__campaign_complete(name, message)` once the initiative is done. Same open-encounter restriction as `pause`. The message is a required postmortem — a closing summary of what happened and what was learned — appended to the campaign body as a dated, attributed log entry. Once `completed`, the campaign's body is locked: `mcp__crypts-and-commits__campaign_update` will fail, since the postmortem is meant to be that campaign's closing record.
+Capture discoveries as standalone rumors with mcp__crypts-and-commits__rumor_create(name,body,summary,
+origin) / cac rumor create NAME --summary TEXT --origin TEXT --body-file PATH,
+numbered rNNN-slug from every mcp__crypts-and-commits__rumor_list(include_archived=True) page on this
+branch (numeric max+1). Origin is free text, such as this campaign/encounter or
+whoever raised it. Capturing never edits assigned bosses or expands execution
+scope; only open rumors can be edited, with mcp__crypts-and-commits__rumor_update(name,body,summary,
+origin). Numbers that collide after integration are renumbered on planning.
+Triage (promotion, dismissal, renumbering, archival) belongs to world-planner;
+rumors are never deleted.
 
-**`draft`/`open`/`paused` → `abandoned`** — run `mcp__crypts-and-commits__campaign_abandon(name, message)` to record why the initiative is being called off. Not available once `completed`. Same open-encounter restriction as `pause`, and the same required-postmortem, body-locking behavior as `complete`.
-
-**`completed`/`abandoned` → archived** — once a campaign and *every one* of its encounters are `completed`/`abandoned` (a strictly broader check than the open-encounter guards above — `draft`/`reviewed` encounters block this too), run `mcp__crypts-and-commits__campaign_archive(name)` to move the campaign and all its encounters into `.sourcebook/archive/`, out of the way of active work. This does not change `status` — a `completed` campaign stays `completed`. `campaign_get`/`encounter_get` keep working unchanged afterward; `campaign_list`/`encounter_list`/`encounter_order` do not show archived content. CLI fallback: `cac campaign archive --help`.
+For rejected registration, establish whether it integrated and inspect visible
+assignment/execution branches; revise or explicitly abandon, retain useful context
+and number reservations. Never publish rejection as acceptance or auto-delete.
+For an accepted draft cancelled before execution, abandon with reason on its
+execution branch, integrate cleanup and synchronize planning. For legacy open
+unnumbered work, inspect encounters/local guidance and agree a matching execution
+branch, finishing/abandoning open encounters before pausing/closing; preserve
+history instead of inventing bosses or bulk renaming. Follow workflow's "Reconciliation examples".
+Remote/integration uncertainty and failed recovery need explicit reconciliation.
 
 ## Encounters
+
+Before choosing the next e number, finish every mcp__crypts-and-commits__encounter_list(campaign=...,include_archived=True)
+page / cac encounter list --campaign REF --include-archived [--cursor TOKEN].
+Allocate numeric max+1 within that exact campaign, including retained history;
+never reuse an ID, rely on update order, or silently resolve duplicate numeric IDs.
+Existing canonical/short refs accept archived records; missing/ambiguous context
+requires clarification, not guessing. No active campaign means pass campaign
+explicitly rather than opening one merely to inspect history.
+
 
 An encounter is a concrete unit of work within a campaign, in one of two `kind`s, fixed at creation and never changed afterward:
 
@@ -68,7 +169,7 @@ The campaign is **optional** on every encounter tool: when omitted, it defaults 
 
 In the tool forms below, `campaign` is shown explicitly, but omit it to use the active campaign.
 
-- `mcp__crypts-and-commits__encounter_list(campaign, cursor)` — list encounter names within a campaign, ordered oldest-updated first (ascending by `updated_on`). CLI fallback: `cac encounter list --help`.
+- `mcp__crypts-and-commits__encounter_list(campaign, cursor, include_archived=False)` — list encounter names within a campaign, ordered oldest-updated first (ascending by `updated_on`). CLI fallback: `cac encounter list --help`.
 - `mcp__crypts-and-commits__encounter_order(campaign)` — show every campaign encounter in deterministic dependency order, with status and direct dependencies. CLI fallback: `cac encounter order --help`.
 - `mcp__crypts-and-commits__encounter_get(name, campaign)` — show an encounter's frontmatter (`status`, `kind`, `regions`) and body. CLI fallback: `cac encounter get --help`.
 - `mcp__crypts-and-commits__encounter_create(name, body, campaign, kind)` — create a new encounter. `kind` is optional, defaulting to `scripted`; pass `"unscripted"` to record already-done manual work instead. The campaign must already exist and not be completed/abandoned. CLI fallback: `cac encounter create --help` (`--kind`/`-k`).
@@ -80,7 +181,7 @@ In the tool forms below, `campaign` is shown explicitly, but omit it to use the 
 - `mcp__crypts-and-commits__encounter_abandon(name, message, campaign)` — move `draft`, `reviewed`, or `open` → `abandoned`. Not available once `completed`. Message is required. CLI fallback: `cac encounter abandon --help`.
 - `mcp__crypts-and-commits__encounter_assign_region(name, region, campaign)` / `mcp__crypts-and-commits__encounter_unassign_region(name, region, campaign)` — an encounter may be assigned to one or more regions. This link is recorded only on the encounter. Only permitted while `draft`. CLI fallback: `cac encounter assign-region --help` / `cac encounter unassign-region --help`.
 - `mcp__crypts-and-commits__encounter_assign_dependency(name, dependency, campaign)` / `mcp__crypts-and-commits__encounter_unassign_dependency(name, dependency, campaign)` — change direct prerequisites while the dependent encounter is `draft`. CLI fallback: `cac encounter assign-dependency --help` / `cac encounter unassign-dependency --help`.
-- `mcp__crypts-and-commits__encounter_delete(name, campaign)` — remove an encounter, unconditionally. Fails while another encounter depends on it. CLI fallback: `cac encounter delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
+- `mcp__crypts-and-commits__encounter_delete(name, campaign)` — remove an encounter only in a mutable campaign and while no other encounter depends on it. CLI fallback: `cac encounter delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
 
 ## Encounter Lifecycle
 

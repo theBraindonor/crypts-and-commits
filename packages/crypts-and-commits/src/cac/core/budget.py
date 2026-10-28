@@ -1,6 +1,7 @@
+import hashlib
+import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Generic, TypeVar
 
 from cac.core import config
@@ -18,24 +19,81 @@ class Page(Generic[T]):
     next_cursor: str | None
 
 
-def truncate_body(content: str, file_path: Path, budget: int | None = None) -> str:
-    """Return `content` unchanged if it fits within `budget` characters (default
-    `config.RESPONSE_BUDGET`, read at call time so it can be overridden per-call or patched in
-    tests). Otherwise prepend a truncation notice naming `file_path` as a direct-read fallback,
-    and cut the body to leave room for that notice within the same budget."""
+def _encoded(value: object) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def body_page(
+    body: str,
+    cursor: str | None,
+    build: Callable[[str, str | None], dict],
+    *,
+    label: str = "Body",
+    budget: int | None = None,
+    measure: Callable[[dict], int] | None = None,
+) -> dict:
+    """Return the largest page of `body` that fits `budget`, starting at `cursor`.
+
+    `build(text, next_cursor)` renders one page. By default a page is measured as compact JSON,
+    so metadata and escaping count against the budget; `measure` overrides that. Cursors are
+    bound to the body's content hash, so a cursor from before an edit fails instead of splicing
+    two versions together."""
     budget = config.RESPONSE_BUDGET if budget is None else budget
-    if len(content) <= budget:
-        return content
-    notice = _notice(file_path, budget)
-    available = max(budget - len(notice), 0)
-    return f"{notice}{content[:available]}"
+    size = measure or (lambda page: len(_encoded(page)))
+    digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+    start = 0
+    if cursor is not None:
+        try:
+            version, offset = cursor.split(":")
+            start = int(offset)
+        except (ValueError, AttributeError) as exc:
+            raise InvalidCursorError(f"Invalid {label.lower()} body cursor.") from exc
+        if version != digest or start < 0 or start > len(body):
+            raise InvalidCursorError(f"{label} cursor is stale or out of range; restart get without a cursor.")
+
+    def page(end: int) -> dict:
+        return build(body[start:end], f"{digest}:{end}" if end < len(body) else None)
+
+    if size(page(len(body))) <= budget:
+        return page(len(body))
+    if size(page(start)) > budget:
+        raise ValueError(f"{label} response metadata exceeds the response budget; increase it.")
+    low, high = start, len(body) - 1
+    while low < high:
+        middle = (low + high + 1) // 2
+        if size(page(middle)) <= budget:
+            low = middle
+        else:
+            high = middle - 1
+    if low == start:
+        raise ValueError(f"{label} response budget cannot fit a body character; increase it.")
+    return page(low)
 
 
-def _notice(file_path: Path, budget: int) -> str:
-    return (
-        f"[TRUNCATED: this content exceeds the {budget:,}-character response budget and has been "
-        f"cut short below. Read the full content directly from disk at: {file_path}]\n\n"
-    )
+def fit_response(
+    result: dict,
+    cursor: str | None,
+    continuation: str,
+    *,
+    budget: int | None = None,
+    measure: Callable[[dict], int] | None = None,
+) -> dict:
+    """Fit a get-style result (with a string `body`) to the budget. A truncated page gains
+    `next_cursor` and a `notice` naming the continuation call; a complete page keeps its shape.
+    Bodies are never prefixed, so pages reassemble exactly."""
+    body = result["body"]
+
+    def build(text: str, next_cursor: str | None) -> dict:
+        page = {**result, "body": text}
+        if next_cursor is not None:
+            page["next_cursor"] = next_cursor
+            page["notice"] = (
+                f"[TRUNCATED: body continues. Call {continuation} for this record with cursor=next_cursor "
+                "(CLI: --cursor) for the next page.]"
+            )
+        return page
+
+    return body_page(body, cursor, build, budget=budget, measure=measure)
 
 
 def paginate(

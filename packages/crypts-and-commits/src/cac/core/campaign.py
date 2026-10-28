@@ -1,10 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import frontmatter
 
-from cac.core import frontmatter_utils, templates
+from cac.core import campaign_bosses, coupling, frontmatter_utils, templates
 from cac.core.config import (
     ARCHIVE_DIR_NAME,
     ARCHIVED_KEY,
@@ -88,6 +88,7 @@ class Campaign:
     status: str
     archived: bool
     body: str
+    bosses: list[str] = field(default_factory=list)
 
 
 def campaign_dir(root: Path) -> Path:
@@ -127,7 +128,15 @@ def list_archived_campaigns(root: Path) -> list[str]:
     return sorted(path.stem for path in directory.glob("*.md"))
 
 
-def list_campaigns_with_status(root: Path) -> list[tuple[str, str]]:
+def list_campaigns_with_status(root: Path, *, include_archived: bool = False) -> list[tuple[str, str]]:
+    if include_archived:
+        from cac.core import references
+
+        names = references.Inventory(root).names("campaign")
+        return [
+            (name, frontmatter.load(_existing_campaign_path(root, name)).get("status", DEFAULT_CAMPAIGN_STATUS))
+            for name in names
+        ]
     directory = campaign_dir(root)
     if not directory.is_dir():
         return []
@@ -182,29 +191,48 @@ def read_campaign(root: Path, name: str) -> Campaign:
 
 def read_metadata(root: Path, name: str) -> tuple[dict[str, Any], str]:
     post = frontmatter.load(_existing_campaign_path(root, name))
-    return dict(post.metadata), post.content
+    metadata = dict(post.metadata)
+    campaign_bosses.store(metadata, campaign_bosses.read(metadata))
+    return metadata, post.content
 
 
 def campaign_path(root: Path, name: str) -> Path:
-    """Return the on-disk path for a campaign, e.g. for use in a truncation fallback notice.
+    """Return the on-disk path for a campaign.
     Resolves the live location first, then the archive location, so this stays correct for an
     archived campaign too."""
     return _existing_campaign_path(root, name)
 
 
-def create_campaign(root: Path, name: str, body: str) -> Path:
+def create_campaign(root: Path, name: str, body: str, bosses: list[str] | None = None) -> Path:
+    from cac.core.recovery import Recovery
+
+    if bosses is not None and campaign_bosses.validate(bosses):
+        return coupling.create_group(root, name, body, bosses)
     path = _campaign_path(root, name)
+    coupling.preflight_campaign_creation(root, name)
     if path.exists():
         raise CampaignAlreadyExistsError(f"Campaign {name!r} already exists.")
-    path.parent.mkdir(parents=True, exist_ok=True)
     post = frontmatter.loads(templates.load(_TEMPLATE_PACKAGE, _TEMPLATE_FILENAME))
     post["name"] = name
     post.content = body
     frontmatter_utils.stamp_created(post, root)
-    write_post(root, path, post)
+    coupling._minimum_output(root, name, post)
+    with Recovery(root, [path]):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_campaign(root, path, post)
     return path
 
 
+def _write_campaign(root: Path, path: Path, post: frontmatter.Post) -> None:
+    campaign_bosses.store(post.metadata, campaign_bosses.read(post.metadata))
+    write_post(root, path, post)
+
+
+def set_bosses(root: Path, name: str, bosses: list[str], message: str) -> Path:
+    return coupling.set_bosses(root, name, bosses, message)
+
+
+@coupling.campaign_operation("update")
 def update_campaign(root: Path, name: str, body: str) -> Path:
     path = _existing_campaign_path(root, name)
     post = frontmatter.load(path)
@@ -214,17 +242,31 @@ def update_campaign(root: Path, name: str, body: str) -> Path:
             f"Campaign {name!r} is {status!r}; its body is locked once a campaign is completed or abandoned. "
             "The postmortem recorded at that transition is the closing record and cannot be rewritten."
         )
+    # Reactivation unlocks tactical notes, not previously recorded closing history.
+    lines = post.content.splitlines(keepends=True)
+    offset = 0
+    for line in lines:
+        if line.rstrip() == f"## {_LOG_SECTION}":
+            history = post.content[offset:].rstrip()
+            if ("### Completed - " in history or "### Bosses changed - " in history) and history not in body.replace(
+                "\r\n", "\n"
+            ):
+                raise CampaignNotMutableError("Preserve the recorded Log when editing a reactivated campaign.")
+            break
+        offset += len(line)
     post.content = body
     frontmatter_utils.stamp_updated(post, root)
-    write_post(root, path, post)
+    _write_campaign(root, path, post)
     return path
 
 
+@coupling.campaign_operation("delete")
 def delete_campaign(root: Path, name: str) -> Path:
     path = _existing_campaign_path(root, name)
     return frontmatter_utils.delete_post(root, path)
 
 
+@coupling.campaign_operation("open")
 def open_campaign(root: Path, name: str) -> Campaign:
     """Move a campaign from 'draft' or 'paused' to 'open'. Fails if a different campaign is
     already open - only one campaign may be open at a time."""
@@ -240,11 +282,13 @@ def open_campaign(root: Path, name: str) -> Campaign:
     return _apply_status(post, path, name, "open", root)
 
 
+@coupling.campaign_operation("pause")
 def pause_campaign(root: Path, name: str) -> Campaign:
     """Move a campaign from 'open' to 'paused'. Fails if the campaign has an open encounter."""
     return _guarded_transition(root, name, to_status="paused", action="pause", log_heading=None, message=None)
 
 
+@coupling.campaign_operation("complete")
 def complete_campaign(root: Path, name: str, message: str) -> Campaign:
     """Move a campaign from 'open' or 'paused' to 'completed'. Fails if the campaign has an open
     encounter. A postmortem message is required and is appended as a dated, attributed log entry
@@ -254,6 +298,7 @@ def complete_campaign(root: Path, name: str, message: str) -> Campaign:
     )
 
 
+@coupling.campaign_operation("abandon")
 def abandon_campaign(root: Path, name: str, message: str) -> Campaign:
     """Move a campaign from 'draft', 'open', or 'paused' to 'abandoned'. Fails if the campaign has
     an open encounter. A postmortem message is required and is appended as a dated, attributed log
@@ -263,6 +308,26 @@ def abandon_campaign(root: Path, name: str, message: str) -> Campaign:
     )
 
 
+@coupling.campaign_operation("reactivate")
+def reactivate_campaign(root: Path, name: str, message: str) -> Campaign:
+    """Return an unarchived completed campaign to open for review feedback."""
+    path = _existing_campaign_path(root, name)
+    post = frontmatter.load(path)
+    if post.get("status", DEFAULT_CAMPAIGN_STATUS) != "completed":
+        raise InvalidCampaignTransitionError(
+            f"Cannot reactivate campaign {name!r}: only completed campaigns may reopen."
+        )
+    if not message or not message.strip():
+        raise CampaignMessageRequiredError("A nonblank --message is required to reactivate a campaign.")
+    other = _other_open_campaign(root, exclude=name)
+    if other is not None:
+        raise AnotherCampaignOpenError(f"Cannot reactivate campaign {name!r}: campaign {other!r} is already open.")
+    if _open_encounter_names(root, name):
+        raise CampaignHasOpenEncountersError(f"Completed campaign {name!r} unexpectedly contains open encounters.")
+    return _apply_status(post, path, name, "open", root, log_heading="Reactivated", message=message)
+
+
+@coupling.campaign_operation("archive")
 def archive_campaign(root: Path, name: str) -> tuple[Campaign, list[str]]:
     """Archive a campaign and every one of its encounters: move them from the live
     campaigns/encounters directories into .sourcebook/archive/, mirroring the live layout, and set
@@ -298,6 +363,7 @@ def archive_campaign(root: Path, name: str) -> tuple[Campaign, list[str]]:
     post[ARCHIVED_KEY] = True
     new_path = archive_campaign_dir(root) / f"{name}.md"
     new_path.parent.mkdir(parents=True, exist_ok=True)
+    campaign_bosses.store(post.metadata, campaign_bosses.read(post.metadata))
     frontmatter_utils.write_post(root, new_path, post)
     path.unlink()
 
@@ -348,7 +414,7 @@ def _apply_status(
     if message:
         frontmatter_utils.append_log_entry(post, section=_LOG_SECTION, heading=log_heading, message=message, user=user)
     post["status"] = to_status
-    write_post(root, path, post)
+    _write_campaign(root, path, post)
     return _to_campaign(post, name)
 
 
@@ -375,6 +441,7 @@ def _to_campaign(post: frontmatter.Post, name: str) -> Campaign:
         status=post.get("status", DEFAULT_CAMPAIGN_STATUS),
         archived=post.get(ARCHIVED_KEY, False),
         body=post.content,
+        bosses=campaign_bosses.read(post.metadata),
     )
 
 
@@ -391,3 +458,9 @@ def _existing_campaign_path(root: Path, name: str) -> Path:
     if archived_path.exists():
         return archived_path
     raise CampaignNotFoundError(f"Campaign {name!r} does not exist.")
+
+
+def get_payload(root: Path, name: str) -> dict[str, Any]:
+    """The unbudgeted campaign_get result shared by CLI and MCP, before identity and budget fitting."""
+    metadata, body = read_metadata(root, name)
+    return {"metadata": metadata, "body": body, "boss_link": coupling.inspection(root, name)}

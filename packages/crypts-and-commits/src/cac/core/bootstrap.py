@@ -1,6 +1,7 @@
 import json
 import os
 import sysconfig
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -137,31 +138,50 @@ def initialize_codex_config(root: Path) -> tuple[Path, bool]:
         changed = True
 
     hook_registered = False
-    for group in pre_tool_use:
-        if group.get("matcher") != "^(Bash|apply_patch)$":
+    replacement = None
+    for group_index in range(len(pre_tool_use) - 1, -1, -1):
+        group = pre_tool_use[group_index]
+        matcher = group.get("matcher")
+        if matcher not in {"^(Bash|apply_patch)$", "^apply_patch$"}:
             continue
-        for hook in group.get("hooks", []):
+        group_hooks = group.get("hooks", [])
+        matching = []
+        for hook_index, hook in enumerate(group_hooks):
             if (
                 hook.get("type") == "command"
                 and hook.get("command") == _CODEX_GUARD_HOOK_COMMAND
                 and hook.get("command_windows") == _CODEX_GUARD_HOOK_WINDOWS_COMMAND
             ):
-                hook_registered = True
-                break
+                matching.append(hook_index)
+        if not matching:
+            continue
+        if matcher == "^apply_patch$" and not hook_registered:
+            hook_registered = True
+            matching.pop(0)  # Keep one existing registration, including its custom settings.
+        elif replacement is None:
+            replacement = deepcopy(group)
+            replacement["matcher"] = "^apply_patch$"
+            replacement["hooks"] = aot()
+            replacement["hooks"].append(deepcopy(group_hooks[matching[0]]))
+        for hook_index in reversed(matching):
+            group_hooks.pop(hook_index)
+            changed = True
+        if not group_hooks:
+            pre_tool_use.pop(group_index)
 
     if not hook_registered:
-        group = table()
-        group["matcher"] = "^(Bash|apply_patch)$"
-        group_hooks = aot()
-        group["hooks"] = group_hooks
-        hook = table()
-        hook["type"] = "command"
-        hook["command"] = _CODEX_GUARD_HOOK_COMMAND
-        hook["command_windows"] = _CODEX_GUARD_HOOK_WINDOWS_COMMAND
-        hook["timeout"] = 5
-        hook["statusMessage"] = "Checking .sourcebook guardrail"
-        group_hooks.append(hook)
-        pre_tool_use.append(group)
+        if replacement is None:
+            replacement = table()
+            replacement["matcher"] = "^apply_patch$"
+            replacement["hooks"] = aot()
+            hook = table()
+            hook["type"] = "command"
+            hook["command"] = _CODEX_GUARD_HOOK_COMMAND
+            hook["command_windows"] = _CODEX_GUARD_HOOK_WINDOWS_COMMAND
+            hook["timeout"] = 5
+            hook["statusMessage"] = "Checking .sourcebook patch targets"
+            replacement["hooks"].append(hook)
+        pre_tool_use.append(replacement)
         changed = True
 
     if changed:

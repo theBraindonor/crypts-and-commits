@@ -5,9 +5,19 @@ LORE_DIR_NAME = "lore"
 REGION_DIR_NAME = "region"
 CAMPAIGN_DIR_NAME = "campaigns"
 ENCOUNTER_DIR_NAME = "encounters"
+BOSS_DIR_NAME = "bosses"
+RUMOR_DIR_NAME = "rumors"
+BOSS_STATUSES = ("proposed", "available", "withdrawn", "vanquished")
+DEFAULT_BOSS_STATUS = "proposed"
+RUMOR_STATUSES = ("open", "promoted", "dismissed")
+DEFAULT_RUMOR_STATUS = "open"
+BOSS_NUMBER_PATTERN = re.compile(r"^b([0-9]+)-.+$")
+SHORT_REFERENCE_PATTERN = re.compile(r"^([bcer])([0-9]{3,})$")
+NUMBERED_NAME_PATTERN = re.compile(r"^([bcer])([0-9]+)-.+$")
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 RESERVED_NAMES = frozenset({".", ".."})
 WORLD_FILE_NAME = "world.md"
+WORLD_BRANCH_DEFAULTS = {"merge_target_branch": "main", "planning_branch": "planning"}
 SCHEMA_VERSION_KEY = "schema_version"
 SOURCEBOOK_SCHEMA_VERSION = 1
 MCP_CONFIG_FILE_NAME = ".mcp.json"
@@ -16,7 +26,7 @@ CODEX_CONFIG_FILE_NAME = ".codex/config.toml"
 CLAUDE_SKILLS_DIR_NAME = ".claude/skills"
 CODEX_SKILLS_DIR_NAME = ".agents/skills"
 SKILL_FILE_NAME = "SKILL.md"
-SKILL_NAMES = ("world-manager", "campaign-manager")
+SKILL_NAMES = ("world-manager", "world-planner", "campaign-manager")
 MCP_SERVER_NAME = "crypts-and-commits"
 CAC_MCP_SCRIPT_NAME = "cac-mcp"
 SUMMARY_KEY = "summary"
@@ -26,7 +36,7 @@ CREATED_ON_KEY = "created_on"
 UPDATED_BY_KEY = "updated_by"
 UPDATED_ON_KEY = "updated_on"
 RESPONSE_BUDGET = 20_000
-DOCS_RESPONSE_BUDGET = 40_000
+DOCS_RESPONSE_BUDGET = 64_000
 CAMPAIGN_STATUSES = ("draft", "open", "paused", "completed", "abandoned")
 DEFAULT_CAMPAIGN_STATUS = "draft"
 ENCOUNTER_STATUSES = ("draft", "reviewed", "open", "completed", "abandoned")
@@ -42,12 +52,16 @@ SEARCH_INDEX_OBJECT_TYPE_WORLD = "world"
 SEARCH_INDEX_OBJECT_TYPE_LORE = "lore"
 SEARCH_INDEX_OBJECT_TYPE_REGION = "region"
 SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN = "campaign"
+SEARCH_INDEX_OBJECT_TYPE_BOSS = "boss"
+SEARCH_INDEX_OBJECT_TYPE_RUMOR = "rumor"
 SEARCH_INDEX_OBJECT_TYPES = (
+    SEARCH_INDEX_OBJECT_TYPE_BOSS,
     SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER,
     SEARCH_INDEX_OBJECT_TYPE_WORLD,
     SEARCH_INDEX_OBJECT_TYPE_LORE,
     SEARCH_INDEX_OBJECT_TYPE_REGION,
     SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN,
+    SEARCH_INDEX_OBJECT_TYPE_RUMOR,
 )
 SEARCH_DEFAULT_MAX_RESULTS = 10
 SEARCH_DEFAULT_SNIPPET_TOKENS = 20

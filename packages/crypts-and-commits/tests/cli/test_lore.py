@@ -10,6 +10,26 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("operation", ["create", "update"])
+def test_body_file_still_requires_summary(tmp_path: Path, operation: str) -> None:
+    from cac.core import lore
+
+    if operation == "update":
+        lore.create_lore(tmp_path, "file-input", "Original.", "Original summary.")
+    before = lore.read_metadata(tmp_path, "file-input") if operation == "update" else None
+    source = tmp_path / "body.md"
+    source.write_text("Replacement.", encoding="utf-8")
+
+    result = runner.invoke(app, ["lore", operation, "file-input", "--body-file", str(source)])
+
+    assert result.exit_code == 1
+    assert "summary is required" in result.output
+    if before is None:
+        assert "file-input" not in lore.list_lore(tmp_path)
+    else:
+        assert lore.read_metadata(tmp_path, "file-input") == before
+
+
 def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(root: Path) -> str:
         raise git_utils.GitIdentityError("git user.name is not configured.")
@@ -436,14 +456,14 @@ def test_disable_missing_lore_fails() -> None:
 
 
 def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    runner.invoke(app, ["lore", "create", "conventions", "--body", "x" * 200, "--summary", "Summary."])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    runner.invoke(app, ["lore", "create", "conventions", "--body", "x" * 2000, "--summary", "Summary."])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 800)
 
     result = runner.invoke(app, ["lore", "get", "conventions"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    assert str(tmp_path / ".sourcebook" / "lore" / "conventions.md") in result.output
+    assert "[TRUNCATED" in result.output and "next_cursor: " in result.output
+    assert ".sourcebook" not in result.output
 
 
 def test_list_pages_under_budget_and_cursor_resumes(monkeypatch: pytest.MonkeyPatch) -> None:

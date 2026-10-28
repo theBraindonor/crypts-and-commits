@@ -9,6 +9,28 @@ def test_all_domain_tools_are_registered() -> None:
     tool_names = {tool.name for tool in tools}
 
     assert tool_names == {
+        "rumor_list",
+        "rumor_get",
+        "rumor_create",
+        "rumor_update",
+        "rumor_promote",
+        "rumor_dismiss",
+        "rumor_reopen",
+        "rumor_archive",
+        "rumor_renumber",
+        "boss_create",
+        "boss_record",
+        "boss_candidates",
+        "boss_assign_campaign",
+        "boss_get",
+        "boss_list",
+        "boss_update",
+        "boss_make_available",
+        "boss_withdraw",
+        "boss_reactivate",
+        "boss_archive",
+        "boss_assign_dependency",
+        "boss_unassign_dependency",
         "world_get",
         "world_set",
         "world_set_body",
@@ -36,6 +58,7 @@ def test_all_domain_tools_are_registered() -> None:
         "campaign_get",
         "campaign_list",
         "campaign_create",
+        "campaign_set_bosses",
         "campaign_update",
         "campaign_delete",
         "campaign_open",
@@ -43,6 +66,7 @@ def test_all_domain_tools_are_registered() -> None:
         "campaign_complete",
         "campaign_abandon",
         "campaign_archive",
+        "campaign_reactivate",
         "encounter_get",
         "encounter_list",
         "encounter_order",
@@ -63,3 +87,9 @@ def test_all_domain_tools_are_registered() -> None:
         "docs_list",
         "docs_get",
     }
+
+
+def test_domain_get_tools_accept_continuation_cursor() -> None:
+    tools = {tool.name: tool for tool in asyncio.run(mcp.list_tools())}
+    for name in ("world_get", "lore_get", "region_get", "campaign_get", "boss_get", "encounter_get", "rumor_get"):
+        assert "cursor" in tools[name].input_schema["properties"], name

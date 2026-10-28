@@ -44,7 +44,7 @@ def test_get_campaign_returns_status_and_body(tmp_path: Path) -> None:
 
     result = _tool_by_name(tools, "get_campaign").invoke({"name": "opening-gambit"})
 
-    assert result == {"name": "opening-gambit", "status": "open", "body": "Campaign body."}
+    assert result == {"name": "opening-gambit", "status": "open", "bosses": [], "body": "Campaign body."}
 
 
 def test_get_campaign_missing_raises(tmp_path: Path) -> None:
@@ -248,3 +248,33 @@ def test_build_tools_aggregates_every_domain(tmp_path: Path) -> None:
         "list_docs",
         "get_doc",
     }
+
+
+def test_search_tool_boss_filter_and_stale_snapshot(tmp_path):
+    from cac.core import boss, search_index, world
+    from demo_api.chat.tools import search
+
+    world.initialize_world(tmp_path)
+    boss.create_boss(tmp_path, "b001-goal", "uniquebossbody", "uniquebosssummary")
+    search_index.rebuild_index(tmp_path)
+    tool = search.build_tools(tmp_path)[0]
+    result = tool.invoke({"phrase": "uniquebosssummary", "object_type": "boss"})
+    assert result["available"] is True and result["hits"][0]["name"] == "b001-goal"
+    path = boss.boss_path(tmp_path, "b001-goal")
+    path.write_bytes(path.read_bytes() + b"\nExternal change")
+    result = tool.invoke({"phrase": "uniquebossbody"})
+    assert result["available"] is False and result["stale"] is True
+    assert result["hits"] == [] and "developer" in result["diagnostic"]["recovery"]
+
+
+def test_campaign_read_tool_exposes_complete_group(tmp_path):
+    from cac.core import boss, campaign, world
+    from demo_api.chat.tools import campaigns
+
+    world.initialize_world(tmp_path)
+    for name in ("b001-one", "b002-two"):
+        boss.create_boss(tmp_path, name, "Design", "Summary")
+        boss.make_available(tmp_path, name)
+    campaign.create_campaign(tmp_path, "c001-work", "Tactics", ["b002", "b001"])
+    getter = next(tool for tool in campaigns.build_tools(tmp_path) if tool.name == "get_campaign")
+    assert getter.invoke({"name": "c001-work"})["bosses"] == ["b001-one", "b002-two"]

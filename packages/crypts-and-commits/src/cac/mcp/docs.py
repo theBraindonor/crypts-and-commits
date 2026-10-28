@@ -18,12 +18,13 @@ def docs_list(cursor: str | None = None) -> dict[str, Any]:
 
 
 @mcp.tool()
-def docs_get(name: str) -> dict[str, Any]:
+def docs_get(name: str, cursor: str | None = None) -> dict[str, Any]:
     """Show a registered doc's full body - e.g. docs_get("workflow") for the Workflow Reference
-    Guide. Body is truncated under a dedicated, larger docs response budget (docs are a small
-    curated set meant to be read whole, not unbounded .sourcebook content); read the file
-    directly at the reported path if truncated."""
-    summary = docs_core.doc_summary(name)
-    body = docs_core.read_doc(name)
-    body = budget_core.truncate_body(body, docs_core.doc_source_path(name), budget=DOCS_RESPONSE_BUDGET)
-    return {"name": name, "summary": summary, "body": body}
+    Guide. Body is fitted to a dedicated, larger docs response budget (docs are a small curated
+    set meant to be read whole); a truncated result carries notice and next_cursor - call again
+    with cursor=next_cursor to continue."""
+    payload = {"name": name, "summary": docs_core.doc_summary(name), "body": docs_core.read_doc(name)}
+    # The docs budget has always counted body characters, so full guides keep fitting whole.
+    return budget_core.fit_response(
+        payload, cursor, "docs_get", budget=DOCS_RESPONSE_BUDGET, measure=lambda page: len(page["body"])
+    )

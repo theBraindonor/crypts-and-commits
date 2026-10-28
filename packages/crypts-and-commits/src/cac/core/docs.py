@@ -20,23 +20,41 @@ class DocEntry:
 
 
 _DOCS: dict[str, DocEntry] = {
+    "branching-guide": DocEntry(
+        name="branching-guide",
+        filename="branching-guide.md",
+        summary=(
+            "The Branching Guide: configured planning, assignment and execution branches, "
+            "number allocation and collision checks, integration, review fixes and legacy work. "
+            "Read for a worked Git workflow; workflow remains the lifecycle authority."
+        ),
+    ),
+    "tool-reference": DocEntry(
+        name="tool-reference",
+        filename="tool-reference.md",
+        summary=(
+            "The Tool Reference: MCP tool and CLI command names, arguments, result and identity shapes, "
+            "errors, response budgets, cursor continuation and short-reference grammar. "
+            "Read when you need an exact contract; workflow owns the rules and procedure."
+        ),
+    ),
     "workflow": DocEntry(
         name="workflow",
         filename="workflow.md",
         summary=(
             "The Workflow Reference Guide: the .sourcebook domain model's structure, status "
-            "lifecycles, cross-type connections, and the encounter review/approval procedure. "
-            "Read this when a task needs the exact rule, not just a summary of it."
+            "lifecycles and guards, cross-type connections, approval gates, review flow and "
+            "planning/branch procedure. Read this when a task needs the exact rule, not just a summary of it."
         ),
     ),
     "migration-guide": DocEntry(
         name="migration-guide",
         filename="migration-guide.md",
         summary=(
-            "The Sourcebook Migration Guide: the current sourcebook schema version, the generic "
-            "guardrail-suspend/restore procedure a migration requires, and the version-specific steps "
-            "needed to bring an older sourcebook fully onto the current schema. Read this when "
-            "world.md's schema_version is behind the version cac expects."
+            "The Sourcebook Migration Guide: library upgrades, Boss Edition workflow adoption, "
+            "targeted local instruction updates and developer-run skill/hook redeployment, "
+            "separate from schema migration and its guardrail-suspend/restore procedure. "
+            "Read before upgrading an existing project, even when its schema is current."
         ),
     ),
 }
@@ -58,7 +76,7 @@ def read_doc(name: str) -> str:
 
 
 def doc_source_path(name: str) -> Path:
-    """Return the packaged doc's real filesystem path, for a truncation fallback notice."""
+    """Return the packaged doc's real filesystem path."""
     entry = _entry(name)
     return Path(str(resources.files(_DOC_RESOURCE_PACKAGE) / entry.filename))
 

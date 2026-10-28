@@ -9,6 +9,27 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("terminal", ["completed", "abandoned"])
+def test_body_file_cannot_update_terminal_campaign(tmp_path: Path, terminal: str) -> None:
+    from cac.core import campaign
+
+    campaign.create_campaign(tmp_path, "closed", "Original.")
+    if terminal == "completed":
+        campaign.open_campaign(tmp_path, "closed")
+        campaign.complete_campaign(tmp_path, "closed", "Done.")
+    else:
+        campaign.abandon_campaign(tmp_path, "closed", "Cancelled.")
+    before = campaign.read_metadata(tmp_path, "closed")
+    source = tmp_path / "replacement.md"
+    source.write_text("Replacement.", encoding="utf-8")
+
+    result = runner.invoke(app, ["campaign", "update", "closed", "--body-file", str(source)])
+
+    assert result.exit_code == 1
+    assert "locked" in result.output
+    assert campaign.read_metadata(tmp_path, "closed") == before
+
+
 def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(root: Path) -> str:
         raise git_utils.GitIdentityError("git user.name is not configured.")
@@ -47,6 +68,24 @@ def test_list_reports_no_campaign_files() -> None:
 
     assert result.exit_code == 0
     assert "No campaign files found." in result.output
+
+
+def test_list_archived_allocations_and_literal_status(tmp_path):
+    import frontmatter
+    from cac.core import campaign
+
+    campaign.create_campaign(tmp_path, "c999-old", "History")
+    campaign.abandon_campaign(tmp_path, "c999-old", "Done")
+    campaign.archive_campaign(tmp_path, "c999-old")
+    path = campaign.campaign_path(tmp_path, "c999-old")
+    post = frontmatter.load(path)
+    post["status"] = "[literal]"
+    path.write_text(frontmatter.dumps(post), encoding="utf-8")
+    assert "c999-old" not in runner.invoke(app, ["campaign", "list"]).output
+    result = runner.invoke(app, ["campaign", "list", "--include-archived"])
+    assert result.exit_code == 0, result.output
+    assert "c999-old ([literal])" in result.output
+    assert runner.invoke(app, ["campaign", "list", "--cursor", "bad"]).exit_code == 1
 
 
 def test_create_with_body_option(tmp_path: Path) -> None:
@@ -363,21 +402,21 @@ def test_update_fails_once_campaign_is_terminal(tmp_path: Path, terminal_command
 
 
 def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "x" * 200])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    runner.invoke(app, ["campaign", "create", "opening-gambit", "--body", "x" * 4000])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 1400)
 
     result = runner.invoke(app, ["campaign", "get", "opening-gambit"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    assert str(tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md") in result.output
+    assert "[TRUNCATED" in result.output and "next_cursor: " in result.output
+    assert ".sourcebook" not in result.output
 
 
 def test_list_pages_under_budget_and_cursor_resumes(monkeypatch: pytest.MonkeyPatch) -> None:
     runner.invoke(app, ["campaign", "create", "alpha", "--body", "b"])
     runner.invoke(app, ["campaign", "create", "beta", "--body", "b"])
     runner.invoke(app, ["campaign", "create", "gamma", "--body", "b"])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 20)
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 200)
 
     first = runner.invoke(app, ["campaign", "list"])
 
@@ -472,3 +511,31 @@ def test_get_and_list_after_archiving(tmp_path: Path) -> None:
     assert get_result.exit_code == 0
     assert "text" in get_result.output
     assert "opening-gambit" not in list_result.output
+
+
+def test_repeatable_boss_input_body_file_and_draft_set_command(tmp_path):
+    from cac.core import boss, campaign, world
+
+    world.initialize_world(tmp_path)
+    for name in ("b001-one", "b002-two"):
+        boss.create_boss(tmp_path, name, "[design]", "Summary")
+        boss.make_available(tmp_path, name)
+    source = tmp_path / "campaign notes.md"
+    source.write_text("[tactical] café", encoding="utf-8")
+    result = runner.invoke(
+        app, ["campaign", "create", "c001-work", "--body-file", str(source), "--boss", "b002", "--boss", "b001"]
+    )
+    assert result.exit_code == 0, result.output
+    assert campaign.read_campaign(tmp_path, "c001-work").bosses == ["b001-one", "b002-two"]
+    result = runner.invoke(app, ["campaign", "get", "c001"])
+    assert result.exit_code == 0 and "[tactical] café" in result.output
+    before = campaign.campaign_path(tmp_path, "c001-work").read_bytes()
+    assert runner.invoke(app, ["campaign", "set-bosses", "c001"]).exit_code != 0
+    assert campaign.campaign_path(tmp_path, "c001-work").read_bytes() == before
+    result = runner.invoke(app, ["campaign", "set-bosses", "c001", "--boss", "b001", "-m", "[reason] Narrow"])
+    assert result.exit_code == 0, result.output
+    assert campaign.read_campaign(tmp_path, "c001-work").bosses == ["b001-one"]
+    assert "[reason] Narrow" in runner.invoke(app, ["campaign", "get", "c001"]).output
+    result = runner.invoke(app, ["campaign", "set-bosses", "c001", "-m", "Clear"])
+    assert result.exit_code == 0, result.output
+    assert campaign.read_campaign(tmp_path, "c001-work").bosses == []

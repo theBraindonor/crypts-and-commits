@@ -4,541 +4,760 @@
 
 ### Crypts and Commits
 
-Crypts and Commits ("CAC") is a Coding Assistant Continuity Framework: a way
-of structuring collaboration between a developer and an AI coding assistant
-using a tabletop-gaming metaphor. The developer plays Game Master,
-establishing context, making judgment calls, and retaining final authority
-over the session; the assistant plays through that context to get work done.
-The `cac` CLI and its MCP server are how an assistant records project context
-and tracks its own work across sessions, so continuity survives context
-resets and session boundaries instead of being rebuilt from scratch each
-time. `.sourcebook/` is where that context and work history live.
+Crypts and Commits ("CAC") preserves a coding assistant's context and work
+history across sessions in a managed sourcebook. The developer is the Game
+Master: they set context, make decisions, and keep final authority. Assistants
+act on the sourcebook only through CAC's MCP server or its `cac` CLI.
 
 ### This document
 
-This guide is the single source of truth for the structure of the `.sourcebook`
-domain model: the five content types it holds, the attributes and body shape
-of each, the workflow/status lifecycle each one follows (where it has one),
-and how the types connect to one another. It exists so that implementation-
-specific agent skills (Claude Code, Codex, and any future assistant flavor)
-can be authored *against* this shared spec instead of one flavor being
-treated as the de facto "primary" and the others hand-forked from it.
+This guide is the source of truth for the sourcebook's domain model, status
+lifecycles and guards, cross-type connections, approval gates, and agent
+procedure. The packaged agent skills are written against it. Update it in the
+same change as any observable change to those rules.
 
-This is a reference to the domain model's current, real behavior - not a
-design proposal and not a historical record of how it used to work. When the
-model changes, this document should change with it.
+It is paired with the [Tool Reference](tool-reference.md), which owns MCP tool
+and CLI command names, arguments, result shapes, errors, response budgets, and
+cursor continuation. This guide names tools where a procedure needs them, but
+it does not repeat their contracts.
 
-This guide is itself one of the framework's packaged "docs" (see "Cross-cutting:
-priming, search, and docs" below) - retrievable in full, on demand, via
-`docs_get("workflow")` (MCP) or `cac docs get workflow` (CLI), rather than
-needing to be pasted into a consuming project's `CLAUDE.md`/`AGENTS.md`.
-
-Two interaction surfaces exist over this model: the `crypts-and-commits` MCP
-server (the primary surface for an agent session) and the `cac` CLI (a
-fallback for when the MCP server isn't available, and the surface a human
-developer uses directly). Both expose the same operations; this guide notes
-the MCP tool name and CLI command for each, but describes the model itself,
-not step-by-step usage instructions - those live in the `world-manager` and
-`campaign-manager` agent skills.
+Read this guide through `docs_get("workflow")` / `cac docs get workflow`, and
+the reference through `docs_get("tool-reference")` / `cac docs get
+tool-reference`. Agents do not need to read either document whole during
+routine orientation; see "Priming and the disclosure ladder" for when to pull
+them in.
 
 ## Domain model at a glance
 
-Five content types, each stored as a markdown file with YAML frontmatter
-under `.sourcebook/`:
+Seven record types, each Markdown with YAML frontmatter, live in the sourcebook:
 
-| Type      | Cardinality           | Has a status lifecycle? |
-|-----------|------------------------|--------------------------|
-| World     | Singleton              | No                       |
-| Lore      | Many                   | No (simple enabled/disabled flag, not a guarded lifecycle) |
-| Region    | Many                   | No                       |
-| Campaign  | Many (one active/`open` at a time) | Yes: `draft` -> `open` -> `paused`/`completed`/`abandoned` |
-| Encounter | Many, nested under a campaign | Yes: `draft` -> `reviewed` -> `open` -> `completed`/`abandoned` |
+| Type | Scope | Lifecycle |
+| --- | --- | --- |
+| World | Singleton | None |
+| Lore | Many | Enabled or disabled |
+| Region | Many | None |
+| Boss | Project goals | proposed, available, withdrawn, vanquished |
+| Campaign | Initiatives; at most one open per checkout | draft, open, paused, completed, abandoned |
+| Encounter | Units of work within a campaign | draft, reviewed, open, completed, abandoned |
+| Rumor | Backlog notes from anywhere | open, promoted, dismissed |
 
-### How the types connect
+Every record carries common audit stamps (`created_by`, `created_on`,
+`updated_by`, `updated_on`).
 
-```
-World  <---- assign/unassign ---->  Lore  <---- assign/unassign ---->  Region
-                                                                           ^
-                                                                           |
-                                                                      assign/unassign
-                                                                           |
-Campaign  ---- contains ---->  Encounter  ---- assigned to ---------------+
-                                    ^  |
-                                    |  +---- depends_on ---> Encounter (same campaign)
-                                    +---------------------------------------+
-```
+### Connections
 
-- **World <-> Lore** (bidirectional): assigning lore to the world records the
-  link on *both* sides - the world's `assigned_lore` list and the lore's
-  `assigned_to_world` flag.
-- **Region <-> Lore** (bidirectional): assigning lore to a region records the
-  link on both sides - the region's `assigned_lore` list and the lore's
-  `assigned_regions` list. A lore entry may be assigned to more than one
-  region.
-- **Campaign -> Encounter** (containment): an encounter always belongs to
-  exactly one campaign; it is stored nested under that campaign.
-- **Encounter -> Region** (one-directional): recorded only on the encounter's
-  `regions` list. A region has no back-reference to the encounters assigned
-  to it. Region assignment is only permitted while the encounter is `draft`,
-  and at least one region must be assigned before `encounter_review` will
-  succeed.
-- **Encounter -> Encounter** (`depends_on`, one-directional storage): a direct
-  prerequisite is recorded only on the *dependent* encounter's `depends_on`
-  list, within the same campaign. The reverse ("what depends on me") is never
-  stored - it's computed on demand (e.g. to block deleting an encounter other
-  encounters still depend on). Dependency changes are only permitted while
-  the dependent encounter is `draft`; self-dependencies and cycles are
-  rejected, and an abandoned encounter cannot be assigned as a prerequisite.
+- World and lore links are reciprocal: `world.assigned_lore` and
+  `lore.assigned_to_world`.
+- Region and lore links are reciprocal: `region.assigned_lore` and
+  `lore.assigned_regions`. One lore entry can serve several regions.
+- An encounter's applicable lore is the union of enabled world-assigned lore and
+  the enabled lore of every region the encounter is assigned to. It is resolved
+  on demand and never stored on the encounter. Lore summaries route; full lore
+  bodies govern review.
+- A campaign contains its encounters. An encounter's `regions` list is
+  one-directional: regions keep no back-reference to encounters.
+- An encounter's `depends_on` lists direct prerequisites within the same
+  campaign, stored only on the dependent. Reverse dependents are computed when
+  needed, for example to block deletion.
+- Bosses and campaigns link reciprocally: a campaign lists its `bosses`, and
+  each linked boss names its current `campaign`. A boss's `depends_on` lists
+  prerequisite bosses.
+- A promoted rumor's `boss` names the boss it was linked to, stored only on
+  the rumor. Bosses keep no back-reference, and many rumors may share one.
 
-Lore's effect on an encounter is resolved, not stored directly on the
-encounter: the applicable set for a given encounter is world-assigned lore
-*union* the lore assigned to every region that encounter is assigned to
-(enabled entries only).
+No relationship grants permission to bypass a lifecycle guard.
 
 ## World
 
-The project-level summary: goals, purpose, and domain orientation. Read first
-to prime context for any other work. Exactly one exists per project.
+The world is the project's orientation record, read first. Its body is free
+Markdown and it has no status. Its frontmatter holds `name`, `assigned_lore`,
+`schema_version`, the branch settings below, and the audit stamps.
 
-- **Frontmatter**: `name`, `assigned_lore` (list), `schema_version` (int -
-  the `.sourcebook` domain model's format version; see "Sourcebook schema
-  versioning" below), plus the common
-  `created_by`/`created_on`/`updated_by`/`updated_on` stamps applied on every
-  write.
-- **Body**: free-form markdown summary.
-- **Status**: none - the world is never in a lifecycle state.
-- **Connections**: `assigned_lore` <-> each listed lore entry's
-  `assigned_to_world` flag (see above).
+### Branch settings
 
-| Operation | MCP tool | CLI fallback |
-|---|---|---|
-| Read | `world_get` | `cac world get` |
-| Set a frontmatter attribute | `world_set` | `cac world set` |
-| Replace the body | `world_set_body` | `cac world set-body` |
-| Assign/unassign lore | (via lore's tools, below - world is the "target" object) | `cac lore assign-world` / `unassign-world` |
+| Attribute | Effective default | Purpose |
+| --- | --- | --- |
+| `merge_target_branch` | `main` | Where accepted work is integrated |
+| `planning_branch` | `planning` | Where goals, rumor triage and archival happen |
+
+New worlds store these defaults. An older world without them reports the
+defaults in returned data only: reads and unrelated writes never backfill the
+keys or change audit stamps. An explicitly stored value is preserved even when
+it is empty or malformed, because the default depends on the key being absent,
+not on the value being truthy. If a configured value is unusable, ask the
+developer to reconcile it.
+
+Setting a branch name writes only that attribute and the audit stamps. CAC does
+not validate it as a Git branch name. A setting does not prove that the branch
+exists, and no endpoint behaves differently based on branches. These fields are
+additive and do not change the schema version.
 
 ### Sourcebook schema versioning
 
-`schema_version` is stamped onto every `world.md` `cac bootstrap init`
-creates from scratch, set to the format version the installed `cac` package
-currently expects. A sourcebook created before this attribute existed has
-none; a missing value is treated as version 1, the format that existed
-before versioning was introduced.
+Developer-run bootstrap stamps a new world with the installed schema version. A
+world with no `schema_version` is version 1. When bootstrap runs on an existing
+sourcebook, it reports whether the stored version is behind or ahead of the
+installed library, and never rewrites the stored version.
 
-`cac bootstrap init` compares an *existing* `world.md`'s `schema_version`
-against the installed `cac`'s expected version whenever it runs against an
-already-bootstrapped project, and reports if the sourcebook is behind (needs
-migration) or ahead (the installed `cac` is older than the sourcebook and
-should itself be upgraded). Bootstrap only reports this - it never edits
-`schema_version` on an existing file.
-
-Migrating a behind sourcebook to the current version is the coding
-assistant's job, via the `world-manager` skill, guided by the `migration-guide`
-doc (`docs_get("migration-guide")` / `cac docs get migration-guide` - see
-"Cross-cutting: priming, search, and docs" below). That doc states the
-current schema version, a generic procedure for temporarily suspending and
-then restoring the project's `.sourcebook`-is-MCP/CLI-only guardrail (a real
-migration is likely to need direct file edits the generic per-object setters
-can't perform), and one `## Migrating from version N to N+1` section per
-schema change. There is deliberately no separate migration tool - the agent
-reads the guide and makes the changes itself, then records completion with
-`world_set("schema_version", ...)`.
+If the sourcebook is ahead, upgrade the library. If it is behind, use
+world-manager and the migration guide (`docs_get("migration-guide")`), which
+states the current version and any upgrade steps. There is no migration tool.
+Follow the guide's procedure for explicit approval, capture, temporary
+guardrail suspension, unconditional restoration and verification before
+setting the new `schema_version`. Never assume that bootstrap migrates records,
+and never suspend a guardrail without the developer's approval.
 
 ## Lore
 
-A standard, convention, or best practice checked against an encounter's Plan
-before that encounter moves from `draft` to `reviewed`. World-assigned lore
-applies globally, to every encounter; region-assigned lore only applies to
-encounters assigned to that region.
+Lore is a standard, convention or best practice that an encounter is checked
+against before it moves from `draft` to `reviewed`. World-assigned lore applies
+to every encounter; region-assigned lore applies only to encounters assigned to
+that region.
 
-- **Frontmatter**: `name`, `enabled` (bool), `assigned_to_world` (bool),
-  `assigned_regions` (list), `summary` (routing summary, max 500 characters,
-  required alongside every body write), plus the common stamps.
-- **Body**: the governing rule text - the authoritative content a plan is
-  checked against. The `summary` is a routing signal only, never a
-  substitute for it.
-- **Status**: not a guarded lifecycle - just an `enabled`/`disabled` flag that
-  can be toggled at any time. Disabled lore is skipped when resolving the
-  applicable set for an encounter.
-- **Connections**: `assigned_to_world` <-> world's `assigned_lore`;
-  `assigned_regions` <-> each listed region's `assigned_lore`.
-
-| Operation | MCP tool | CLI fallback |
-|---|---|---|
-| Read | `lore_get` | `cac lore get` |
-| List | `lore_list` | `cac lore list` |
-| Create | `lore_create` | `cac lore create` |
-| Replace body (+ summary) | `lore_update` | `cac lore update` |
-| Set summary only | `lore_set_summary` | `cac lore set-summary` |
-| Delete | `lore_delete` | `cac lore delete` |
-| Enable / disable | `lore_enable` / `lore_disable` | `cac lore enable` / `disable` |
-| Assign/unassign world | `lore_assign_world` / `lore_unassign_world` | `cac lore assign-world` / `unassign-world` |
-| Assign/unassign region | `lore_assign_region` / `lore_unassign_region` | `cac lore assign-region` / `unassign-region` |
+- **Frontmatter:** `name`, `enabled`, `assigned_to_world`, `assigned_regions`,
+  `summary`, and the audit stamps. The summary is a routing signal of at most
+  500 characters, required with every body write.
+- **Body:** the governing rule text. It is what a plan is checked against; the
+  summary never substitutes for it.
+- **Status:** an `enabled` flag that can be toggled at any time. Disabled lore
+  is skipped when resolving applicable lore.
 
 ## Region
 
-A documented path within the repository that needs its own conventions,
-tech stack, or tooling described (e.g. "frontend" vs. "backend" in a web
-app), and that lore can be scoped to.
+A region is a documented path in the repository that needs its own
+conventions, stack or tooling described (for example "frontend" and "backend"),
+and that lore can be scoped to.
 
-- **Frontmatter**: `name`, `path` (the repository path this region covers -
-  **not validated against the filesystem**; regions may be aspirational),
-  `assigned_lore` (list), `summary` (routing summary, same required-alongside-
-  body rule as lore), plus the common stamps.
-- **Body**: free-form documentation of the region.
-- **Status**: none.
-- **Connections**: `assigned_lore` <-> each listed lore entry's
-  `assigned_regions`. Regions have no stored link to the encounters assigned
-  to them - that link lives only on the encounter side (see below).
-
-| Operation | MCP tool | CLI fallback |
-|---|---|---|
-| Read | `region_get` | `cac region get` |
-| List | `region_list` | `cac region list` |
-| Create | `region_create` | `cac region create` |
-| Replace body (+ summary) | `region_update` | `cac region update` |
-| Set summary only | `region_set_summary` | `cac region set-summary` |
-| Set path | `region_set_path` | `cac region set-path` |
-| Delete | `region_delete` | `cac region delete` |
-| Assign/unassign lore | (via lore's tools, above - region is the "target" object) | `cac lore assign-region` / `unassign-region` |
+- **Frontmatter:** `name`, `path`, `assigned_lore`, `summary` (same rule as
+  lore), and the audit stamps. The path is not validated against the
+  filesystem, so a region may describe planned work.
+- **Body:** free-form documentation of the region.
+- **Status:** none. Encounter assignments are recorded only on the encounter.
 
 ## Campaign
 
-A long-running initiative, analogous to a Jira Epic (e.g. "Create the MVP"),
-expected to span many encounters before completion.
+A campaign is a long-running initiative, similar to an epic, expected to span
+many encounters.
 
-- **Frontmatter**: `name`, `status`, `archived` (bool, default `false` - see "Archiving" below), plus the common stamps.
-- **Body**: free-form description of the initiative. Once a campaign reaches
-  a terminal status, a dated, attributed **postmortem log entry** is appended
-  to the body and the body is locked (`campaign_update`/`cac campaign update`
-  will fail).
-- **Status lifecycle**:
+- **Frontmatter:** `name`, `status`, the canonical `bosses` list (empty for a
+  bossless campaign), `archived` (default false), and the audit stamps.
+- **Body:** a free-form description of the tactics. When the campaign is
+  completed or abandoned, a dated and attributed postmortem entry is appended
+  and the body locks. Explicit reactivation can reopen a completed campaign.
 
-  | From | To | Trigger | Notes |
-  |---|---|---|---|
-  | `draft` | `open` | `campaign_open` | Only one campaign may be `open` at a time; fails naming the other open campaign otherwise. |
-  | `draft` | `abandoned` | `campaign_abandon` | Message (postmortem) required. |
-  | `open` | `paused` | `campaign_pause` | Fails if the campaign has an `open` encounter. |
-  | `open` | `completed` | `campaign_complete` | Fails if the campaign has an `open` encounter. Message (postmortem) required; locks the body. |
-  | `open` | `abandoned` | `campaign_abandon` | Same open-encounter guard and required-message/locking behavior as `complete`. |
-  | `paused` | `open` | `campaign_open` | Same only-one-open-campaign guard as `draft` -> `open`. |
-  | `paused` | `completed` | `campaign_complete` | Same guard/message/locking as `open` -> `completed`. |
-  | `paused` | `abandoned` | `campaign_abandon` | Same guard/message/locking as `open` -> `abandoned`. |
-  | `completed` | - | - | Terminal; no further transitions. |
-  | `abandoned` | - | - | Terminal; no further transitions. |
+| From | To | Trigger | Guard and effect |
+| --- | --- | --- | --- |
+| draft | open | open | Only one campaign may be open; the call names the other open campaign. |
+| draft | abandoned | abandon | Postmortem message required. |
+| open | paused | pause | Fails while any encounter is open. |
+| open | completed | complete | Fails while any encounter is open. Postmortem required; locks the body. |
+| open | abandoned | abandon | Same open-encounter guard, postmortem and lock. |
+| paused | open | open | Same single-open guard. |
+| paused | completed | complete | Same as open to completed. |
+| paused | abandoned | abandon | Same as open to abandoned. |
+| completed | open | reactivate | Unarchived only; nonblank reason and single-open guard. Keeps closing history. |
+| abandoned | none | none | Terminal. |
 
-  ```mermaid
-  stateDiagram-v2
-      [*] --> draft
-      draft --> open : open
-      draft --> abandoned : abandon
-      open --> paused : pause
-      open --> completed : complete
-      open --> abandoned : abandon
-      paused --> open : open
-      paused --> completed : complete
-      paused --> abandoned : abandon
-      completed --> [*]
-      abandoned --> [*]
-  ```
+```mermaid
+stateDiagram-v2
+    [*] --> draft
+    draft --> open : open
+    draft --> abandoned : abandon
+    open --> paused : pause
+    open --> completed : complete
+    open --> abandoned : abandon
+    paused --> open : open
+    paused --> completed : complete
+    paused --> abandoned : abandon
+    completed --> open : reactivate
+    completed --> [*]
+    abandoned --> [*]
+```
 
-- **Connections**: contains its encounters (by directory nesting); an
-  encounter records its parent campaign's name on its own frontmatter.
+A campaign can be deleted only when its `bosses` list (current or historical
+membership) is empty and no boss claims it. Deletion is never a rollback or
+renumbering shortcut.
 
 ### Archiving
 
-`archived` is an orthogonal flag, not a status - archiving a campaign never
-changes its `status`, and a `completed`/`abandoned` campaign stays exactly
-that after archiving. It exists to move finished work out of the way of the
-active `campaigns/`/`encounters/<campaign>/` directories, into
-`.sourcebook/archive/`, once nothing about it is still in flight.
+`archived` is a flag, not a status. Archiving never changes the campaign's
+status. It moves finished work out of the live campaign and encounter
+directories into the sourcebook's archive area, keeping the same layout one
+level down.
 
-Guard, enforced by `campaign_archive`/`cac campaign archive`: the campaign's
-`status` must already be `completed` or `abandoned`; it must not already be
-archived; and **every** encounter under it must also be `completed` or
-`abandoned` - a strictly broader check than `complete`/`pause`/`abandon`'s
-own open-encounter guard, which only blocks on an `open` encounter and lets
-`draft`/`reviewed` ones through. There is no separate encounter-level archive
-operation - archiving a campaign archives every one of its encounters in the
-same call, atomically, each getting `archived: true`. There is currently no
-reverse (unarchive) operation.
+A campaign can be archived only when its status is completed or abandoned, it
+is not already archived, and every one of its encounters is completed or
+abandoned. That is broader than the open-encounter guard on complete, pause and
+abandon, which lets draft and reviewed encounters through. Archiving a
+campaign archives all of its encounters in the same atomic operation; there is
+no standalone encounter archive and no unarchive operation.
 
-On success, the campaign file moves from `.sourcebook/campaigns/<name>.md` to
-`.sourcebook/archive/campaigns/<name>.md`, and each encounter file moves from
-`.sourcebook/encounters/<campaign>/<name>.md` to
-`.sourcebook/archive/encounters/<campaign>/<name>.md` - the same layout, one
-level under `archive/`.
-
-Read/list asymmetry: `campaign_get`/`cac campaign get` and
-`encounter_get`/`cac encounter get` transparently resolve an archived
-campaign/encounter (checking the live location, then the archive location),
-so a single lookup by name keeps working unchanged after archiving.
-`campaign_list`, `encounter_list`, and `encounter_order` do **not** - they
-only ever look at the live directories, so an archived campaign disappears
-from `campaign_list`, and calling `encounter_list`/`encounter_order` against
-an archived campaign now returns an empty result. Archived content is
-inspectable one item at a time via `_get`, not via bulk listing.
-
-Archiving does not remove a campaign/encounter from the search index - the
-row for an archived object is updated in place (via the same `write_post`
-call that moves the file), not deleted. It stays fully indexed, but
-`index_search`/`cac index search` exclude archived content by default;
-pass `include_archived=True`/`--include-archived` to include it alongside
-live results. `index_status`/`cac index status` counts are unaffected by
-this default - they still total archived and live content together, with
-no live/archived split.
-
-| Operation | MCP tool | CLI fallback |
-|---|---|---|
-| Read | `campaign_get` | `cac campaign get` |
-| List (name + status) | `campaign_list` | `cac campaign list` |
-| Create (starts `draft`) | `campaign_create` | `cac campaign create` |
-| Replace body | `campaign_update` | `cac campaign update` |
-| Delete | `campaign_delete` | `cac campaign delete` |
-| Open | `campaign_open` | `cac campaign open` |
-| Pause | `campaign_pause` | `cac campaign pause` |
-| Complete (+ postmortem message) | `campaign_complete` | `cac campaign complete` |
-| Abandon (+ postmortem message) | `campaign_abandon` | `cac campaign abandon` |
-| Archive (campaign + all its encounters) | `campaign_archive` | `cac campaign archive` |
+Archived records stay readable by name and stay in the search index, updated in
+place. Lists and search exclude archived records unless asked to include them.
+Reading an archived record never restores it. The effects of archiving on
+linked bosses are described under "Promotion and campaign coupling".
 
 ## Encounter
 
-A concrete unit of work within a campaign: a plan the agent is expected to
-execute, with fixed body sections.
+An encounter is a concrete unit of work within a campaign.
 
-- **Frontmatter**: `name`, `campaign` (parent campaign name), `status`,
-  `kind` (`scripted` or `unscripted`, default `scripted` - see "Kind: scripted
-  vs. unscripted" below), `regions` (list), `depends_on` (list of direct
-  prerequisite encounter names within the same campaign), `archived` (bool,
-  default `false` - see the Campaign section's "Archiving" below; an
-  encounter is never archived standalone, only as a cascade of its campaign
-  being archived), plus the common stamps.
-- **Body**: for a `scripted` encounter, four fixed sections - `Requirements`,
-  `Rationale`, `Plan`, `Verification`; for an `unscripted` encounter, only
-  `Requirements` and `Rationale` - plus, for either kind, an appended `Log`
-  section once any transition or message carries a message. The fixed
-  sections may only be *replaced* while status is `draft`; every later change
-  is an append (via a transition's message, or `encounter_record_message`),
-  never a rewrite.
-- **Status lifecycle**: identical for both kinds.
+- **Frontmatter:** `name`, `campaign`, `status`, `kind`, `regions`,
+  `depends_on`, `archived` (only ever set by archiving the campaign), and the
+  audit stamps.
+- **Body:** a scripted encounter has four fixed sections: Requirements,
+  Rationale, Plan and Verification. An unscripted encounter has only
+  Requirements and Rationale. Either kind gains a Log section once a
+  transition or message records text. The fixed sections can be replaced only
+  while the encounter is in draft; every later change is appended to the Log.
 
-  | From | To | Trigger | Notes |
-  |---|---|---|---|
-  | `draft` | `reviewed` | `encounter_review` | Message required. Requires at least one assigned region. Performed by an independent reviewer (see the `campaign-manager` skill), never the plan's author. Permanently locks the fixed sections (Requirements/Rationale, plus Plan/Verification for `scripted` kind). |
-  | `draft` | `abandoned` | `encounter_abandon` | Message required. |
-  | `reviewed` | `open` | `encounter_open` | Message optional. Fails, listing every unsatisfied prerequisite and its status, until all direct `depends_on` entries are `completed`. |
-  | `reviewed` | `abandoned` | `encounter_abandon` | Message required. |
-  | `open` | `completed` | `encounter_complete` | Message optional. |
-  | `open` | `abandoned` | `encounter_abandon` | Message required. |
-  | `completed` | - | - | Terminal; no further transitions. |
-  | `abandoned` | - | - | Terminal; no further transitions. |
+| From | To | Trigger | Guard and effect |
+| --- | --- | --- | --- |
+| draft | reviewed | review | Message required; at least one region assigned. Performed by an independent reviewer, never the author. Locks the fixed sections. |
+| draft | abandoned | abandon | Message required. |
+| reviewed | open | open | Optional message. Fails until every direct prerequisite is completed. |
+| reviewed | abandoned | abandon | Message required. |
+| open | completed | complete | Optional message. |
+| open | abandoned | abandon | Message required. |
+| completed, abandoned | none | none | Terminal. |
 
-  ```mermaid
-  stateDiagram-v2
-      [*] --> draft
-      draft --> reviewed : review
-      draft --> abandoned : abandon
-      reviewed --> open : open
-      reviewed --> abandoned : abandon
-      open --> completed : complete
-      open --> abandoned : abandon
-      completed --> [*]
-      abandoned --> [*]
-  ```
+```mermaid
+stateDiagram-v2
+    [*] --> draft
+    draft --> reviewed : review
+    draft --> abandoned : abandon
+    reviewed --> open : open
+    reviewed --> abandoned : abandon
+    open --> completed : complete
+    open --> abandoned : abandon
+    completed --> [*]
+    abandoned --> [*]
+```
 
-  `encounter_record_message` (no status change) is valid only while `reviewed`
-  or `open`.
+Recording a message without a status change is allowed only while the
+encounter is reviewed or open. Region and dependency assignments are allowed
+only while it is in draft. A dependency must name a non-abandoned encounter in
+the same campaign and cannot create a self-dependency or a cycle. A prerequisite
+that is abandoned after assignment remains an unsatisfied blocker until it is
+removed or replaced. An encounter cannot be deleted while another encounter
+depends on it.
 
-  Region assignment/unassignment and dependency assignment/unassignment are
-  both only permitted while `draft`.
+Encounters in a completed or abandoned campaign cannot be changed, but they
+remain readable so past work stays inspectable.
 
-- **Connections**: belongs to one campaign (containment); `regions` list
-  (one-directional, no back-reference on the region); `depends_on` list
-  (one-directional storage within the same campaign; no self-dependency, no
-  cycles, and an abandoned encounter cannot be a prerequisite).
+### Kind: scripted and unscripted
 
-### Kind: scripted vs. unscripted
+`kind` is set once, at creation, and never changes.
 
-`kind` is set once, at creation, and is not changed afterward - there is no
-setter/assign operation for it.
+- **Scripted** (the default) is a plan for future work. The reviewer checks the
+  Plan against applicable lore.
+- **Unscripted** records work that the developer or agent already did outside
+  the plan-first flow, so a later session can recover its intent. Only
+  Requirements (what was done) and Rationale (why) apply, and the absence of a
+  Plan or Verification is not a defect. The lifecycle, the independent review
+  and all three user gates are the same as for scripted work; the reviewer
+  checks the recorded Requirements and Rationale in place of a Plan.
 
-- **`scripted`** (the default): a plan for future work. All four body
-  sections apply; the reviewer checks the `Plan` against applicable lore
-  before `draft` -> `reviewed`.
-- **`unscripted`**: a record of manual work the developer or the agent
-  already did outside the plan-first flow (direct edits, quick fixes,
-  exploratory changes), captured after the fact so a later session can
-  recover the intent behind it. Only `Requirements` (what was done) and
-  `Rationale` (why) apply - there is no `Plan` or `Verification` to write,
-  and their absence is not itself a defect. The status lifecycle, the
-  independent-reviewer gate, and the three explicit user gates (see "Explicit
-  user gates" below) are otherwise identical to a `scripted` encounter: the
-  reviewer checks the recorded `Requirements`/`Rationale` against applicable
-  lore in place of a `Plan`, giving the same after-the-fact lore check and
-  follow-up opportunity that review provides for planned work.
+## Bosses
 
-| Operation | MCP tool | CLI fallback |
-|---|---|---|
-| Read | `encounter_get` | `cac encounter get` |
-| List (oldest-updated first) | `encounter_list` | `cac encounter list` |
-| Show in dependency order | `encounter_order` | `cac encounter order` |
-| Create (starts `draft`; `kind` optional, defaults `scripted`) | `encounter_create` | `cac encounter create` |
-| Replace body (only while `draft`) | `encounter_update` | `cac encounter update` |
-| Delete (fails if depended on) | `encounter_delete` | `cac encounter delete` |
-| Review (`draft` -> `reviewed`) | `encounter_review` | `cac encounter review` |
-| Open (`reviewed` -> `open`) | `encounter_open` | `cac encounter open` |
-| Record a message (no status change) | `encounter_record_message` | `cac encounter record-message` |
-| Complete (`open` -> `completed`) | `encounter_complete` | `cac encounter complete` |
-| Abandon | `encounter_abandon` | `cac encounter abandon` |
-| Assign/unassign region | `encounter_assign_region` / `encounter_unassign_region` | `cac encounter assign-region` / `unassign-region` |
-| Assign/unassign dependency | `encounter_assign_dependency` / `encounter_unassign_dependency` | `cac encounter assign-dependency` / `unassign-dependency` |
+A boss is a project goal that can be captured and refined before any campaign
+commits to it. Bosses live in the sourcebook's boss collection, and archived
+bosses move to the archive area.
 
-Every mutating encounter tool/command accepts an optional `campaign`
-argument; when omitted, it defaults to the single currently `open` campaign
-(failing if none is open). Read-only operations (`encounter_get`,
-`encounter_list`, `encounter_order`) accept any existing campaign, including
-a `completed`/`abandoned` one, so past work stays inspectable after the fact.
+- **Frontmatter:** `name`, `summary` (required, at most 500 characters),
+  `status`, `archived`, `depends_on` (direct prerequisites by canonical name),
+  optional `campaign`, optional roadmap `provenance`, and the audit stamps.
+- **Body:** optional headings Goal, Rationale, Success Criteria, Design Notes
+  and Open Questions. Body text cannot set frontmatter or bypass guards.
+
+Ordinary capture creates a proposed, unarchived boss with no campaign and no
+dependencies.
+
+| From | To | Trigger | Guard |
+| --- | --- | --- | --- |
+| new | proposed | capture, or roadmap recording of planned or in-progress work | Name unused, live or archived. |
+| new | vanquished | roadmap recording of completed work | Unassigned; no synthetic campaign. |
+| proposed | available | make available | Prerequisites need not be satisfied yet. |
+| proposed, available | withdrawn | withdraw | Must be unassigned. Changes no campaign and no incoming dependency. |
+| withdrawn | proposed | reactivate | Must be unarchived and unassigned. |
+| available (assigned) | vanquished | linked campaign completes | Only through the campaign; reactivation returns it to available. |
+
+Body, summary and dependency edits require an unarchived, unassigned boss in
+proposed or available status, and an edit to an available boss leaves it
+available. Once a boss is linked to a campaign, or vanquished, its design is
+frozen. Every mutation of an archived boss is rejected. State changes preserve
+the design body.
+
+A boss can be archived on its own only when it is unassigned and withdrawn, or
+vanquished with valid completed roadmap provenance. Archiving keeps its status,
+provenance and body, updates its audit stamps and moves the record. A name
+collision fails, and a failed write restores the previous bytes and index
+evidence. Retained names, live or archived, cannot be reused. There is no
+delete, rename, restore or generic status setter.
+
+### Boss dependencies
+
+Dependencies store canonical names. Adding an edge rejects a self-reference, a
+duplicate, an unknown or withdrawn target, malformed storage, an ambiguous
+reference and a cycle, all before writing. Existing edges survive withdrawal
+and archiving of the prerequisite. Explicit removal can repair a damaged graph,
+but only if the whole resulting graph is valid. Dependents are never rewritten
+automatically, and availability is never reset.
+
+### Schema and compatibility
+
+Bosses keep schema version 1. Missing storage reads as empty, reads never
+write, and storage is created lazily. CAC never infers goals, bulk-converts
+records, migrates during bootstrap, or rewrites existing records. Libraries
+that predate roadmap adoption must not mutate roadmap records, because they
+cannot validate provenance or its completion and archive rules; downgrading
+requires developer conversion. Libraries that support only one boss per
+campaign cannot operate on multi-boss campaigns (see the migration guide).
+Endpoints perform no Git or branch automation.
+
+### Roadmap adoption
+
+A project that already has a roadmap can record its goals with roadmap
+recording, which is create-only. Planned and in-progress goals become proposed.
+Completed goals become unassigned and vanquished, with no synthetic campaign or
+encounter. Ordinary capture still creates only proposed goals.
+
+The recording requires a nonblank source describing the roadmap or evidence,
+and a message explaining the capture and, for completed goals, the outcome and
+evidence. CAC records an assertion, not proof of Git integration. It does not
+fetch, extract or bulk-import anything.
+
+Provenance is immutable. Its progress value is the original snapshot, never
+current readiness or ownership, and audit dates mean "recorded now". A
+completion date is optional, applies only to completed goals, and stays unknown
+when not supplied. Record prerequisites first so that later goals can depend on
+them; relations to goals outside CAC stay in prose. A historical outcome does
+not have to replay prerequisite readiness, but graph damage still prevents
+downstream trust.
+
+Recorded planned or in-progress goals still need explicit approval before they
+are made available. References to existing campaigns are informational;
+adopting ownership of open legacy campaigns is deferred. Draft-only membership
+locks still apply. An externally completed goal satisfies dependencies, even
+when archived, and is frozen like any other completed content. Mistakes need
+documented developer repair, never direct edits by an assistant, and there is
+no undo operation. Failures roll back the affected records while preserving
+unrelated drift. Prime still includes only actual active membership.
+
+For example: record delivered `b001` as completed, then planned `b002`
+depending on `b001`, then in-progress `b003`. Keep the roadmap's references and
+known completion dates. You do not need to import the entire roadmap or invent
+execution history.
+
+### Candidate discovery
+
+Candidate discovery explains which goals could be selected for a campaign. It
+is read-only and is not proof of integration. Numbered names sort by number,
+then by name, and legacy names follow lexically; this order is not business
+priority or permission to select.
+
+The pool is every live, unassigned boss in proposed or available status.
+
+- A proposed boss is `not_ready`.
+- An available boss is `eligible` only when every direct prerequisite is
+  vanquished (an archived completion counts) and the reachable graph is
+  intact; otherwise it is `blocked`.
+- Every other boss is excluded from the pool. Discovery never changes
+  readiness.
+
+Campaign links must resolve, reciprocate and match lifecycle and archive state:
+an available boss belongs with a draft, open or paused campaign, and a
+vanquished boss with a completed one. Archived defects still affect health.
+Unrelated damage does not hide healthy choices, and the counts distinguish an
+empty pool from excluded, unready and blocked goals. Defects reachable from a
+dependent block it.
+
+### Promotion and campaign coupling
+
+A campaign has zero or more bosses, and a boss has at most one current
+campaign. There is no primary boss.
+
+Selection creates a new draft campaign and links it to every selected boss in
+one atomic step. Each boss must be eligible, unassigned, unarchived and
+available. Selecting a prerequisite together with its incomplete dependent does
+not satisfy the dependency. Selection leaves the bosses available but frozen,
+and opens no campaign and creates no encounters. A new campaign name must be
+unused, live or archived, and unclaimed. The single-goal convenience
+(`boss_assign_campaign`) behaves the same way for one boss; a consistent retry
+is read-only, even after progress, archiving or group membership, and never
+shrinks membership. A retry against a different or released campaign fails.
+Initial selection checks full eligibility; retries do not recheck
+prerequisites.
+
+While a campaign is in draft, its whole membership can be replaced with a
+nonblank reason. Retained members must still reciprocate, and removal releases
+only this campaign's links. Membership locks once the campaign leaves draft,
+including after reactivation, and body edits can never change links.
+
+Lifecycle effects on bosses:
+
+- **Completion** records the postmortem and vanquishes every linked boss.
+- **Abandonment** releases every current link while keeping the historical
+  membership list on the campaign.
+- **Reactivation** requires an unarchived completed campaign, a nonblank
+  reason and no other open campaign. Every linked boss returns to available
+  but stays assigned and frozen. The earlier Log and closed encounters remain,
+  and recompletion appends new history.
+- **Open and pause** never vanquish. Bossless campaigns follow the same
+  lifecycle.
+
+Archiving a completed campaign moves its assigned bosses along with its
+terminal encounters, preserving status and readable history. Archiving an
+abandoned campaign never touches released bosses, whatever has happened to
+them since. Rumors are never touched. Current and historical membership lists
+and reverse claims protect against deletion. Broken or competing ownership, or
+an inconsistent lifecycle state, blocks mutation until it is repaired.
+
+## Rumors
+
+A rumor (`rNNN-slug`) is a backlog note, "we think X should be done", from
+anywhere: execution, a review, a customer, the running project. It carries a
+summary, a free-text `origin` and an optional body, and can be captured on any
+branch. Only `open` rumors can be edited.
+
+- **Promote** (`open` to `promoted`) links the rumor to an existing unassigned
+  `proposed` or `available` boss, recorded only on the rumor; the boss is never
+  written. Many rumors may share a boss.
+- **Dismiss** (`open` to `dismissed`) requires a reason; **reopen** returns
+  either to `open` with a message. **Archive** retires a promoted or dismissed
+  rumor read-only. There is no delete, and transition messages stay in
+  `history`.
+
+Numbers captured on different branches can collide. They are renumbered on the
+planning branch; promoted rumors keep their number, because promotion happens
+on planning, where numbering is settled. Similar rumors are never merged:
+repetition is a signal. Rumors never affect bosses, candidates or campaign
+lifecycle, are searchable under their own type, and are not part of prime.
 
 ## Explicit user gates
 
-Three points in the encounter lifecycle require the developer's explicit,
-real-time approval before the agent proceeds. Reaching the status just before
-each gate is never itself consent to cross it - the agent must stop and ask,
-and wait for an explicit answer, every time the gate is reached.
+Three points in the encounter lifecycle need the developer's explicit,
+real-time approval. Reaching the status before a gate is never consent to cross
+it: the agent stops, asks, and waits for an explicit answer every time.
 
-1. **Before spawning the independent reviewer** (the prerequisite for
-   `draft` -> `reviewed`). Drafting an encounter is not approval to review
-   it. This approval is asked fresh every time this point is reached -
-   including a re-review after a `REJECT`/`NOT-REVIEWABLE` verdict and a
-   follow-up `encounter_update` to the draft, not only on the first pass.
-   Only on an explicit yes does the agent spawn a *fresh* reviewer subagent
-   (never itself, never a context-sharing fork).
-2. **Before opening the encounter** (`reviewed` -> `open`, via
-   `encounter_open`). A separate approval from gate 1. A `PASS-WITH-NOTES`
-   verdict auto-transitions the encounter to `reviewed` without pausing for
-   approval of its own - that approval already happened at gate 1 - but
-   moving from `reviewed` into `open` and beginning execution is its own ask.
-3. **Before marking the encounter complete** (`open` -> `completed`, via
-   `encounter_complete`). Once the encounter's own Verification steps pass,
-   the agent confirms with the developer before closing it out - never
-   unilaterally, even when every check is green.
+1. **Before spawning the independent reviewer** (the prerequisite for draft to
+   reviewed). Drafting is not approval to review. Ask fresh every time,
+   including for a re-review after a REJECT or NOT-REVIEWABLE verdict and a
+   revised draft. Only on an explicit yes does the agent spawn a fresh reviewer
+   subagent: never itself, and never a fork that shares the author's context.
+2. **Before opening the encounter** (reviewed to open). This is separate from
+   gate 1. A PASS-WITH-NOTES verdict moves the encounter to reviewed without a
+   pause of its own, because gate 1 already covered it, but starting execution
+   is its own request.
+3. **Before marking the encounter complete** (open to completed). After
+   Verification passes, the agent confirms with the developer before closing
+   it, even when every check is green.
 
-Each of these three gates must be written explicitly into the skill that
-carries the encounter lifecycle - `campaign_manager`, under both
-`templates/skills/claude/campaign_manager/SKILL.md` and
-`templates/skills/codex/campaign_manager/SKILL.md` - not left implicit, and
-not treated as adequately covered by a cross-reference to this document.
-"Explicit" means the stop-and-ask instruction for each gate is present in the
-skill's own wording, in a form an agent following the skill text alone (with
-no memory of this guide) would still stop and ask. This requirement is not a
-one-time authoring checklist item - it must hold every time either skill
-template is modified or regenerated, for any reason, including a rewrite that
-touches unrelated parts of the encounter lifecycle procedure. An edit to
-either template that drops, waters down, or fails to carry forward any of the
-three gates' stop-and-ask wording is a defect in that edit, to be caught the
-same way any other lore violation is: by checking the skill template's actual
-current text against this section, not by assuming a past edit is still
-intact.
+Both `campaign_manager` skill templates
+(`templates/skills/claude/campaign_manager/SKILL.md` and
+`templates/skills/codex/campaign_manager/SKILL.md`) must state each gate's
+stop-and-ask instruction in their own wording, so that an agent following the
+skill alone, with no memory of this guide, would still stop and ask. A
+cross-reference to this guide is not enough. This holds every time either
+template is edited or regenerated, for any reason. An edit that drops, weakens
+or fails to carry forward any gate is a defect, caught by checking the
+template's current text against this section.
 
-What is *not* separately gated: the draft -> reviewed transition itself, once
-a `PASS-WITH-NOTES` verdict is in hand - it runs immediately, because gate 1
-already covers it. Campaign-level transitions (`open`/`pause`/`complete`/
-`abandon`/`archive`) and lore/region/world edits have no codified approval
-gate of their own in this model; they take effect as soon as the
-corresponding mutating tool is called.
+Not separately gated: the draft-to-reviewed transition itself once a
+PASS-WITH-NOTES verdict is in hand, campaign transitions, and lore, region and
+world edits. Those take effect when the tool is called, subject to the
+authorization rules in "Agent planning and campaign workflow".
 
-## Cross-cutting: priming, search, and docs
+### Review flow
 
-Three auxiliary capabilities sit on top of the five content types above -
-none of them is a content type itself:
+The reviewer receives only the encounter and campaign names. It primes context
+itself, resolves applicable lore, reads each lore body, and checks the Plan (or
+an unscripted encounter's Requirements and Rationale) within a bounded reading
+surface: the encounter, the applicable lore bodies, the assigned regions'
+paths, and files the encounter names. It flags anything outside that surface as
+unverified rather than investigating it. It returns findings, one verdict
+(PASS-WITH-NOTES, REJECT or NOT-REVIEWABLE) and a proposed review message, and
+it runs no mutating operation.
 
-- **Prime** (`prime_get` / `cac prime get`, `prime_applicable_lore` /
-  `cac prime applicable-lore`) assembles cross-object context in one call
-  instead of chaining individual reads: the world, world-assigned enabled
-  lore summaries, the region map, and the active campaign's body in one
-  round trip; and, for a specific encounter, the exact enabled lore set that
-  applies to it (world-assigned union its assigned regions' lore).
-- **Search index** (`index_status` / `cac index status`, `index_search` /
-  `cac index search`) is a full-text index over `.sourcebook` content kept in
-  sync automatically as content changes through `cac`. Rebuilding it
-  (`cac index rebuild`) is developer-only and intentionally not exposed over
-  MCP. `index_search` excludes archived campaigns/encounters by default -
-  see the Campaign section's "Archiving" above for the `include_archived`
-  opt-in and the counts-vs-search asymmetry.
-- **Docs** (`docs_list` / `cac docs list`, `docs_get` / `cac docs get`) is a
-  small, read-only set of reference guides packaged with `cac` itself -
-  framework-owned, not `.sourcebook` content, and not user-editable. `docs_list`
-  returns `name` + `summary` pairs (paged, same routing-signal pattern as
-  lore/region); `docs_get(name)` returns one doc's full body (e.g.
-  `docs_get("workflow")` for this guide, or `docs_get("migration-guide")` for
-  the sourcebook schema migration procedure - see "Sourcebook schema
-  versioning" above). It exists so a consuming project's `CLAUDE.md`/`AGENTS.md`
-  doesn't need to carry deep CAC procedural detail inline - an agent session
-  pulls a doc in only when a task actually needs it, via the `world-manager`
-  skill's disclosure ladder (its fourth, "go deeper" step).
+On PASS-WITH-NOTES, the main thread immediately records the reviewer's proposed
+message through `encounter_review`, which locks the fixed sections, and then
+reports. Later feedback is recorded as a message, never as a re-draft. On
+REJECT or NOT-REVIEWABLE, the encounter stays in draft; the agent revises it
+and returns to gate 1. An absent Plan or Verification is never by itself
+grounds for NOT-REVIEWABLE on an unscripted encounter.
 
-## Example: an encounter's lifecycle, conversation to commit
+## Codex encounter handoffs
 
-A concrete walkthrough of how a unit of work moves from a developer's request
-through to a finished, committed change, tying the World/Campaign/Encounter
-pieces above together in practice.
+The Codex `campaign-manager` skill adds two conversational reports. They
+supplement the encounter record and preserve all three gates. The skill carries
+the full operative guidance; this section states what the reports must cover.
 
-1. **Conversation starts the work.** The developer (GM) describes what they
-   want in conversation. Before deciding how the request fits the existing
-   model, the agent primes context first - `prime_get` (world summary,
-   world-assigned lore, region map, and the active campaign's body, in one
-   call).
-2. **A campaign is chosen or opened.** If no campaign is already open, the
-   agent checks `campaign_list`/`campaign_get` for a fitting `draft`/`paused`
-   campaign, or asks the developer whether to create a new one
-   (`campaign_create`), then moves it to `open` (`campaign_open`) - only one
-   campaign may be open at a time.
-3. **The encounter is drafted.** The agent writes the plan as an encounter
-   (`encounter_create`), starting in `draft`: `Requirements` (what must be
-   true when done), `Rationale` (why), `Plan` (the concrete steps), and
-   `Verification` (how completion will be checked). While still `draft`, the
-   agent assigns the region(s) the work touches (`encounter_assign_region`)
-   and any direct prerequisite encounters (`encounter_assign_dependency`).
-4. **The developer approves an independent review.** Drafting alone is not
-   approval to review - the agent stops and asks explicitly. Only on an
-   explicit yes does it spawn a *fresh* reviewer (never itself, never a
-   context-sharing fork) to check the Plan against the encounter's applicable
-   lore (`prime_applicable_lore`, then `lore_get` per entry).
-5. **The review resolves the draft.** A `PASS-WITH-NOTES` verdict
-   auto-transitions the encounter to `reviewed` (`encounter_review`, message
-   required) - this permanently locks the four fixed sections against
-   replacement. A `REJECT` or `NOT-REVIEWABLE` verdict sends the agent back to
-   revise the draft (`encounter_update`, still allowed pre-`reviewed`) and get
-   approval again before spawning a fresh reviewer.
-6. **The developer approves opening.** With explicit approval, the agent
-   moves the encounter to `open` (`encounter_open`) - this fails and lists
-   any unmet prerequisite until every `depends_on` entry is `completed`.
-7. **The Plan is executed.** The agent does the actual work - writing code,
-   docs, tests - against the now-locked Plan. If reality diverges from what
-   was planned, or the developer changes the ask mid-flight, the agent
-   doesn't rewrite the Plan; it records the deviation and why
-   (`encounter_record_message`), valid while `reviewed` or `open`.
-8. **Verification runs, then completion is confirmed.** The agent carries out
-   the encounter's own Verification steps (tests, lint, manual checks -
-   whatever that encounter specified). Once they pass, the agent confirms
-   with the developer before closing anything out - never unilaterally - then
-   moves the encounter to `completed` (`encounter_complete`).
-9. **A commit captures both halves of the change.** The working tree now
-   holds two kinds of changes together: the actual deliverable (code, docs,
-   tests) and the updated `.sourcebook` state (the now-`completed`
-   encounter's frontmatter and its `Log` of review/message/completion
-   entries - each one attributed via the local git identity, the same
-   identity the eventual commit is made under). A single commit - made by the
-   developer, or by the agent once explicitly asked - persists both, so the
-   next session's `prime_get` sees not just the code as it now stands, but
-   the record of the decision that produced it. This is the continuity the
-   framework exists for: session state that survives a context reset because
-   it was committed, not held only in a conversation.
+Each report stands on its own: the developer should be able to understand the
+work or the review outcome and make the next decision without opening the
+encounter. Include the encounter's full reference. Scale depth to complexity
+and uncertainty, explain why details matter, and avoid a fixed word count,
+padding, or pasting the encounter.
 
-## Bootstrap (developer-only, not part of the ongoing workflow)
+**After drafting, before asking to review,** explain the encounter's identity,
+kind and draft status; the problem, motivation and intended outcome; scope,
+affected areas, main steps and significant tradeoffs; dependencies,
+assumptions, risks and unresolved decisions (saying so when there are none);
+and the verification approach and success criteria. For unscripted work,
+describe what was done, why, the evidence and any follow-up instead of a
+future plan. After revising a rejected draft, explain what changed, why it
+addresses the findings, and what remains open.
 
-`cac bootstrap init` creates the `.sourcebook` directory and seeds
-`world.md`, registers the MCP server, deploys the guardrails, and deploys the
-agent skills into a target project. It is invoked by the developer only,
-never by an agent, and is intentionally not exposed over MCP at all - it sits
-outside the day-to-day domain model described above.
+**After every review,** explain the verdict and its coverage and limits, each
+material finding with its reasoning and importance (separating blockers,
+actionable notes and unverified concerns), the consequences for scope, risk and
+readiness, the resulting status and locking, and a reasoned recommendation with
+the next approval needed. On PASS-WITH-NOTES, transition first, then report and
+ask separately to open. On REJECT or NOT-REVIEWABLE, keep the draft, explain
+the blockers, and after revising ask again before launching a fresh reviewer;
+revision alone is not a passing review. Never replace or rewrite the
+reviewer's recorded message, and keep your own recommendations distinct from
+its findings. A recommendation never authorizes a review, an opening or a
+completion.
+
+## Priming and the disclosure ladder
+
+world-manager carries the disclosure ladder, the procedure for loading only as
+much context as a task needs:
+
+1. **Orient** with `prime_get`, once per session or before other work. It
+   returns the full world, world-lore summaries, the region map, the active
+   campaign body, and the active bosses with diagnostics. Hydrate truncated
+   bodies through the refs it returns. Empty membership is different from a
+   named member that is missing or broken.
+2. **Focus** on a region when one is in scope: read the region, then the
+   summaries of its assigned lore.
+3. **Review** with `prime_applicable_lore` for an encounter, then read each
+   applicable lore body in full. Only the bodies are authoritative.
+4. **Go deeper** only when a procedural or contract question remains. Read
+   this guide for a rule, lifecycle, gate or branch procedure, the Tool
+   Reference for an argument, result shape, error or budget, the branching
+   guide for a worked Git example, and the migration guide for upgrades and
+   adoption. `docs_list` shows what is registered.
+
+campaign-manager and world-planner start from step 1 and do not read this
+guide or the Tool Reference during routine orientation. Their skills name the
+section to consult when a question arises. Most sessions never need step 4.
+
+The search index is a full-text index over sourcebook records, kept current as
+records change through CAC. It finds encounter text, but it is not an
+allocation inventory or a dependency graph. A stale or missing index needs a
+developer rebuild.
+
+## Agent planning and campaign workflow
+
+### Ownership
+
+- **world-manager** owns static context: the world, lore, regions, the
+  disclosure ladder and migration routing.
+- **world-planner** owns goals: planning, roadmap adoption, readiness,
+  dependencies and splitting, triaging integrated rumors (renumbering,
+  promotion and dismissal), and planning-side archival.
+- **campaign-manager** owns tactical work: selection and registration, draft
+  membership, encounters and execution.
+
+Both provider variants of each skill implement this procedure. Invoking a
+skill is not blanket permission to publish, push, merge, delete, or message
+other people. Use authorization the developer has already given without asking
+again. The encounter gates above stay distinct; ordinary goal notes have no
+encounter gates.
+
+### Orient and synchronize
+
+Read prime and the effective branch settings. Prime's bosses are the active
+campaign's membership, not the whole roadmap. Finish every page of an
+inventory, and hydrate the bodies and diagnostics you rely on. Bootstrap and
+index rebuild are developer-only.
+
+Before editing goals or selecting them, synchronize accepted merge-target
+history onto the planning branch under the project's Git policy. Check the
+checkout, branch, uncommitted changes and detached HEAD state, and reconcile any
+mismatch without silently switching branches or overwriting work. Refresh
+authorized remote refs on a best-effort basis and say when you could not.
+Local completion is not integration, and a roadmap's completed status is
+supplied evidence, not proof of a CAC merge.
+
+### Allocate numbers
+
+CAC numbers bosses, campaigns, encounters and rumors by convention: core never
+allocates. Choose the numeric maximum plus one, padded to three digits below
+1000 and continuing at 1000. Never reuse a retained ID, and never infer the
+maximum from lexical, time or search order.
+
+- **Bosses:** every page of the boss list including archives, on a
+  synchronized planning branch.
+- **Campaigns:** every page of the campaign list including archives, plus known
+  local and remote campaign branches, including unpublished reservations. A
+  matching `c00N-example` and `c00N-example-assignment` pair counts once.
+- **Encounters:** every page of the encounter list including archives, within
+  the exact campaign.
+- **Rumors:** every page of the rumor list including archives, on the current
+  branch. Rumors may be numbered on any branch; collisions found after
+  integration are renumbered on planning.
+
+Unnumbered legacy names remain valid. Ambiguous shorthand requires the
+canonical name.
+
+### Plan goals
+
+Capture and refine goals with the boss operations. Roadmap recording preserves
+the original progress and source evidence and truthful audit dates. Planned and
+in-progress goals stay proposed until explicitly made available. Explain each
+candidate's classification (eligible, blocked or not ready) without treating
+order as priority or permission. Scope edits keep an available goal available;
+reassess readiness and affected dependents. Split only editable goals, keep the
+original identity, and reconcile dependencies explicitly. Never rewrite
+dependencies automatically or edit an assigned design.
+
+### Select and register
+
+Write tactics that cover every developer-selected eligible goal and its success
+conditions. On the assignment branch (`c00N-example-assignment`, created from
+the synchronized merge target), create the draft campaign with its bosses, or
+use the single-goal convenience. Confirm the reciprocal links, and inspect any
+error and its rollback. Integrate the registration through the project's PR or
+direct-merge process before execution. Selection opens nothing and creates no
+encounters. A bossless campaign may skip registration and start directly on
+its execution branch, with the same allocation checks.
+
+### Execute on the campaign branch
+
+Create or resume the execution branch (`c00N-example`) from the accepted
+registration or the merge target; if starting from the assignment branch,
+reconcile the accepted registration first. Open the campaign only on its
+execution branch and only with explicit approval. Under the recommended
+workflow, the merge target and planning branches never have an open campaign,
+and paused work stays on its execution branch. These are skill guidance, not
+endpoint gates or mandatory CI or hosting rules. Honor custom branch settings.
+Draft membership changes need a reason; opening or reopening locks membership.
+Boss designs stay frozen.
+
+### Collision checks
+
+Check for logical collisions when creating a campaign or encounter, after
+integrating another branch (pull, merge or rebase), and before completion when
+preparing implementation for integration; repeat after review fixes. Compare
+numeric IDs and names, encounter IDs within the campaign, and reciprocal
+ownership of every boss. A clean Git merge does not detect two records with the
+same number and different slugs, or competing assignments. Explain any conflict
+and coordinate an explicit repair. Never silently renumber, delete, force-push,
+reset, or edit managed files directly.
+
+### Complete and reactivate
+
+Complete a campaign only after its goals and encounters are verified, with the
+required postmortem and the developer's authorization. Completion vanquishes
+every linked goal; abandonment releases every current link while keeping the
+historical membership. For review fixes before merging, reactivate with a
+reason on the execution branch, keep membership and history, add reviewed
+follow-up encounters (completed encounters never reopen), verify, and complete
+again. New scope after merging goes back to planning. Integrate terminal
+execution records before planning relies on their outcomes. Publishing and
+merging need the developer's authorization.
+
+### Reconciliation examples
+
+- **Rejected registration.** Establish whether the registration was integrated
+  and inspect the visible assignment and execution branches. Revise it or
+  abandon it explicitly, keeping useful notes and the number reservation. Never
+  present a rejection as acceptance, and never delete automatically.
+- **Accepted draft cancelled before execution.** Abandon the campaign with a
+  reason on its execution branch, integrate that cleanup, and synchronize the
+  planning branch. Do not release links by hand.
+- **Legacy unnumbered open work.** Inspect its encounters and local
+  instructions, and agree on a matching execution branch and naming with the
+  developer. Finish or abandon open encounters before pausing or closing.
+  Preserve history: do not invent a boss, bulk-rename records, or add a new
+  endpoint branch gate.
+- **Uncertain remote or integration state, or a failed recovery.** Stop and
+  reconcile explicitly with the developer.
+
+### Planning handoff
+
+Any skill captures rumors through CAC on whatever branch the work happens,
+without expanding the current scope. On the planning branch, world-planner
+triages integrated open rumors: it renumbers collisions, promotes a rumor to
+a new or existing unassigned boss the developer selects, or dismisses it with
+a reason, and archives resolved rumors that are no longer useful. There are
+no forced categories, no implicit scope expansion, no edits to assigned
+designs, and no deletion. After
+synchronizing, world-planner may archive integrated terminal campaigns whose
+encounters are all terminal; only their current bosses move, while released
+history and rumors stay where they are. Standalone boss archiving follows its
+withdrawn or externally completed guards. There is no restore, and assistants
+never repair records by editing files.
+
+## Example: an encounter's lifecycle
+
+1. Orient with prime. If no campaign fits the task, world-planner helps capture
+   or choose goals; capturing a goal does not assign it.
+2. With authorization, campaign-manager selects eligible goals, writes a
+   tactical draft, and registers it on `c00N-example-assignment`. After the
+   registration is accepted, it switches to `c00N-example` and opens the
+   campaign with explicit approval. A bossless campaign skips registration.
+3. Draft the encounter (for example `c00N/e00M`) with its sections, regions
+   and prerequisites. Unscripted work records only Requirements and Rationale.
+4. Ask for approval to review, then spawn a fresh reviewer with only the two
+   names. It reads the applicable lore bodies itself.
+5. On PASS-WITH-NOTES, record the reviewer's message, which locks the
+   sections, and report. On REJECT or NOT-REVIEWABLE, revise and ask again.
+6. Ask separately for approval to open. Opening requires every prerequisite to
+   be completed.
+7. Execute the Plan, logging deviations as messages rather than editing locked
+   sections.
+8. Run Verification (or confirm an unscripted record's accuracy), then ask the
+   developer to confirm completion before completing.
+9. When asked, commit the deliverable together with the encounter record.
+   Completing an encounter does not authorize completing the campaign, pushing
+   or merging.
+
+## Developer-only maintenance
+
+### Bootstrap
+
+`cac bootstrap init` creates the sourcebook and seeds the world, registers the
+MCP server, deploys the guardrails, and deploys the agent skills into a
+project. Only the developer runs it; it is never exposed over MCP. Deployed
+skill files are framework-owned and overwritten on every run. Bootstrap never
+rewrites user-owned `CLAUDE.md` or `AGENTS.md` files; adopting new workflow
+there takes targeted edits (see the migration guide).
+
+### Search index rebuild
+
+`cac index rebuild` is the only recovery for a missing, stale, legacy or
+damaged search index. Only the developer runs it, and it is never exposed over
+MCP or run automatically.
+
+### Codex patch guard
+
+The packaged Codex `PreToolUse` hook is registered for `^apply_patch$` only.
+It reads the patch's file-operation headers (`Add File`, `Update File`,
+`Delete File` and `Move to`) and denies the whole patch if any target path has
+a `.sourcebook` component after normalization. Both ends of a move and every
+file in a multi-file patch are checked. Added, removed and context lines are
+not headers, so ordinary patches may mention sourcebook paths. Shell calls are
+not filtered by this hook, and the MCP/CLI-only rule for managed content stays
+binding.
+
+The hook handles events with `tool_name: "apply_patch"` and either a string
+`tool_input` or an object whose `command` field holds the patch. Headers start
+at column zero, with LF or CRLF line endings and unquoted paths. The guard
+normalizes dot segments and both slash styles; Windows paths compare components
+case-insensitively, and POSIX paths keep case. It does not require a complete
+patch envelope, since `apply_patch` validates syntax itself. Invalid JSON,
+missing or mistyped fields, unsupported payloads, and text with no recognized
+headers produce no decision. This lexical guard is not a filesystem sandbox:
+symlink and junction aliases, unusual path aliases, and other tool payload
+formats are outside its contract.
+
+Bootstrap replaces the deployed hook script and upgrades recognized legacy
+`^(Bash|apply_patch)$` registrations. It keeps exactly one apply_patch-only
+framework registration and preserves unrelated hooks (including those sharing
+the broad group), settings and recognized customizations. Custom commands or
+matchers outside the known registration are left alone and may need developer
+review. The developer reviews and trusts the updated hook through `/hooks`,
+re-enabling it if it was disabled. Agents never redeploy the hook or change
+trust settings.

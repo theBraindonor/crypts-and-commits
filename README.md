@@ -42,7 +42,7 @@ factor — it just relocates it.
 Crypts and Commits addresses both by moving context and work history out of
 any one session, and any one assistant, and into the repository itself.
 `.sourcebook/` is a small, versioned domain model — World, Lore, Regions,
-Campaigns, and Encounters — that lives alongside your code, is committed the
+Bosses, Campaigns, and Encounters — that lives alongside your code, is committed the
 same way your code is, and is driven through a shared `cac` CLI and MCP server
 that any compliant coding assistant can use. An Encounter isn't a chat
 transcript; it's a structured, reviewed unit of work — Requirements, Rationale,
@@ -62,15 +62,51 @@ re-explaining yourselves to the other, or to whoever picks this up next.
 - **[Quickstart](docs/QUICKSTART.md)** — adopting CAC in your own project:
   install the package, bootstrap `.sourcebook/`, and hand off to your agent.
 - **[Workflow Reference Guide](packages/crypts-and-commits/src/cac/core/templates/docs/workflow.md)**
-  — the single source of truth for the `.sourcebook` domain model: every
-  object's structure, its status lifecycle, and how the types connect. Also
-  retrievable on demand by an agent via `docs_get("workflow")` (MCP) or
-  `cac docs get workflow` (CLI), once a project is bootstrapped.
+  — the source of truth for the `.sourcebook` domain model and workflow: every
+  object's structure, its status lifecycle, how the types connect, and the
+  approval and branch procedure. Also retrievable on demand by an agent via
+  `docs_get("workflow")` (MCP) or `cac docs get workflow` (CLI), once a project
+  is bootstrapped.
+- **[Tool Reference](packages/crypts-and-commits/src/cac/core/templates/docs/tool-reference.md)**
+  — the paired contract reference: MCP tool and CLI command arguments, result
+  shapes, errors, response budgets and continuation. Retrieve via
+  `docs_get("tool-reference")` / `cac docs get tool-reference`.
 - **[Sourcebook Migration Guide](packages/crypts-and-commits/src/cac/core/templates/docs/migration-guide.md)**
-  — carrying an existing `.sourcebook` forward across schema versions.
+  — library upgrades, workflow adoption and targeted local instruction updates,
+  separate from carrying records across schema versions.
   Retrievable the same way, via `docs_get("migration-guide")` /
   `cac docs get migration-guide`.
+- **[Branching Guide](packages/crypts-and-commits/src/cac/core/templates/docs/branching-guide.md)**
+  — planning, assignment and execution branches, number/collision checks and
+  integration examples. Retrieve via `docs_get("branching-guide")` /
+  `cac docs get branching-guide`.
 - **[Changelog](docs/CHANGELOG.md)** — notable changes, by release.
+
+## Agent skills
+
+CAC packages three skills for Claude and Codex: **world-manager** for static
+context and lore, **world-planner** for goals, roadmap adoption and rumor
+triage, and **campaign-manager** for tactical selection and reviewed
+execution. Their procedures follow the Workflow Reference Guide. After upgrading,
+the developer redeploys framework-owned skills with `cac bootstrap init`;
+authoring templates does not update deployed copies or local agent instructions.
+
+## CLI bodies from files
+
+Every CLI command that accepts `--body/-b` also accepts `--body-file PATH`.
+For example, prepare a UTF-8 markdown file named `notes/campaign plan.md`, then
+create a draft campaign with:
+
+```shell
+cac campaign create opening-gambit --body-file "notes/campaign plan.md"
+```
+
+CAC reads the input file and performs the managed write through its normal
+API; the input file is left unchanged. Use either `--body` or `--body-file`,
+never both. If neither is supplied, the existing editor flow applies. Empty
+files count as explicit empty bodies. Required summaries and lifecycle guards
+still apply. In this development workspace, prefix the command with `pdm run`.
+MCP operations continue to accept body text directly.
 
 ## Domain model & personas
 
@@ -85,7 +121,7 @@ low-ambiguity interface between a developer's intent and a model's behavior
 — fewer bespoke conventions to define and re-explain per project, and less
 room for a session to quietly redefine its own scope or authority as it goes.
 
-`.sourcebook/` content is organized around five object types, plus the two
+`.sourcebook/` content is organized around seven object types, plus the two
 people/agents that drive them:
 
 - **World** — a project-level summary, read first to prime context.
@@ -94,8 +130,15 @@ people/agents that drive them:
   lore assigned to a region only applies within that region.
 - **Region** — a documented path within the repository (e.g. frontend vs.
   backend) that carries its own conventions and lore.
+- **Boss** — a project goal refined before tactical campaign selection, with
+  readiness, prerequisites and optional roadmap provenance.
 - **Campaign** — a long-running initiative, analogous to a Jira Epic,
-  expected to span many encounters before it's done.
+  expected to span many encounters before it's done. A campaign pursues
+  zero, one or many bosses.
+- **Rumors** — numbered backlog notes (`r001-...`): "we think X should be
+  done", captured from anywhere, on any branch, with a free-text origin.
+  Planning triages them, either promoting a rumor to a boss or dismissing
+  it with a reason. Rumors are never deleted.
 - **Encounter** — a concrete unit of work within a campaign: either a plan
   the agent is expected to execute (`scripted`, with Requirements,
   Rationale, Plan, and Verification sections) or a record of manual work
@@ -110,6 +153,28 @@ people/agents that drive them:
   judgment calls the assistant can't make for itself, and holds final
   authority: approving an encounter's move into review, its move into
   `open`, and its move into `completed`.
+
+Bosses, campaigns, encounters and rumors use numbered names (`b001-...`,
+`c001-...`, `e001-...`, `r001-...`), and any existing record can be referred
+to by a short ref: `bNNN`, `cNNN`, `rNNN`, or `cNNN/eNNN`.
+
+### How work flows
+
+1. Capture ideas as rumors whenever they come up, on any branch.
+2. On the planning branch, triage rumors and capture goals as bosses. A
+   rumor worth acting on is promoted to a boss; the rest are dismissed.
+   Refine bosses until they're ready.
+3. Select one or more ready bosses into a draft campaign. Membership locks
+   when the campaign opens.
+4. Open the campaign on its own execution branch.
+5. Carry the work out as encounters, each reviewed against lore and approved
+   before it runs and before it's marked complete.
+6. Complete the campaign, vanquishing the bosses it selected.
+
+The planning, assignment and execution branch workflow behind these steps is
+skill guidance: the endpoints themselves are branch-agnostic and never create
+or switch branches. See the [Branching Guide](packages/crypts-and-commits/src/cac/core/templates/docs/branching-guide.md)
+for worked examples.
 
 See the [Workflow Reference Guide](packages/crypts-and-commits/src/cac/core/templates/docs/workflow.md)
 for the full structural and procedural detail behind all of the above.
@@ -139,10 +204,11 @@ markdown directly. It exists to demonstrate `cac` operating alongside
 non-`cac` application code in the same repository.
 
 Beyond hosting that demo, this repository dogfoods the framework on itself:
-its own `.sourcebook` — a populated world summary, lore, regions, and
-campaign/encounter history — is live and is the actual source of truth for
-this project's context and in-flight work, driven through the same `cac`
-CLI/MCP surface described above rather than treated as a placeholder. See
+its own `.sourcebook` — a populated world summary, lore, regions, bosses,
+rumors, and campaign/encounter history — is live and is the actual source
+of truth for this project's context and in-flight work, driven through the
+same `cac` CLI/MCP surface described above rather than treated as a
+placeholder. See
 [Exploring this repository's sourcebook](#exploring-this-repositorys-sourcebook)
 below to look at it yourself.
 
@@ -192,8 +258,9 @@ header's status indicator go online and the chat UI respond.
 ## Exploring this repository's sourcebook
 
 Since this repository drives its own `.sourcebook` through `cac`, its world
-summary, lore, regions, and campaign/encounter history are all inspectable
-the same way an agent session would read them. From the repository root
+summary, lore, regions, bosses, rumors, and campaign/encounter history are
+all inspectable the same way an agent session would read them. From the
+repository root
 (`cac` is an editable install inside this workspace's `.venv`, not a global
 install, so it's only on `PATH` here via `pdm run`):
 
@@ -202,15 +269,41 @@ pdm install
 pdm run cac world get              # project-level summary
 pdm run cac lore list              # standards and conventions in force
 pdm run cac region list            # documented paths within the repo
+pdm run cac boss list              # goals (bosses) and their identities
 pdm run cac campaign list          # every campaign and its status
-pdm run cac encounter list         # encounters in the active campaign
+pdm run cac encounter list --campaign c001  # encounters in campaign c001
+pdm run cac rumor list             # backlog rumors awaiting triage
 pdm run cac docs get workflow      # the full domain-model reference
+pdm run cac docs get tool-reference  # exact tool and command contracts
 ```
 
 An AI coding assistant working in this repository uses the equivalent
 `crypts-and-commits` MCP tools instead (`world_get`, `lore_list`,
-`region_list`, `campaign_list`, `encounter_list`, `docs_get`, and more) —
+`region_list`, `boss_list`, `campaign_list`, `encounter_list`, `rumor_list`,
+`docs_get`, and more) —
 the same operations, over the same content, without shelling out.
+
+### A worked example from this repository
+
+This repository's first campaign, `c001-boss-edition`, built Boss Edition
+itself. Its goals are recorded as two bosses, and ideas that came up along
+the way are waiting as rumors:
+
+```bash
+pdm run cac boss list                 # b001-boss-records, b002-rumor-records
+pdm run cac boss get b001             # status, owning campaign, goal and success criteria
+pdm run cac campaign get c001         # bosses: [b001..., b002...], boss_link current
+pdm run cac rumor list --status open  # r001, r002, r003
+pdm run cac rumor get r001            # summary, free-text origin, history
+```
+
+Both bosses are `available` and owned by c001 (`campaign: c001-boss-edition`).
+Completing c001 will vanquish them. b002 depends on b001, because rumor
+promotion targets bosses. The three rumors are open backlog for the next
+planning round, which will promote each to a boss or dismiss it. c001 opened
+before any boss records existed, so its bosses were linked afterwards by a
+recorded developer override; see `cac encounter get c001/e025`. In normal
+use, select bosses into a campaign before opening it.
 
 ## License
 

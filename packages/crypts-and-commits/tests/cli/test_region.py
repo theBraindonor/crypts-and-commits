@@ -9,6 +9,26 @@ from typer.testing import CliRunner
 runner = CliRunner()
 
 
+@pytest.mark.parametrize("operation", ["create", "update"])
+def test_body_file_still_requires_summary(tmp_path: Path, operation: str) -> None:
+    from cac.core import region
+
+    if operation == "update":
+        region.create_region(tmp_path, "file-input", "Original.", "Original summary.")
+    before = region.read_metadata(tmp_path, "file-input") if operation == "update" else None
+    source = tmp_path / "body.md"
+    source.write_text("Replacement.", encoding="utf-8")
+
+    result = runner.invoke(app, ["region", operation, "file-input", "--body-file", str(source)])
+
+    assert result.exit_code == 1
+    assert "summary is required" in result.output
+    if before is None:
+        assert "file-input" not in region.list_regions(tmp_path)
+    else:
+        assert region.read_metadata(tmp_path, "file-input") == before
+
+
 def _break_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise(root: Path) -> str:
         raise git_utils.GitIdentityError("git user.name is not configured.")
@@ -62,14 +82,14 @@ def test_get_shows_placeholder_when_summary_absent(tmp_path: Path) -> None:
 
 
 def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "x" * 200, "--summary", "Summary."])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    runner.invoke(app, ["region", "create", "northlands", "--body", "x" * 2000, "--summary", "Summary."])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 800)
 
     result = runner.invoke(app, ["region", "get", "northlands"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    assert str(tmp_path / ".sourcebook" / "region" / "northlands.md") in result.output
+    assert "[TRUNCATED" in result.output and "next_cursor: " in result.output
+    assert ".sourcebook" not in result.output
 
 
 def test_list_pages_under_budget_and_cursor_resumes(monkeypatch: pytest.MonkeyPatch) -> None:

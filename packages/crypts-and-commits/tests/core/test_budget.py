@@ -1,61 +1,18 @@
-from pathlib import Path
-
 import pytest
 from cac.core import budget
 
 
-def test_truncate_body_passes_through_when_under_budget() -> None:
-    content = "short body"
-
-    assert budget.truncate_body(content, Path("lore/example.md"), budget=100) == content
-
-
-def test_truncate_body_passes_through_when_exactly_at_budget() -> None:
-    content = "x" * 100
-
-    assert budget.truncate_body(content, Path("lore/example.md"), budget=100) == content
+def test_fit_response_passes_through_at_exact_budget() -> None:
+    result = {"body": "x" * 400}
+    size = len('{"body":""}') + 400
+    assert budget.fit_response(result, None, "lore_get", budget=size) == result
+    assert budget.fit_response(result, None, "lore_get", budget=size - 1)["next_cursor"]
 
 
-def test_truncate_body_prepends_notice_naming_path_when_over_budget() -> None:
-    content = "x" * 500
-    path = Path("lore/example.md")
-
-    result = budget.truncate_body(content, path, budget=100)
-
-    assert result.startswith("[TRUNCATED")
-    assert str(path) in result
-    assert "100" in result
-
-
-def test_truncate_body_truncates_content_to_fit_remaining_budget() -> None:
-    content = "abcdefghij" * 200
-    path = Path("lore/example.md")
-
-    result = budget.truncate_body(content, path, budget=1000)
-
-    assert result != content
-    assert content[:10] in result
-    assert len(result) <= 1000
-
-
-def test_truncate_body_over_budget_notice_alone_exceeds_tiny_budget() -> None:
-    # When the notice itself is longer than the budget, no content survives, but the notice
-    # is still returned in full rather than being cut off mid-sentence.
-    content = "x" * 1000
-    path = Path("lore/example.md")
-
-    result = budget.truncate_body(content, path, budget=5)
-
-    assert result.startswith("[TRUNCATED")
-    assert not result.endswith("x")
-
-
-def test_truncate_body_uses_config_response_budget_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 10)
-
-    result = budget.truncate_body("x" * 100, Path("lore/example.md"))
-
-    assert result.startswith("[TRUNCATED")
+def test_fit_response_uses_config_response_budget_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 400)
+    page = budget.fit_response({"body": "x" * 1000}, None, "lore_get")
+    assert page["next_cursor"] and len(page["body"]) < 400
 
 
 def test_paginate_returns_single_page_when_under_budget() -> None:
@@ -144,3 +101,59 @@ def test_paginate_empty_items_returns_empty_page() -> None:
 
     assert page.items == []
     assert page.next_cursor is None
+
+
+BODY = 'Intro "quoted" \\ back\nCafé ✓ — [tool.ruff] ' * 120
+
+
+def _render(text: str, next_cursor: str | None) -> dict:
+    return {"metadata": {"name": "x"}, "body": text, "next_cursor": next_cursor}
+
+
+def _encoded(value: object) -> str:
+    import json
+
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def test_body_page_reassembles_exact_body_within_serialized_budget() -> None:
+    pages, cursor = [], None
+    while True:
+        page = budget.body_page(BODY, cursor, _render, budget=700)
+        assert len(_encoded(page)) <= 700
+        pages.append(page["body"])
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+    assert len(pages) > 2 and "".join(pages) == BODY
+
+
+@pytest.mark.parametrize("cursor", ["bad", "x:1", "a:b:c", None])
+def test_body_page_rejects_invalid_and_stale_cursors(cursor: str | None) -> None:
+    first = budget.body_page(BODY, None, _render, budget=700)
+    if cursor is None:
+        cursor = first["next_cursor"]
+        body = BODY + "edited"
+    else:
+        body = BODY
+    with pytest.raises(budget.InvalidCursorError):
+        budget.body_page(body, cursor, _render, budget=700)
+
+
+def test_body_page_rejects_out_of_range_offset() -> None:
+    digest = budget.body_page(BODY, None, _render, budget=700)["next_cursor"].split(":")[0]
+    with pytest.raises(budget.InvalidCursorError):
+        budget.body_page(BODY, f"{digest}:{len(BODY) + 1}", _render, budget=700)
+
+
+def test_body_page_fails_explicitly_when_metadata_cannot_fit() -> None:
+    with pytest.raises(ValueError, match="response budget"):
+        budget.body_page(BODY, None, lambda text, cursor: {"metadata": "m" * 800, "body": text}, budget=700)
+
+
+def test_fit_response_keeps_complete_shape_and_marks_truncation() -> None:
+    small = {"metadata": {"a": 1}, "body": "short"}
+    assert budget.fit_response(small, None, "lore_get") == small
+    page = budget.fit_response({"metadata": {"a": 1}, "body": BODY}, None, "lore_get", budget=700)
+    assert page["next_cursor"] and "lore_get" in page["notice"] and BODY.startswith(page["body"])
+    assert ".sourcebook" not in page["notice"]

@@ -4,7 +4,6 @@ from cac.core import budget as budget_core
 from cac.core import lore as lore_core
 from cac.core import region as region_core
 from cac.core import world as world_core
-from cac.core.config import SUMMARY_KEY
 from cac.core.paths import resolve_project_root
 from cac.mcp.instance import mcp
 from cac.mcp.region import region_to_dict
@@ -16,16 +15,11 @@ def lore_to_dict(lore: lore_core.Lore) -> dict[str, Any]:
 
 
 @mcp.tool()
-def lore_get(name: str) -> dict[str, Any]:
+def lore_get(name: str, cursor: str | None = None) -> dict[str, Any]:
     """Show a lore entry's frontmatter attributes, summary, and body - a standard, convention, or
-    best practice used to review an encounter's plan before work begins. Body is truncated under
-    the response budget; read the file directly at the reported path if truncated."""
-    root = resolve_project_root()
-    metadata, body = lore_core.read_metadata(root, name)
-    metadata.pop(SUMMARY_KEY, None)
-    summary = lore_core.read_summary(root, name)
-    body = budget_core.truncate_body(body, lore_core.lore_path(root, name))
-    return {"metadata": metadata, "summary": summary, "body": body}
+    best practice used to review an encounter's plan before work begins. Body is fitted to the response budget; a truncated result carries notice and next_cursor - call
+    again with cursor=next_cursor to continue (a cursor fails once the record changes)."""
+    return budget_core.fit_response(lore_core.get_payload(resolve_project_root(), name), cursor, "lore_get")
 
 
 @mcp.tool()

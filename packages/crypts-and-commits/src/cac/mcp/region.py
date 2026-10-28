@@ -2,7 +2,6 @@ from typing import Any
 
 from cac.core import budget as budget_core
 from cac.core import region as region_core
-from cac.core.config import SUMMARY_KEY
 from cac.core.paths import resolve_project_root
 from cac.mcp.instance import mcp
 
@@ -12,16 +11,11 @@ def region_to_dict(region: region_core.Region) -> dict[str, Any]:
 
 
 @mcp.tool()
-def region_get(name: str) -> dict[str, Any]:
+def region_get(name: str, cursor: str | None = None) -> dict[str, Any]:
     """Show a region's frontmatter attributes, summary, and body - a documented path within the
-    repository that can carry its own lore. Body is truncated under the response budget; read the
-    file directly at the reported path if truncated."""
-    root = resolve_project_root()
-    metadata, body = region_core.read_metadata(root, name)
-    metadata.pop(SUMMARY_KEY, None)
-    summary = region_core.read_summary(root, name)
-    body = budget_core.truncate_body(body, region_core.region_path(root, name))
-    return {"metadata": metadata, "summary": summary, "body": body}
+    repository that can carry its own lore. Body is fitted to the response budget; a truncated result carries notice and next_cursor - call
+    again with cursor=next_cursor to continue (a cursor fails once the record changes)."""
+    return budget_core.fit_response(region_core.get_payload(resolve_project_root(), name), cursor, "region_get")
 
 
 @mcp.tool()

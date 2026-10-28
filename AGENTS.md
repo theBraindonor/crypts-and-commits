@@ -15,10 +15,11 @@ for Codex.
 - Translate references to Claude Code tools into the equivalent Codex tools and
   workflows. Tool names in `CLAUDE.md` describe intent, not a requirement to use
   a Claude-specific interface.
-- The Codex-native `world-manager` and `campaign-manager` skills live under
-  `.agents/skills/` and are auto-discovered by Codex. When `CLAUDE.md` requires
-  either workflow, use the corresponding skill:
+- The Codex-native `world-manager`, `world-planner` and `campaign-manager`
+  skills live under `.agents/skills/` and are auto-discovered by Codex. When
+  `CLAUDE.md` requires one of these workflows, use the corresponding skill:
   - `.agents/skills/world-manager/SKILL.md`
+  - `.agents/skills/world-planner/SKILL.md`
   - `.agents/skills/campaign-manager/SKILL.md`
 - Prefer the `crypts-and-commits` MCP server's tools (registered as
   `crypts-and-commits` per `.mcp.json`) as the primary interface for
@@ -27,8 +28,11 @@ for Codex.
   forms — MCP tool first, `cac ...` CLI fallback second. In this development
   repository, run CLI fallback commands as `pdm run cac ...`.
 - Preserve the `.sourcebook/` MCP/CLI-only guardrail. Never inspect or mutate
-  its contents directly, and never run `cac bootstrap init` — `bootstrap` is
-  also never exposed over MCP, by design.
+  its contents directly, and never run `cac bootstrap init` or
+  `cac index rebuild` — both are developer-only and never exposed over MCP, by
+  design. The packaged Codex hook denies only `apply_patch` targets inside the
+  sourcebook; shell calls are not filtered, which grants no exception to this
+  rule.
 - Use `apply_patch` for manual file edits. Preserve unrelated user changes in a
   dirty worktree.
 - Verify changes with the narrowest relevant tests first, then run broader

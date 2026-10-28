@@ -5,13 +5,13 @@ assigned_to_world: false
 enabled: true
 name: cli-mcp-parity
 summary: 'Every CLI command must have a matching MCP tool in mcp/ (thin wrapper into
-  core/, no CLI-only console/confirm/editor concerns), with cursor paging and body
-  truncation preserved - except bootstrap and index rebuild, both permanently CLI-only
+  core/, no CLI-only console/confirm/editor concerns), with cursor paging and get-body
+  continuation preserved - except bootstrap and index rebuild, both permanently CLI-only
   since they''re developer-only maintenance operations. Purpose: let an agent fall
   back to the CLI when the MCP server isn''t available. Check this when any cli/ command
   changes.'
 updated_by: John Hoff
-updated_on: '2026-07-27T05:00:23Z'
+updated_on: '2026-10-28T02:56:55Z'
 ---
 
 # CLI/MCP Command Parity
@@ -47,8 +47,10 @@ When reviewing any encounter that adds or changes a `cac` CLI command in
   fallback becomes a required argument with no default.
 - Paginated `list` commands and `encounter order` must expose the same
   cursor-based paging contract as the CLI (`budget_core.paginate`), returning
-  structured data rather than printed lines. `get` commands must apply the
-  same `budget_core.truncate_body` truncation.
+  structured data rather than printed lines. `get` commands must fit their
+  result through the shared `budget_core.fit_response` helper and accept the
+  same `cursor`/`--cursor` continuation; a truncation notice must never point
+  at a file.
 - New domain modules must be wired into `mcp/server.py`'s `_TOOL_MODULES`, and
   `tests/mcp/test_server.py::test_all_domain_tools_are_registered` must be
   updated to reflect the new tool set.
