@@ -32,7 +32,7 @@ local instruction adoption from developer-run redeployment and schema migration.
 
 ## What's inside
 
-Content is organized around **world** (project summary), **lore** (standards), **region** (documented repository path), **boss** (goal, including adopted roadmap context), **campaign** (chosen effort pursuing zero, one or many bosses), **rumors** (one optional document per campaign preserving discoveries for later planning), and **encounter** (reviewed unit of work). Bosses, campaigns and encounters use numbered names with short refs (`bNNN`, `cNNN`, `cNNN/eNNN`). Agents use the MCP server first and CLI as fallback; managed files are not edited directly. The packaged Workflow Reference Guide supplies branch, numbering, ownership, and approval procedure.
+Content is organized around **world** (project summary), **lore** (standards), **region** (documented repository path), **boss** (goal, including adopted roadmap context), **campaign** (chosen effort pursuing zero, one or many bosses), **rumors** (numbered backlog notes captured from anywhere, triaged on planning into bosses or dismissed), and **encounter** (reviewed unit of work). Bosses, campaigns, encounters and rumors use numbered names with short refs (`bNNN`, `cNNN`, `rNNN`, `cNNN/eNNN`). Agents use the MCP server first and CLI as fallback; managed files are not edited directly. The packaged Workflow Reference Guide supplies branch, numbering, ownership, and approval procedure.
 
 ## Documentation
 

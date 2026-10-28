@@ -167,10 +167,61 @@ Good to know:
   The migration guide covers evidence, provenance and legacy limits.
 - Every command has a matching `boss_*` MCP tool. Bosses are searchable, and
   `prime get` includes every boss selected by the active campaign. Rumors are
-  covered under "Pursue a boss with a campaign" below.
+  covered in the next section.
 
 State guards and dependency validation are in `cac docs get workflow`; paging
 and response contracts are in `cac docs get tool-reference`.
+
+### Capture ideas as rumors
+
+A rumor is a backlog note, "we think X should be done", that isn't a goal yet.
+Capture one whenever an idea comes up: during an encounter, in a review, from a
+customer, or from the running project. You can capture on any branch.
+
+1. **Capture** it with a numbered name, a summary (at most 500 characters) and
+   a free-text origin naming who or what raised it. The body is optional.
+   Allocate the number as the numeric maximum plus one over
+   `cac rumor list --include-archived`.
+
+   ```bash
+   cac rumor create r001-cache-wheels --summary "Cache wheel builds in CI" --origin "Retro, sprint 12" --body-file "notes/rumor.md"
+   cac rumor list --status open
+   cac rumor get r001
+   ```
+
+2. **Refine** an open rumor. Update replaces the body, summary and origin
+   together:
+
+   ```bash
+   cac rumor update r001 --summary "Cache wheel builds in CI" --origin "Retro, sprint 12" --body-file "notes/rumor.md"
+   ```
+
+3. **Triage on planning.** Rumors captured on different branches can arrive
+   with the same number. Renumber collisions first; this works only for open or
+   dismissed rumors, because a promoted rumor's number is already settled. Then
+   either promote each rumor to a boss, or dismiss it with a reason.
+   Promotion takes two steps: create or refine the boss, then link the rumor to
+   it. The boss must be unassigned and `proposed` or `available`, and many
+   rumors may share one boss. The link is stored only on the rumor; the boss
+   record isn't changed.
+
+   ```bash
+   cac rumor renumber r001-cache-wheels r004-cache-wheels
+   cac boss create b007-faster-ci --summary "Faster CI." --body-file "notes/goal.md"
+   cac rumor promote r004 b007 --message "Part of the CI goal"
+   cac rumor dismiss r002 --message "Superseded by the new build system"
+   ```
+
+4. **Undo or retire.** `cac rumor reopen r004 --message "..."` returns a
+   promoted or dismissed rumor to open and clears its boss link.
+   `cac rumor archive r002` retires a promoted or dismissed rumor read-only.
+   There is no delete.
+
+Similar rumors are never merged automatically, because repetition is a signal.
+Every transition message is kept in the rumor's `history`. Rumors are
+searchable with `cac index search PHRASE --type rumor`, and every command has a
+matching `rumor_*` MCP tool. world-planner does the planning-side triage, and
+any skill can capture.
 
 ### Discover the next goal
 
@@ -243,7 +294,8 @@ The recommended flow, which the skills walk through with you:
    ```
 
    Promotion creates a draft with reciprocal links; it doesn't open the campaign
-   or create encounters. To pursue several bosses together, create the campaign
+   or create encounters. Select every boss you want before opening the campaign:
+   membership locks when the campaign opens. To pursue several bosses together, create the campaign
    with a repeated `--boss` option:
 
    ```bash
@@ -280,16 +332,9 @@ historical membership) is empty and no boss claims it. Archiving does not
 protect a bossless campaign. Deletion is never a rollback or renumbering
 shortcut.
 
-**Rumors.** Capture execution discoveries in the campaign's optional rumors
-document:
-
-```bash
-cac rumors create --campaign c001 --body-file notes/rumors.md
-```
-
-Use `cac rumors update` for an existing document. world-planner distills
-integrated rumors on planning, without deleting them automatically or expanding
-campaign scope.
+**Discoveries.** Capture ideas that come up during execution as rumors (see
+"Capture ideas as rumors" above). Capturing a rumor never expands the
+campaign's scope.
 
 **MCP and recovery.** `boss_assign_campaign` and `campaign_reactivate` provide
 MCP parity. Retrying the same current assignment is read-only and never replaces

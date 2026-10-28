@@ -32,22 +32,27 @@ created lazily, with no record migration or bootstrap rerun required.
   frontmatter, never their bodies.
 - `campaign_reactivate`, reopening an unarchived completed campaign for
   pre-merge review fixes while keeping its closing history.
-- Rumors (`rumors_*` / `cac rumors`): one optional freeform document per
-  campaign for discoveries made during execution.
+- Rumors (`rumor_*` / `cac rumor`): numbered `rNNN` backlog records
+  ("we think X should be done") captured from anywhere, on any branch,
+  with a summary and free-text origin. Lifecycle `open` -> `promoted`
+  (linked, on the rumor only, to an unassigned boss; many rumors per boss)
+  or `dismissed` (reason required), plus `reopen` and `archive`; no delete.
+  `rumor_renumber` fixes cross-branch number collisions on planning for
+  open or dismissed rumors. Rumors are a search object type (`rumor`).
 - Numbered names and short references: existing-record inputs across the
-  CLI and MCP accept `bNNN`, `cNNN`, and `cNNN/eNNN` (exact canonical names
+  CLI and MCP accept `bNNN`, `cNNN`, `rNNN`, and `cNNN/eNNN` (exact canonical names
   win); skills allocate numbers, core never does.
 - World branch settings `merge_target_branch` and `planning_branch`
   (defaults `main` and `planning`), used by skill branch guidance while
   endpoints stay branch-agnostic.
 - Prime and search integration: prime includes the active campaign's
-  bosses with integrity diagnostics, bosses are a search object type, and
-  the index reports content-based staleness (e.g. after a branch switch)
-  instead of returning stale hits.
+  bosses with integrity diagnostics, bosses and rumors are search object
+  types, and the index reports content-based staleness (e.g. after a
+  branch switch) instead of returning stale hits.
 - Supported continuation reads: every `get` returns `next_cursor` for a
   truncated body and accepts `cursor` / `--cursor` to continue.
 - The `world-planner` agent skill (Claude Code and Codex flavors) for goal
-  planning, roadmap adoption, readiness assessment, and rumor distillation.
+  planning, roadmap adoption, readiness assessment, and rumor triage.
 - Packaged docs: the Tool Reference (`tool-reference`), the Branching Guide
   (`branching-guide`), and a Boss Edition upgrade and workflow-adoption
   section in the Migration Guide (`migration-guide`).
