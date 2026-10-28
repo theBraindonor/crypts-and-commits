@@ -1,6 +1,8 @@
 ---
 archived: false
-bosses: []
+bosses:
+- b001-boss-records
+- b002-rumor-records
 created_by: John Hoff
 created_on: '2026-10-27T03:26:33Z'
 name: c001-boss-edition
