@@ -9,9 +9,9 @@ kind: scripted
 name: e022-correct-campaign-deletion-guard-wording
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-10-28T13:00:59Z'
+updated_on: '2026-10-28T13:02:18Z'
 ---
 
 ## Requirements
@@ -59,3 +59,7 @@ Opened with developer approval. Working tree clean apart from this encounter's o
 ### Message - 2026-10-28T13:00:59Z - John Hoff
 
 Executed Plan steps 1-4. Both campaign_manager templates now read: "Deletion is not unconditional: a non-empty bosses list (current or historical membership) or a reverse boss claim blocks it; archiving does not protect a bossless campaign. MCP has no interactive deletion prompt; CLI ..." (rest of paragraph unchanged). The two paragraphs diff identical; "archived state are protected" no longer appears under templates/skills. Reviewer note resolved: a full grep of tool-reference.md for "delet" finds no archived-protection claim (only the confirmation section and the delete rows), so it stays accurate. test_skills.py 10 passed; full suite 1564 passed; ruff check clean; ruff format left 286 files unchanged. Changed files: the two templates plus this sourcebook record.
+
+### Completed - 2026-10-28T13:02:18Z - John Hoff
+
+Verification passed. Developer ran cac bootstrap init; deployed .claude/skills/campaign-manager and .agents/skills/campaign-manager SKILL.md copies match their claude/codex templates (line-ending-normalized diff). Template fix committed in 1dc077e. Developer confirmed completion.
