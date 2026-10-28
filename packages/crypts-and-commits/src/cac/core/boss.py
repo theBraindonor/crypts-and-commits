@@ -216,40 +216,11 @@ def _minimum_output(root: Path, name: str, post: frontmatter.Post) -> None:
         "body": "",
         "identity": {"canonical": name, "short": None, "reason": "ambiguous"},
     }
-    # Reserve a full truncation notice, hydration ref, and the longest possible identity.
+    # Reserve the continuation notice/cursor and the longest possible identity, with a
+    # name-length margin, so a later get can always return at least one body page.
     path = boss_dir(root, archived=True) / f"{name}.md"
     if len(references.encoded(minimum)) + 400 + 2 * len(str(path)) > config.RESPONSE_BUDGET:
-        raise BossError("Boss metadata/provenance and hydration notice exceed the response budget before writes.")
-
-
-def budget_response(root: Path, name: str, result: dict) -> dict:
-    """Reserve complete metadata and JSON escaping before truncating body text."""
-    from cac.core import budget, config, references
-
-    if len(references.encoded(result)) <= config.RESPONSE_BUDGET:
-        return result
-    body = result.get("body", "")
-    result = {**result, "body": ""}
-    allowance = config.RESPONSE_BUDGET - len(references.encoded(result))
-    if allowance < 0:
-        raise BossError("Boss metadata/provenance exceeds the response budget; increase it.")
-    path = boss_path(root, name)
-    ref = f"\n[Hydrate with boss_get(name={name!r}).]"
-
-    def truncated(size):
-        return budget.truncate_body(body, path, budget=size) + ref
-
-    low, high = 0, allowance
-    while low < high:
-        middle = (low + high + 1) // 2
-        if len(references.encoded({**result, "body": truncated(middle)})) <= config.RESPONSE_BUDGET:
-            low = middle
-        else:
-            high = middle - 1
-    result["body"] = truncated(low)
-    if len(references.encoded(result)) > config.RESPONSE_BUDGET:
-        raise BossError("Boss metadata and truncation notice exceed the response budget; increase it.")
-    return result
+        raise BossError("Boss metadata/provenance and continuation notice exceed the response budget before writes.")
 
 
 def _editable(post: frontmatter.Post, name: str, statuses: tuple[str, ...] = ("proposed", "available")) -> None:
@@ -396,3 +367,10 @@ def assign_campaign(root: Path, name: str, campaign_name: str, body: str) -> dic
     from cac.core import coupling
 
     return coupling.assign_campaign(root, name, campaign_name, body)
+
+
+def get_payload(root: Path, name: str) -> dict[str, Any]:
+    """The unbudgeted boss_get result shared by CLI and MCP, before identity and budget fitting."""
+    metadata, body = read_metadata(root, name)
+    summary = metadata.pop("summary", "")
+    return {"metadata": metadata, "summary": summary, "body": body}

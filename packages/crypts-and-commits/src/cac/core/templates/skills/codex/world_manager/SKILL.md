@@ -54,7 +54,9 @@ A region documents a path within the repository that needs its own conventions, 
 - `prime_get()` — the global prime bundle: world (full — frontmatter + body) + world-assigned enabled lore (`name` + `summary` only) + region map (per region: `summary` + `path` + assigned-lore *names*, not their summaries or bodies) + the active campaign's full body plus plural active_boss_names, active_bosses, and active_boss_diagnostics (not its encounter list — that stays a separate, on-demand `encounter_list` call). CLI fallback: `cac prime get --help`.
 - `prime_applicable_lore(encounter, campaign, cursor)` — the exact enabled lore set that applies to a specific encounter (world-assigned lore ∪ lore assigned to that encounter's region(s)), as `name` + `summary` + `ref` entries. `ref` is the lore name — hydrate it with `lore_get(ref)` when you need the exact rule text, not just its summary. Paged under the response budget; pass the cursor from a truncated page's notice to continue. CLI fallback: `cac prime applicable-lore --help`.
 
-Both calls return **summaries**, never lore bodies — summaries are a routing signal (what exists, roughly), not a substitute for the governing text. When a lore entry has no summary yet, the field carries an explicit placeholder saying so; treat that as a prompt to read the body directly rather than assuming there's nothing to know.
+Both calls return **summaries**, never lore bodies — summaries are a routing signal (what exists, roughly), not a substitute for the governing text. When a lore entry has no summary yet, the field carries an explicit placeholder saying so; treat that as a prompt to read the body with `lore_get` rather than assuming there's nothing to know.
+
+**Long bodies.** Every get tool fits its result to the response budget. When a result carries `next_cursor` (with a `notice`), call the same get again with `cursor=next_cursor` (CLI `--cursor`) until it is absent, then join the `body` fields. Never read managed files to get the rest.
 
 ## Docs
 

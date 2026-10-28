@@ -197,7 +197,7 @@ def read_metadata(root: Path, name: str) -> tuple[dict[str, Any], str]:
 
 
 def campaign_path(root: Path, name: str) -> Path:
-    """Return the on-disk path for a campaign, e.g. for use in a truncation fallback notice.
+    """Return the on-disk path for a campaign.
     Resolves the live location first, then the archive location, so this stays correct for an
     archived campaign too."""
     return _existing_campaign_path(root, name)
@@ -230,31 +230,6 @@ def _write_campaign(root: Path, path: Path, post: frontmatter.Post) -> None:
 
 def set_bosses(root: Path, name: str, bosses: list[str], message: str) -> Path:
     return coupling.set_bosses(root, name, bosses, message)
-
-
-def budget_response(root: Path, name: str, result: dict) -> dict:
-    from cac.core import budget, config, references
-
-    if len(references.encoded(result)) <= config.RESPONSE_BUDGET:
-        return result
-    body = result.get("body", "")
-    result = {**result, "body": ""}
-    allowance = config.RESPONSE_BUDGET - len(references.encoded(result))
-    if allowance < 0:
-        raise ValueError("Campaign membership/state exceeds the response budget; increase it.")
-    # Shared truncation notice, with the full envelope and JSON escaping reserved.
-    low, high = 0, allowance
-    while low < high:
-        middle = (low + high + 1) // 2
-        candidate = budget.truncate_body(body, campaign_path(root, name), budget=middle)
-        if len(references.encoded({**result, "body": candidate})) <= config.RESPONSE_BUDGET:
-            low = middle
-        else:
-            high = middle - 1
-    result["body"] = budget.truncate_body(body, campaign_path(root, name), budget=low)
-    if len(references.encoded(result)) > config.RESPONSE_BUDGET:
-        raise ValueError("Campaign metadata and truncation notice exceed the response budget; increase it.")
-    return result
 
 
 @coupling.campaign_operation("update")
@@ -483,3 +458,9 @@ def _existing_campaign_path(root: Path, name: str) -> Path:
     if archived_path.exists():
         return archived_path
     raise CampaignNotFoundError(f"Campaign {name!r} does not exist.")
+
+
+def get_payload(root: Path, name: str) -> dict[str, Any]:
+    """The unbudgeted campaign_get result shared by CLI and MCP, before identity and budget fitting."""
+    metadata, body = read_metadata(root, name)
+    return {"metadata": metadata, "body": body, "boss_link": coupling.inspection(root, name)}

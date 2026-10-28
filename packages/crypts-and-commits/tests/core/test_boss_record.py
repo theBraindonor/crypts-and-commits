@@ -8,6 +8,7 @@ from cac.core import (
     boss,
     boss_candidates,
     boss_provenance,
+    budget,
     campaign,
     config,
     coupling,
@@ -317,18 +318,16 @@ def test_budget_preflight_and_read_only_hydration(tmp_path, monkeypatch):
     metadata, body = boss.read_metadata(tmp_path, "b001-old")
     before = path.read_bytes()
     monkeypatch.setattr(config, "RESPONSE_BUDGET", 1500)
-    result = boss.budget_response(
-        tmp_path, "b001-old", {"metadata": metadata, "body": ('"\\\n' * 2000), "summary": "S"}
-    )
+    result = budget.fit_response({"metadata": metadata, "body": ('"\\\n' * 2000), "summary": "S"}, None, "boss_get")
     assert len(references.encoded(result)) <= 1500
-    assert result["metadata"] == metadata and "boss_get" in result["body"] and "TRUNCATED" in result["body"]
+    assert result["metadata"] == metadata and "boss_get" in result["notice"] and "TRUNCATED" in result["notice"]
     assert path.read_bytes() == before
     monkeypatch.setattr(config, "RESPONSE_BUDGET", 100)
     with pytest.raises(ValueError, match="before writes"):
         record(tmp_path, "b002-next")
     assert not (boss.boss_dir(tmp_path) / "b002-next.md").exists()
     with pytest.raises(ValueError, match="response budget"):
-        boss.budget_response(tmp_path, "b001-old", {"metadata": metadata, "body": body})
+        budget.fit_response({"metadata": metadata, "body": body}, None, "boss_get")
 
 
 def test_date_uses_utc_calendar_today(monkeypatch):

@@ -84,7 +84,7 @@ def _active_bosses(root: Path, campaign: str | None) -> tuple[list[str], list[di
     try:
         post = frontmatter.load(campaign_core.campaign_path(root, campaign))
         names = campaign_bosses.read(post.metadata)
-        links = coupling.Links(root)
+        links = coupling.Links(root, campaigns=[campaign])
         if not names:
             links.current(campaign)
         for member in names:

@@ -27,12 +27,10 @@ def preflight_campaign_creation(root: Path, name: str) -> None:
         path = boss._safe_path(root, directory / f"{name}.md")
         if path.exists():
             raise campaign.CampaignAlreadyExistsError(f"Campaign {name!r} already exists, live or archived.")
-    for key in references.Inventory(root).names("boss"):
-        _, post = boss._load(root, key)
-        if post.get("campaign") == name:
-            raise LinkError(
-                f"Campaign name {name!r} is already claimed by boss {key!r}; inspect the missing reciprocal record."
-            )
+    for key in Links(root, campaigns=[name]).claims(name):
+        raise LinkError(
+            f"Campaign name {name!r} is already claimed by boss {key!r}; inspect the missing reciprocal record."
+        )
 
 
 def _campaign(root: Path, name: str) -> tuple[Path, frontmatter.Post]:
@@ -64,15 +62,64 @@ def _campaign(root: Path, name: str) -> tuple[Path, frontmatter.Post]:
     return path, post
 
 
+def _raw_members(metadata: dict) -> set[str]:
+    """Every string a campaign could be claiming, without validating its representation."""
+    listed = metadata.get("bosses")
+    candidates = [metadata.get("boss")] + (listed if isinstance(listed, list) else [])
+    return {member for member in candidates if isinstance(member, str)}
+
+
+def _raw(path: Path, kind: str, name: str) -> dict:
+    try:
+        return frontmatter.load(path).metadata
+    except (ValueError, yaml.YAMLError) as error:
+        # Unparseable frontmatter could hide an ownership claim, so it is never treated as unrelated.
+        raise LinkError(f"Cannot read {kind} {name!r} frontmatter to check ownership claims: {error}") from error
+
+
 class Links:
-    def __init__(self, root: Path):
+    """Validated ownership records.
+
+    With no scope, every boss and campaign is loaded and validated. With a scope, only the
+    connected ownership component around the named campaigns/bosses is validated, so defects
+    in unrelated records cannot block an operation.
+    """
+
+    def __init__(self, root: Path, *, campaigns: list[str] | None = None, bosses: list[str] | None = None):
         self.root = root
         self.inventory = references.Inventory(root)
         try:
-            self.bosses = {name: boss._load(root, name) for name in self.inventory.names("boss")}
-            self.campaigns = {name: _campaign(root, name) for name in self.inventory.names("campaign")}
+            boss_names = self.inventory.names("boss")
+            campaign_names = self.inventory.names("campaign")
+            if campaigns is None and bosses is None:
+                related_bosses, related_campaigns = set(boss_names), set(campaign_names)
+            else:
+                related_bosses, related_campaigns = self._component(
+                    root, boss_names, campaign_names, set(campaigns or ()), set(bosses or ())
+                )
+            self.bosses = {name: boss._load(root, name) for name in boss_names if name in related_bosses}
+            self.campaigns = {name: _campaign(root, name) for name in campaign_names if name in related_campaigns}
         except (ValueError, OSError, TypeError, yaml.YAMLError) as error:
             raise LinkError(f"Cannot validate canonical boss/campaign ownership: {error}") from error
+
+    @staticmethod
+    def _component(
+        root: Path, boss_names: list[str], campaign_names: list[str], campaigns: set[str], bosses: set[str]
+    ) -> tuple[set[str], set[str]]:
+        from cac.core import campaign
+
+        claims = {name: _raw(boss.boss_path(root, name), "boss", name).get("campaign") for name in boss_names}
+        members = {
+            name: _raw_members(_raw(campaign.campaign_path(root, name), "campaign", name)) for name in campaign_names
+        }
+        while True:
+            grown_bosses = bosses | {name for name, owner in claims.items() if owner in campaigns}
+            grown_bosses |= {member for name in campaigns for member in members.get(name, ())}
+            grown_campaigns = campaigns | {claims[name] for name in grown_bosses if isinstance(claims.get(name), str)}
+            grown_campaigns |= {name for name, listed in members.items() if listed & grown_bosses}
+            if grown_bosses == bosses and grown_campaigns == campaigns:
+                return bosses, campaigns
+            bosses, campaigns = grown_bosses, grown_campaigns
 
     def claims(self, name: str) -> list[str]:
         return [key for key, (_, post) in self.bosses.items() if post.get("campaign") == name]
@@ -123,7 +170,7 @@ class Links:
 
 def inspection(root: Path, name: str) -> dict:
     try:
-        links = Links(root)
+        links = Links(root, campaigns=[name])
         current = links.current(name)
         origin = campaign_bosses.read(links.campaigns[name][1].metadata)
         return {"kind": "current" if current else "historical" if origin else "bossless", "diagnostics": []}
@@ -182,14 +229,16 @@ def assign_campaign(root: Path, name: str, campaign_name: str, body: str) -> dic
     from cac.core import campaign
 
     campaign.validate_name(campaign_name)
-    links = Links(root)
+    links = Links(root, campaigns=[campaign_name], bosses=[name])
     _, goal = boss._load(root, name)
     if goal.get("campaign") is not None:
         if campaign_name not in links.campaigns:
             raise LinkError(f"Boss {name!r} is assigned to a missing or different campaign.")
         if goal["campaign"] != campaign_name or name not in links.current(campaign_name):
             raise LinkError(f"Boss {name!r} is already assigned or has inconsistent ownership.")
-        return _pair_result(root, name, campaign_name, links.campaigns[campaign_name][1]["status"], reused=True)
+        return _pair_result(
+            root, name, campaign_name, links.campaigns[campaign_name][1].get("status", "draft"), reused=True
+        )
     if campaign_name in links.campaigns or links.claims(campaign_name):
         raise LinkError(f"Campaign name {campaign_name!r} is retained or already claimed.")
     destination = boss._safe_path(root, campaign.campaign_dir(root) / f"{campaign_name}.md")
@@ -257,7 +306,7 @@ def create_group(root: Path, name: str, body: str, names: list[str]) -> Path:
 
     names = campaign_bosses.resolve(root, names)
     preflight_campaign_creation(root, name)
-    links = Links(root)
+    links = Links(root, campaigns=[name], bosses=names)
     _eligible(root, names, links)
     destination = boss._safe_path(root, campaign.campaign_dir(root) / f"{name}.md")
     post = frontmatter.loads(templates.load("sourcebook", "campaign.md"))
@@ -290,7 +339,7 @@ def set_bosses(root: Path, name: str, names: list[str], message: str) -> Path:
         raise campaign.CampaignNotMutableError("Boss membership can change only on an unarchived draft campaign.")
     if not message or not message.strip():
         raise campaign.CampaignMessageRequiredError("A nonblank message is required for boss membership changes.")
-    links = Links(root)
+    links = Links(root, campaigns=[name], bosses=names)
     previous = links.current(name)
     if names == previous:
         return path
@@ -351,7 +400,7 @@ def campaign_operation(action: str):
 
             # Preserve ordinary missing-record error behavior before enumerating claims.
             path, post = _campaign(root, name)
-            links = Links(root)
+            links = Links(root, campaigns=[name])
             if action == "delete" and (campaign_bosses.read(post.metadata) or links.claims(name)):
                 raise CampaignLinkedError(
                     f"Cannot delete campaign {name!r}: origin/reverse boss links protect its history."

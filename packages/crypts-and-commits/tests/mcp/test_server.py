@@ -83,3 +83,9 @@ def test_all_domain_tools_are_registered() -> None:
         "docs_list",
         "docs_get",
     }
+
+
+def test_domain_get_tools_accept_continuation_cursor() -> None:
+    tools = {tool.name: tool for tool in asyncio.run(mcp.list_tools())}
+    for name in ("world_get", "lore_get", "region_get", "campaign_get", "boss_get", "encounter_get", "rumors_get"):
+        assert "cursor" in tools[name].input_schema["properties"], name

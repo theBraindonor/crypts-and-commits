@@ -26,15 +26,13 @@ def _resolve_campaign(campaign: str | None, *, require_mutable: bool) -> str:
 
 @mcp.tool()
 @references.inputs("encounter")
-def encounter_get(name: str, campaign: str | None = None) -> dict[str, Any]:
+def encounter_get(name: str, campaign: str | None = None, cursor: str | None = None) -> dict[str, Any]:
     """Show an encounter's frontmatter attributes and body - a concrete unit of work within a
     campaign, with Requirements/Rationale sections (plus Plan/Verification for 'scripted' kind - see
-    the 'kind' attribute). Body is truncated under the response budget; read the file directly at the
-    reported path if truncated. campaign defaults to the active (open) campaign when omitted."""
-    root = resolve_project_root()
+    the 'kind' attribute). Body is fitted to the response budget; a truncated result carries notice and next_cursor - call
+    again with cursor=next_cursor to continue (a cursor fails once the record changes). campaign defaults to the active (open) campaign when omitted."""
     resolved = _resolve_campaign(campaign, require_mutable=False)
-    metadata, body = encounter_core.read_metadata(root, resolved, name)
-    return {"metadata": metadata, "body": body}
+    return encounter_core.get_payload(resolve_project_root(), resolved, name)
 
 
 @mcp.tool()

@@ -689,8 +689,8 @@ references are informational; adopting open legacy campaign ownership is deferre
 Draft-only membership locks remain. External completions satisfy dependencies,
 including when archived; ordinary completed-content freezing applies. Mistakes need
 documented developer repair, never assistant direct edits. No undo API here.
-Recorded reads reserve provenance/identity before body truncation and boss_get
-hydration refs; impossible metadata fails explicitly, preflighted before record/archive.
+Recorded reads keep provenance/identity whole and continue bodies by cursor;
+impossible metadata fails explicitly, preflighted before record/archive.
 Failures roll back cohort bytes/rows/fingerprints, preserving unrelated drift.
 Prime still includes only actual active membership. Search indexes summary/body.
 For example, record delivered b001, then planned b002 depending on b001, then
@@ -723,14 +723,9 @@ delete is unconditional. Unsafe names, storage links/junctions, and path/type
 collisions fail before writes.
 
 Both surfaces return identical compact JSON; CLI prints it literally. Mutations
-return canonical `campaign` and campaign `identity`. Get adds raw `body` chunk,
-`truncated`, `next_cursor`, and separate `notice`. Complete reads have false
-truncation and null cursor/notice. For a `TRUNCATED` response, pass `next_cursor`
-as `cursor`/`--cursor` with the same campaign until null; concatenate only body
-fields. Digest/character-offset cursors reject malformed, out-of-range, or stale
-values; restart after edits. No direct-file-read fallback. The serialized envelope,
-including escaped text, fits the shared response budget or fails if too small.
-Other domains' get behavior is unchanged.
+return canonical `campaign` and campaign `identity`. Get uses the shared body
+continuation (see "Identity and budgets") with the same campaign, but always
+includes `truncated`, `next_cursor`, and `notice` (false/null when complete).
 
 List returns bounded `{items, next_cursor}` in filename order with shared cursor
 semantics. Items contain `campaign`, `identity`, and `diagnostic`; archived owners
@@ -855,9 +850,9 @@ are conventions, not creation gates.
 Resolution inventories live and archived records in the current project. A
 numbered full name has prefix/digits/hyphen/nonempty slug. Numeric collisions,
 including different padding or archived matches, raise ambiguity rather than
-choosing a slug. Full slugged names and other exact legacy names remain inspection
-routes. A historical literal name such as `b001` participates in the numeric
-matches: it works alone but cannot shadow a colliding `b001-slug`. Duplicate
+choosing a slug. An exact canonical name always selects its record first, so a
+historical literal `b001` stays reachable beside `b001-slug`; that sibling then
+has no usable short ref and is reached by full name. Duplicate
 canonical files in live/archive are integrity errors even for full-name lookups.
 Rumors do not participate. Malformed/unknown/wrong-domain refs fail before writes.
 
@@ -913,8 +908,12 @@ selection, using shared cursor semantics. Candidate identities participate in
 the existing whole-page bound before explanation truncation. Required identities
 are never cut into different identifiers; if the minimum cannot fit, return an
 explicit budget error. Oversized encounter order requires inspecting paged lists
-instead of silently dropping rows. Get bodies reserve identity space before
-truncation; normal metadata and literal markdown contracts remain intact.
+instead of silently dropping rows. Every get (world, lore, region,
+campaign, boss, encounter, rumors, docs) fits its whole compact-JSON result,
+identity included; docs count body characters. A cut result adds `next_cursor`
+and `notice`: repeat the get with `cursor`/`--cursor` until absent, then join
+bodies. Cursors bind to body content; malformed, out-of-range or stale
+(post-edit) cursors fail. Never read managed files instead.
 
 CLI/MCP share references.select/inputs; lower storage routines consume exact names
 without reinterpreting damaged links. Resolution may cache request-local inventory,

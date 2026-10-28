@@ -1,5 +1,5 @@
 import pytest
-from cac.core import boss, config, world
+from cac.core import boss, config, references, world
 from cac.mcp import boss as api
 
 
@@ -35,12 +35,12 @@ def test_all_operations_and_structured_results():
 
 
 def test_paging_and_all_body_responses_budgeted(monkeypatch):
-    monkeypatch.setattr(config, "RESPONSE_BUDGET", 500)
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 1000)
     result = api.boss_create("a", "x" * 4000, "Summary")
-    assert len(result["body"]) <= 500
-    assert "TRUNCATED" in result["body"]
-    assert "TRUNCATED" in api.boss_make_available("a")["body"]
-    assert "TRUNCATED" in api.boss_update("a", "y" * 4000, "Summary")["body"]
+    assert len(references.encoded(result)) <= 1000
+    assert "TRUNCATED" in result["notice"]
+    assert "TRUNCATED" in api.boss_make_available("a")["notice"]
+    assert "TRUNCATED" in api.boss_update("a", "y" * 4000, "Summary")["notice"]
     api.boss_create("b", "Body", "Summary")
     api.boss_withdraw("b")
     api.boss_archive("b")
@@ -94,7 +94,7 @@ def test_recorded_boss_whole_envelope_budget_and_preflight(tmp_path, monkeypatch
     monkeypatch.setattr(config, "RESPONSE_BUDGET", 1600)
     result = api.boss_record("b001-old", ('"\\\n' * 3000), "Summary", "completed", "Source", "Outcome")
     assert len(references.encoded(result)) <= 1600
-    assert "TRUNCATED" in result["body"] and "boss_get" in result["body"]
+    assert "TRUNCATED" in result["notice"] and "boss_get" in result["notice"]
     assert result["metadata"]["provenance"]["message"] == "Outcome"
     assert result["identity"]["canonical"] == "b001-old"
     with pytest.raises(ValueError, match="before writes"):

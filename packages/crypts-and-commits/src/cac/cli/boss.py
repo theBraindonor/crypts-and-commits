@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, reference_inputs, resolve_body_input
+from cac.cli.common import CURSOR_HELP, edit_markdown, print_body, reference_inputs, resolve_body_input
 from cac.core import boss as boss_core
 from cac.core import boss_candidates as candidates_core
 from cac.core import budget as budget_core
@@ -61,29 +61,19 @@ def _call(operation: Callable, *args, **kwargs):
 
 @app.command("get")
 @reference_inputs("boss")
-def get_boss(name: str = typer.Argument(...)) -> None:
-    """Show boss metadata, summary, and a budgeted body."""
+def get_boss(
+    name: str = typer.Argument(...),
+    cursor: str | None = typer.Option(None, "--cursor", help=CURSOR_HELP),
+) -> None:
+    """Show boss metadata, summary, and a budgeted body; long bodies continue with --cursor."""
     root = resolve_project_root()
-    metadata, body = _call(boss_core.read_metadata, root, name)
-    if "provenance" in metadata:
-        body = _call(
-            boss_core.budget_response,
-            root,
-            name,
-            {"metadata": metadata, "body": body, "identity": references.Inventory(root).identity("boss", name)},
-        )["body"]
-    else:
-        body = budget_core.truncate_body(
-            body, boss_core.boss_path(root, name), budget=references.body_allowance(root, "boss", name)
-        )
-    for key, value in metadata.items():
+    payload = _call(boss_core.get_payload, root, name)
+    response = _call(references.get_response, root, "boss", payload, name, cursor)
+    for key, value in response["metadata"].items():
         console.print(f"{key}: {value}", markup=False)
+    console.print(f"summary: {response['summary']}", markup=False)
     console.print()
-    console.print(
-        body,
-        markup=False,
-        soft_wrap=True,
-    )
+    print_body(console, response)
 
 
 @app.command("list")

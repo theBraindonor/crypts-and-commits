@@ -113,7 +113,7 @@ def test_errors_and_budget(tmp_path, monkeypatch):
     assert invoke("reactivate", "goal").exit_code == 1
     assert invoke("list", "--cursor", "bad").exit_code == 1
     boss.update_boss(tmp_path, "goal", "x" * 4000, "Summary")
-    monkeypatch.setattr(config, "RESPONSE_BUDGET", 500)
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 1000)
     assert "TRUNCATED" in invoke("get", "goal").output
     create("other")
     monkeypatch.setattr(config, "RESPONSE_BUDGET", 150)

@@ -50,16 +50,19 @@ def test_cli_mutations_and_unrelated_region_name(tmp_path):
     assert encounter.read_encounter(tmp_path, "c001-work", "e001-first").status == "completed"
 
 
-def test_create_is_literal_and_ambiguity_is_prewrite(tmp_path):
+def test_create_is_literal_and_exact_name_selects_it(tmp_path):
     boss.create_boss(tmp_path, "b001-original", "Original", "Summary")
     result = invoke("boss", "create", "b001", "-b", "New", "-s", "Summary")
     assert result.exit_code == 0, result.output
-    assert '"reason":"ambiguous"' in result.output
+    assert '"short":"b001"' in result.output
     before = boss.boss_path(tmp_path, "b001-original").read_bytes()
-    result = invoke("boss", "update", "b001", "-b", "No", "-s", "Summary")
-    assert result.exit_code == 1
-    assert "Ambiguous" in result.output and "b001-original" in result.output
+    # Exact canonical name wins: the literal record is updated, never its numbered sibling.
+    result = invoke("boss", "update", "b001", "-b", "Updated", "-s", "Summary")
+    assert result.exit_code == 0, result.output
+    assert boss.read_metadata(tmp_path, "b001")[1] == "Updated"
     assert boss.boss_path(tmp_path, "b001-original").read_bytes() == before
+    result = invoke("boss", "update", "b0001", "-b", "No", "-s", "Summary")
+    assert result.exit_code == 1 and "Ambiguous" in result.output
 
 
 def test_list_order_and_prime_selectors():
@@ -90,3 +93,13 @@ def test_order_budget_accounts_for_status_and_dependency_fields(tmp_path, monkey
     result = invoke("encounter", "order", "-c", "c001")
     assert result.exit_code == 1
     assert "budget" in result.output
+
+
+def test_cli_campaign_get_selects_exact_short_shaped_legacy_name(tmp_path):
+    from cac.core import campaign as campaign_core
+
+    campaign_core.create_campaign(tmp_path, "c001", "Legacy body")
+    campaign_core.create_campaign(tmp_path, "c001-mvp", "Numbered body")
+    result = runner.invoke(app, ["campaign", "get", "c001"])
+    assert result.exit_code == 0, result.output
+    assert "Legacy body" in result.output and "Numbered body" not in result.output

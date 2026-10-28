@@ -171,11 +171,11 @@ def test_get_truncates_body_over_budget(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, seed_world: Callable[[], None]
 ) -> None:
     seed_world()
-    runner.invoke(app, ["world", "set-body", "--body", "x" * 200])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    runner.invoke(app, ["world", "set-body", "--body", "x" * 2000])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 800)
 
     result = runner.invoke(app, ["world", "get"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    assert str(tmp_path / ".sourcebook" / "world.md") in result.output
+    assert "[TRUNCATED" in result.output and "next_cursor: " in result.output
+    assert ".sourcebook" not in result.output

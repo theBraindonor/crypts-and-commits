@@ -213,7 +213,7 @@ def test_group_api_validation_and_complete_envelope_budget(tmp_path, monkeypatch
     payload = mcp_campaign.campaign_get("c001")
     assert len(references.encoded(payload)) <= 1600
     assert payload["metadata"]["bosses"] == ["b001-one", "b002-two"]
-    assert "TRUNCATED" in payload["body"]
+    assert "TRUNCATED" in payload["notice"]
     before = campaign.campaign_path(tmp_path, "c001-work").read_bytes()
     monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
     with pytest.raises(ValueError, match="budget"):

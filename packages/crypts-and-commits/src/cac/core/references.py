@@ -89,6 +89,9 @@ class Inventory:
     def resolve(self, domain: str, value: str, campaign: str | None = None, *, missing_literal: bool = False) -> str:
         self.validate(value)
         names = self.names(domain, campaign)
+        if value in names:
+            # An exact canonical name always selects its record, so short-shaped legacy names stay reachable.
+            return value
         short = config.SHORT_REFERENCE_PATTERN.fullmatch(value)
         prefix = {"boss": "b", "campaign": "c", "encounter": "e"}[domain]
         if short:
@@ -257,32 +260,8 @@ def inputs(
                     identity.update(short=None, reason="deleted")
                 if isinstance(result, dict):
                     result = {**result, "identity": identity}
-                    if domain == "campaign" and isinstance(result.get("body"), str):
-                        from cac.core import campaign as campaign_core
-
-                        result = campaign_core.budget_response(root, selection.name, result)
-                    elif (
-                        domain == "boss"
-                        and "provenance" in result.get("metadata", {})
-                        and isinstance(result.get("body"), str)
-                    ):
-                        from cac.core import boss as boss_core
-
-                        result = boss_core.budget_response(root, selection.name, result)
-                    elif isinstance(result.get("body"), str):
-                        allowance = max(0, config.RESPONSE_BUDGET - len(encoded(identity)) - 14)
-                        if len(result["body"]) > allowance:
-                            from cac.core import boss, encounter
-                            from cac.core import campaign as campaign_core
-
-                            path = (
-                                boss.boss_path(root, selection.name)
-                                if domain == "boss"
-                                else campaign_core.campaign_path(root, selection.name)
-                                if domain == "campaign"
-                                else encounter.encounter_path(root, selection.campaign, selection.name)
-                            )
-                            result["body"] = budget.truncate_body(result["body"], path, budget=allowance)
+                    if isinstance(result.get("body"), str):
+                        result = budget.fit_response(result, values.get("cursor"), f"{domain}_get")
                 if reporter is not None:
                     reporter(identity)
             return result
@@ -290,7 +269,7 @@ def inputs(
         invoke.reference_contract = {"domain": domain, "create": create, "mutable": mutable, "remove": remove}
         syntax = "bNNN" if domain == "boss" else "cNNN" if domain == "campaign" else "eNNN or cNNN/eNNN"
         invoke.__doc__ = (function.__doc__ or "") + (
-            f"\nExisting {domain} targets accept full canonical names or {syntax}; refs include archived records and reject ambiguity. "
+            f"\nExisting {domain} targets accept full canonical names or {syntax}; exact canonical names win; refs include archived records and reject ambiguity. "
             "Create names are literal. Qualified encounter context overrides active fallback and must agree with an explicit campaign. "
             "Resolved identity metadata retains canonical names; numbering and Git automation are not performed."
         )
@@ -334,6 +313,9 @@ def identity_order(root: Path, items: list[dict], campaign: str) -> list[dict]:
     return result
 
 
-def body_allowance(root: Path, domain: str, canonical: str, campaign: str | None = None) -> int:
-    """Reserve identity metadata before truncating CLI body output."""
-    return max(0, config.RESPONSE_BUDGET - len(encoded(Inventory(root).identity(domain, canonical, campaign))) - 14)
+def get_response(
+    root: Path, domain: str, payload: dict, canonical: str, cursor: str | None, campaign: str | None = None
+) -> dict:
+    """Add identity and fit a get payload exactly as the MCP entry adapter does, for the CLI."""
+    identity = Inventory(root).identity(domain, canonical, campaign)
+    return budget.fit_response({**payload, "identity": identity}, cursor, f"{domain}_get")

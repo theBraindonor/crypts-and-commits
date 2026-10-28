@@ -3,10 +3,18 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail, reference_inputs, resolve_body_input
+from cac.cli.common import (
+    CURSOR_HELP,
+    edit_markdown,
+    fail,
+    fitted,
+    print_body,
+    reference_inputs,
+    resolve_body_input,
+)
 from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
-from cac.core import coupling, references
+from cac.core import references
 from cac.core.git_utils import GitIdentityError
 from cac.core.paths import resolve_project_root
 
@@ -49,33 +57,20 @@ def reactivate_campaign(
 @reference_inputs("campaign")
 def get_campaign(
     name: str = typer.Argument(..., help="Campaign name to show."),
+    cursor: str | None = typer.Option(None, "--cursor", help=CURSOR_HELP),
 ) -> None:
-    """Show a campaign file's frontmatter and body."""
+    """Show a campaign file's frontmatter and body; long bodies continue with --cursor."""
+    root = resolve_project_root()
     try:
-        metadata, body = campaign_core.read_metadata(resolve_project_root(), name)
+        payload = campaign_core.get_payload(root, name)
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
-
-    presentation = campaign_core.budget_response(
-        resolve_project_root(),
-        name,
-        {
-            "metadata": metadata,
-            "body": body,
-            "boss_link": coupling.inspection(resolve_project_root(), name),
-            "identity": references.Inventory(resolve_project_root()).identity("campaign", name),
-        },
-    )
-    for key, value in metadata.items():
+    response = fitted(console, lambda: references.get_response(root, "campaign", payload, name, cursor))
+    for key, value in response["metadata"].items():
         console.print(f"{key}: {value}", markup=False)
-    console.print(
-        "boss_link: " + references.encoded(coupling.inspection(resolve_project_root(), name)),
-        markup=False,
-        soft_wrap=True,
-    )
+    console.print("boss_link: " + references.encoded(response["boss_link"]), markup=False, soft_wrap=True)
     console.print()
-    body = presentation["body"]
-    console.print(body, markup=False, soft_wrap=True)
+    print_body(console, response)
 
 
 @app.command("list")

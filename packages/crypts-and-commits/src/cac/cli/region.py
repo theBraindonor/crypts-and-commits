@@ -1,10 +1,9 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail, resolve_body_input
+from cac.cli.common import CURSOR_HELP, edit_markdown, fail, fitted, print_body, resolve_body_input
 from cac.core import budget as budget_core
 from cac.core import region as region_core
-from cac.core.config import SUMMARY_KEY
 from cac.core.git_utils import GitIdentityError
 from cac.core.paths import resolve_project_root
 
@@ -22,24 +21,24 @@ console = Console()
 @app.command("get")
 def get_region(
     name: str = typer.Argument(..., help="Region name to show."),
+    cursor: str | None = typer.Option(None, "--cursor", help=CURSOR_HELP),
 ) -> None:
-    """Show a region file's frontmatter and body."""
+    """Show a region file's frontmatter and body; long bodies continue with --cursor."""
     try:
-        metadata, body = region_core.read_metadata(resolve_project_root(), name)
-        summary = region_core.read_summary(resolve_project_root(), name)
+        payload = region_core.get_payload(resolve_project_root(), name)
     except region_core.RegionNotFoundError as exc:
         fail(console, str(exc))
+    response = fitted(console, lambda: budget_core.fit_response(payload, cursor, "region_get"))
+    metadata, summary = response["metadata"], response["summary"]
 
     # Keep the summary out of the markup=True loop below; it is stored content and must be
     # rendered with markup=False so bracketed text is not silently stripped.
-    metadata.pop(SUMMARY_KEY, None)
     for key, value in metadata.items():
         console.print(f"[bold]{key}[/bold]: {value}")
     console.print("[bold]summary[/bold]:", end=" ")
     console.print(summary, markup=False)
     console.print()
-    body = budget_core.truncate_body(body, region_core.region_path(resolve_project_root(), name))
-    console.print(body, markup=False, soft_wrap=True)
+    print_body(console, response)
 
 
 @app.command("list")

@@ -455,3 +455,87 @@ def test_linked_open_encounter_guard_is_prewrite(tmp_path):
     with pytest.raises(campaign.CampaignHasOpenEncountersError):
         campaign.complete_campaign(tmp_path, "c001-work", "No")
     assert files(tmp_path) == before
+
+
+def _damage_unrelated(root, defect):
+    if defect.startswith("boss"):
+        path = available(root, "b009-unrelated")
+        values = {"boss_name": {"name": "b009-other"}, "boss_status": {"status": "bogus"}}[defect]
+        set_metadata(path, **values)
+    else:
+        path = campaign.create_campaign(root, "c009-unrelated", "Unrelated")
+        values = {"campaign_status": {"status": "bogus"}, "campaign_archive": {"archived": True}}[defect]
+        set_metadata(path, **values)
+
+
+@pytest.mark.parametrize("defect", ["boss_name", "boss_status", "campaign_status", "campaign_archive"])
+def test_unrelated_record_defects_do_not_block_campaign_operations(tmp_path, defect):
+    available(tmp_path)
+    assign(tmp_path)
+    campaign.create_campaign(tmp_path, "c002-plain", "Bossless")
+    _damage_unrelated(tmp_path, defect)
+    # Linked campaign: the whole lifecycle still runs.
+    campaign.update_campaign(tmp_path, "c001-work", "[tactical] revised plan")
+    campaign.open_campaign(tmp_path, "c001-work")
+    campaign.pause_campaign(tmp_path, "c001-work")
+    campaign.open_campaign(tmp_path, "c001-work")
+    campaign.complete_campaign(tmp_path, "c001-work", "Done")
+    campaign.reactivate_campaign(tmp_path, "c001-work", "Review feedback")
+    campaign.complete_campaign(tmp_path, "c001-work", "Done again")
+    campaign.archive_campaign(tmp_path, "c001-work")
+    assert boss.read_metadata(tmp_path, "b001-goal")[0]["archived"] is True
+    # Bossless campaign: open, abandon, delete; and a new campaign can still be created.
+    campaign.open_campaign(tmp_path, "c002-plain")
+    campaign.abandon_campaign(tmp_path, "c002-plain", "Dropped")
+    campaign.delete_campaign(tmp_path, "c002-plain")
+    campaign.create_campaign(tmp_path, "c003-new", "Fresh")
+    assert coupling.inspection(tmp_path, "c003-new")["kind"] == "bossless"
+
+
+def test_unrelated_defect_does_not_block_assignment_or_prime(tmp_path):
+    from cac.core import prime
+
+    available(tmp_path)
+    _damage_unrelated(tmp_path, "boss_status")
+    assign(tmp_path)
+    campaign.open_campaign(tmp_path, "c001-work")
+    bundle = prime.assemble_prime(tmp_path)
+    assert bundle.active_boss_names == ["b001-goal"] and bundle.active_boss_diagnostics == []
+
+
+def test_unparseable_boss_still_fails_closed(tmp_path):
+    campaign.create_campaign(tmp_path, "c002-plain", "Bossless")
+    broken = boss.boss_dir(tmp_path) / "b009-broken.md"
+    broken.parent.mkdir(parents=True, exist_ok=True)
+    broken.write_text("---\nname: [unclosed\n---\nBody\n", encoding="utf-8")
+    before = files(tmp_path)
+    with pytest.raises(coupling.LinkError, match="b009-broken"):
+        campaign.open_campaign(tmp_path, "c002-plain")
+    with pytest.raises(coupling.LinkError, match="b009-broken"):
+        campaign.create_campaign(tmp_path, "c003-new", "Fresh")
+    assert files(tmp_path) == before
+
+
+def test_related_claimant_defect_still_blocks(tmp_path):
+    available(tmp_path)
+    assign(tmp_path)
+    # An unrelated-looking boss that claims this campaign is related, so its defects still count.
+    path = available(tmp_path, "b002-claimant")
+    set_metadata(path, campaign="c001-work", status="bogus")
+    before = files(tmp_path)
+    with pytest.raises(coupling.LinkError):
+        campaign.open_campaign(tmp_path, "c001-work")
+    assert files(tmp_path) == before
+
+
+def test_assignment_retry_on_legacy_campaign_without_status(tmp_path):
+    available(tmp_path)
+    assign(tmp_path)
+    path = campaign.campaign_path(tmp_path, "c001-work")
+    post = frontmatter.load(path)
+    post.metadata.pop("status")
+    path.write_text(frontmatter.dumps(post), encoding="utf-8")
+    before = files(tmp_path)
+    result = assign(tmp_path)
+    assert result["reused"] is True and result["status"] == "draft"
+    assert files(tmp_path) == before

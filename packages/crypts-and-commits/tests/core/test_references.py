@@ -61,12 +61,43 @@ def test_numeric_collisions_and_exact_inspection_route(tmp_path, domain, prefix)
     assert inventory.identity(domain, first, parent)["reason"] == "ambiguous"
 
 
-def test_short_looking_literal_does_not_shadow_numbered_record(tmp_path):
-    create(tmp_path, "boss", "b001")
-    assert references.Inventory(tmp_path).resolve("boss", "b001") == "b001"
-    create(tmp_path, "boss", "b001-goal")
-    with pytest.raises(references.ReferenceError, match="Ambiguous"):
+@pytest.mark.parametrize("domain,prefix", [("boss", "b"), ("campaign", "c"), ("encounter", "e")])
+@pytest.mark.parametrize("archived", [False, True])
+def test_exact_short_shaped_name_wins_over_numbered_sibling(tmp_path, domain, prefix, archived):
+    parent = "c001-work" if domain == "encounter" else None
+    literal, numbered = f"{prefix}001", f"{prefix}001-slug"
+    create(tmp_path, domain, literal, archived=archived)
+    create(tmp_path, domain, numbered)
+    inventory = references.Inventory(tmp_path)
+    # The literal record is reachable and owns the short ref; its sibling keeps its full name.
+    assert inventory.resolve(domain, literal, parent) == literal
+    assert inventory.resolve(domain, numbered, parent) == numbered
+    assert inventory.identity(domain, literal, parent)["short"] is not None
+    assert inventory.identity(domain, numbered, parent) | {"short": None, "reason": "ambiguous"} == (
+        inventory.identity(domain, numbered, parent)
+    )
+    with pytest.raises(references.AmbiguousReferenceError):
+        inventory.resolve(domain, f"{prefix}0001", parent)
+
+
+def test_numbered_siblings_without_exact_match_stay_ambiguous(tmp_path):
+    create(tmp_path, "boss", "b001-one")
+    create(tmp_path, "boss", "b001-two")
+    with pytest.raises(references.AmbiguousReferenceError):
         references.Inventory(tmp_path).resolve("boss", "b001")
+
+
+def test_qualified_ref_uses_exact_names_in_both_parts(tmp_path):
+    create(tmp_path, "campaign", "c001")
+    create(tmp_path, "campaign", "c001-other")
+    create(tmp_path, "encounter", "e001", parent="c001")
+    create(tmp_path, "encounter", "e001-task", parent="c001")
+    assert references.Inventory(tmp_path).encounter("c001/e001", None) == ("c001", "e001")
+
+
+def test_wrong_domain_shaped_literal_name_is_reachable(tmp_path):
+    create(tmp_path, "campaign", "b001")
+    assert references.Inventory(tmp_path).resolve("campaign", "b001") == "b001"
 
 
 def test_duplicate_canonical_live_archive_fails(tmp_path):

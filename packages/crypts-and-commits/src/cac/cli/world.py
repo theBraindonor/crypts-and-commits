@@ -1,7 +1,7 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail, resolve_body_input
+from cac.cli.common import CURSOR_HELP, edit_markdown, fail, fitted, print_body, resolve_body_input
 from cac.core import budget as budget_core
 from cac.core import world as world_core
 from cac.core.git_utils import GitIdentityError
@@ -19,19 +19,19 @@ console = Console()
 
 
 @app.command("get")
-def get_world() -> None:
-    """Show the world file's frontmatter and body."""
+def get_world(cursor: str | None = typer.Option(None, "--cursor", help=CURSOR_HELP)) -> None:
+    """Show the world file's frontmatter and body; long bodies continue with --cursor."""
     try:
-        world = world_core.read_world(resolve_project_root())
+        payload = world_core.get_payload(resolve_project_root())
     except world_core.WorldNotFoundError as exc:
         fail(console, str(exc))
+    response = fitted(console, lambda: budget_core.fit_response(payload, cursor, "world_get"))
 
-    for key, value in world.metadata.items():
+    for key, value in response["metadata"].items():
         console.print(f"{key}:", style="bold", markup=False, end=" ")
         console.print(value, markup=False)
     console.print()
-    body = budget_core.truncate_body(world.body, world_core.world_path(resolve_project_root()))
-    console.print(body, markup=False, soft_wrap=True)
+    print_body(console, response)
 
 
 @app.command("set")

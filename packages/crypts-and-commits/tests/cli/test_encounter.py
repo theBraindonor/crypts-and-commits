@@ -678,15 +678,14 @@ def test_get_truncates_body_over_budget(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, create_campaign: Callable[..., None]
 ) -> None:
     create_campaign()
-    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "x" * 200])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    runner.invoke(app, ["encounter", "create", "goblin-ambush", "--campaign", "opening-gambit", "--body", "x" * 2000])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 800)
 
     result = runner.invoke(app, ["encounter", "get", "goblin-ambush", "--campaign", "opening-gambit"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    expected_path = tmp_path / ".sourcebook" / "encounters" / "opening-gambit" / "goblin-ambush.md"
-    assert str(expected_path) in result.output
+    assert "[TRUNCATED" in result.output and "next_cursor: " in result.output
+    assert ".sourcebook" not in result.output
 
 
 def test_list_rejects_invalid_cursor(create_campaign: Callable[..., None]) -> None:

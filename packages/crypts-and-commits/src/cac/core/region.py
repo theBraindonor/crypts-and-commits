@@ -6,7 +6,7 @@ import frontmatter
 
 from cac.core import frontmatter_utils, templates
 from cac.core import lore as lore_core
-from cac.core.config import NAME_PATTERN, REGION_DIR_NAME, RESERVED_NAMES
+from cac.core.config import NAME_PATTERN, REGION_DIR_NAME, RESERVED_NAMES, SUMMARY_KEY
 from cac.core.frontmatter_utils import (
     SummaryTooLongError,
     set_summary_attribute,
@@ -138,7 +138,7 @@ def read_summary(root: Path, name: str) -> str:
 
 
 def region_path(root: Path, name: str) -> Path:
-    """Return the on-disk path for a region entry, e.g. for use in a truncation fallback notice."""
+    """Return the on-disk path for a region entry."""
     return _region_path(root, name)
 
 
@@ -196,3 +196,10 @@ def _existing_region_path(root: Path, name: str) -> Path:
     if not path.exists():
         raise RegionNotFoundError(f"Region {name!r} does not exist.")
     return path
+
+
+def get_payload(root: Path, name: str) -> dict[str, Any]:
+    """The unbudgeted region_get result shared by CLI and MCP; callers fit it with budget.fit_response."""
+    metadata, body = read_metadata(root, name)
+    metadata.pop(SUMMARY_KEY, None)
+    return {"metadata": metadata, "summary": read_summary(root, name), "body": body}

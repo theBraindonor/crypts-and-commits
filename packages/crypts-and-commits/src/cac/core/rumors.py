@@ -1,6 +1,5 @@
 """Freeform campaign discoveries, independent of campaign lifecycle locks."""
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -44,43 +43,18 @@ def _bounded(result: dict[str, Any]) -> dict[str, Any]:
 def get(root: Path, campaign: str | None = None, cursor: str | None = None) -> dict[str, Any]:
     canonical, identity = _owner(root, campaign)
     body = read_body(root, canonical)
-    digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-    start = 0
-    if cursor is not None:
-        try:
-            version, offset = cursor.split(":")
-            start = int(offset)
-        except (ValueError, AttributeError) as exc:
-            raise budget.InvalidCursorError("Invalid rumors body cursor.") from exc
-        if version != digest or start < 0 or start > len(body):
-            raise budget.InvalidCursorError("Rumors cursor is stale or out of range; restart get without a cursor.")
 
-    def response(end: int) -> dict[str, Any]:
-        more = end < len(body)
+    def response(text: str, next_cursor: str | None) -> dict[str, Any]:
         return {
             "campaign": canonical,
             "identity": identity,
-            "body": body[start:end],
-            "truncated": more,
-            "next_cursor": f"{digest}:{end}" if more else None,
-            "notice": "TRUNCATED: continue rumors get with next_cursor and the same campaign." if more else None,
+            "body": text,
+            "truncated": next_cursor is not None,
+            "next_cursor": next_cursor,
+            "notice": "TRUNCATED: continue rumors get with next_cursor and the same campaign." if next_cursor else None,
         }
 
-    result = response(len(body))
-    if len(references.encoded(result)) <= config.RESPONSE_BUDGET:
-        return result
-    # Budget the serialized envelope too, including JSON escaping and continuation metadata.
-    low, high = start, len(body) - 1
-    _bounded(response(start))
-    while low < high:
-        middle = (low + high + 1) // 2
-        if len(references.encoded(response(middle))) <= config.RESPONSE_BUDGET:
-            low = middle
-        else:
-            high = middle - 1
-    if low == start:
-        raise ValueError("Rumors response budget cannot fit a body character; increase it.")
-    return _bounded(response(low))
+    return budget.body_page(body, cursor, response, label="Rumors")
 
 
 def write(root: Path, body: str, campaign: str | None = None, *, update: bool = False) -> dict[str, Any]:

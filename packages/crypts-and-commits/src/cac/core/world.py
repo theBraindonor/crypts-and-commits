@@ -134,3 +134,9 @@ def _existing_world_path(root: Path) -> Path:
     if not path.exists():
         raise WorldNotFoundError("world.md does not exist. Run 'cac bootstrap init' first.")
     return path
+
+
+def get_payload(root: Path) -> dict[str, Any]:
+    """The unbudgeted world_get result shared by CLI and MCP; callers fit it with budget.fit_response."""
+    world = read_world(root)
+    return {"metadata": world.metadata, "body": world.body}

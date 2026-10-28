@@ -82,14 +82,14 @@ def test_get_shows_placeholder_when_summary_absent(tmp_path: Path) -> None:
 
 
 def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    runner.invoke(app, ["region", "create", "northlands", "--body", "x" * 200, "--summary", "Summary."])
-    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 50)
+    runner.invoke(app, ["region", "create", "northlands", "--body", "x" * 2000, "--summary", "Summary."])
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 800)
 
     result = runner.invoke(app, ["region", "get", "northlands"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    assert str(tmp_path / ".sourcebook" / "region" / "northlands.md") in result.output
+    assert "[TRUNCATED" in result.output and "next_cursor: " in result.output
+    assert ".sourcebook" not in result.output
 
 
 def test_list_pages_under_budget_and_cursor_resumes(monkeypatch: pytest.MonkeyPatch) -> None:

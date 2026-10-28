@@ -23,9 +23,10 @@ def boss_candidates(cursor: str | None = None) -> dict[str, Any]:
 
 @mcp.tool()
 @references.inputs("boss")
-def boss_get(name: str) -> dict[str, Any]:
-    """Read a boss by canonical name or numbered short reference."""
-    return _read_boss(name)
+def boss_get(name: str, cursor: str | None = None) -> dict[str, Any]:
+    """Read a boss by canonical name or numbered short reference. Body is fitted to the response budget; a truncated result carries notice and next_cursor - call
+    again with cursor=next_cursor to continue (a cursor fails once the record changes)."""
+    return boss_core.get_payload(resolve_project_root(), name)
 
 
 @mcp.tool()
@@ -120,7 +121,4 @@ def boss_unassign_dependency(name: str, dependency: str) -> dict[str, Any]:
 
 
 def _read_boss(name: str) -> dict[str, Any]:
-    root = resolve_project_root()
-    metadata, body = boss_core.read_metadata(root, name)
-    summary = metadata.pop("summary", "")
-    return {"metadata": metadata, "summary": summary, "body": body}
+    return boss_core.get_payload(resolve_project_root(), name)

@@ -203,7 +203,7 @@ def read_metadata(root: Path, campaign: str, name: str) -> tuple[dict[str, Any],
 
 
 def encounter_path(root: Path, campaign: str, name: str) -> Path:
-    """Return the on-disk path for an encounter, e.g. for use in a truncation fallback notice.
+    """Return the on-disk path for an encounter.
     Resolves the live location first, then the archive location, so this stays correct for an
     archived encounter too."""
     return _existing_encounter_path(root, campaign, name)
@@ -601,3 +601,9 @@ def _existing_encounter_path(root: Path, campaign: str, name: str) -> Path:
     if archived_path.exists():
         return archived_path
     raise EncounterNotFoundError(f"Encounter {name!r} does not exist in campaign {campaign!r}.")
+
+
+def get_payload(root: Path, campaign: str, name: str) -> dict[str, Any]:
+    """The unbudgeted encounter_get result shared by CLI and MCP, before identity and budget fitting."""
+    metadata, body = read_metadata(root, campaign, name)
+    return {"metadata": metadata, "body": body}

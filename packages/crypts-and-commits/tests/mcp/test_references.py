@@ -51,8 +51,9 @@ def test_creations_are_literal_and_campaign_selection_is_short(tmp_path):
     bosses.boss_create("b001-existing", "Body", "Summary")
     result = bosses.boss_create("b001", "New literal", "Summary")
     assert result["metadata"]["name"] == "b001"
-    assert result["identity"]["short"] is None
-    assert result["identity"]["reason"] == "ambiguous"
+    assert result["identity"]["short"] == "b001"
+    assert result["identity"]["reason"] is None
+    assert bosses.boss_get("b001-existing")["identity"]["reason"] == "ambiguous"
     assert boss.read_metadata(tmp_path, "b001-existing")[1] == "Body"
 
 
@@ -137,6 +138,15 @@ def test_response_bodies_reserve_identity_before_truncation(tmp_path, monkeypatc
     bosses.boss_create("b001-goal", "x" * 4000, "Summary")
     monkeypatch.setattr(config, "RESPONSE_BUDGET", 1000)
     result = bosses.boss_get("b001")
-    assert "TRUNCATED" in result["body"]
+    assert "TRUNCATED" in result["notice"]
     assert result["identity"]["canonical"] == "b001-goal"
-    assert len(result["body"]) + len(references.encoded(result["identity"])) < 1000
+    assert len(references.encoded(result)) <= 1000
+
+
+def test_campaign_get_selects_exact_short_shaped_legacy_name(tmp_path):
+    from cac.mcp import campaign as campaign_mcp
+
+    campaign_mcp.campaign_create("c001", "Legacy")
+    campaign_mcp.campaign_create("c001-mvp", "Numbered")
+    assert campaign_mcp.campaign_get("c001")["body"] == "Legacy"
+    assert campaign_mcp.campaign_get("c001-mvp")["identity"]["reason"] == "ambiguous"

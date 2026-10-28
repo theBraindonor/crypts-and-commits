@@ -40,8 +40,14 @@ def test_docs_get_truncates_over_dedicated_budget(monkeypatch: pytest.MonkeyPatc
 
     result = mcp_docs.docs_get(name)
 
-    assert "[TRUNCATED" in result["body"]
-    assert str(docs_core.doc_source_path(name)) in result["body"]
+    assert "[TRUNCATED" in result["notice"] and "docs_get" in result["notice"]
+    assert str(docs_core.doc_source_path(name)) not in result["notice"]
+    pages, cursor = [result["body"]], result["next_cursor"]
+    for _ in range(3):
+        page = mcp_docs.docs_get(name, cursor)
+        pages.append(page["body"])
+        cursor = page["next_cursor"]
+    assert docs_core.read_doc(name).startswith("".join(pages))
 
 
 def test_docs_list_pages_all_registered_guides(monkeypatch: pytest.MonkeyPatch) -> None:

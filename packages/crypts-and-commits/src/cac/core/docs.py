@@ -67,7 +67,7 @@ def read_doc(name: str) -> str:
 
 
 def doc_source_path(name: str) -> Path:
-    """Return the packaged doc's real filesystem path, for a truncation fallback notice."""
+    """Return the packaged doc's real filesystem path."""
     entry = _entry(name)
     return Path(str(resources.files(_DOC_RESOURCE_PACKAGE) / entry.filename))
 

@@ -45,7 +45,7 @@ def _campaign_context(root: Path, name: str, record: dict[str, Any]) -> tuple[di
         is_archived = archived.exists()
         if (
             metadata.get("name") != linked
-            or metadata.get("status") not in config.CAMPAIGN_STATUSES
+            or metadata.get("status", "draft") not in config.CAMPAIGN_STATUSES
             or type(metadata.get("archived", False)) is not bool
             or metadata.get("archived", False) != is_archived
         ):
@@ -57,7 +57,7 @@ def _campaign_context(root: Path, name: str, record: dict[str, Any]) -> tuple[di
                     campaign=linked,
                 )
             ]
-        context["campaign_status"] = metadata["status"]
+        context["campaign_status"] = metadata.get("status", "draft")
         issues = []
         from cac.core import campaign_bosses
 
@@ -71,7 +71,10 @@ def _campaign_context(root: Path, name: str, record: dict[str, Any]) -> tuple[di
                 )
             )
         expected = {"available": ("draft", "open", "paused"), "vanquished": ("completed",)}
-        if metadata["status"] not in expected.get(record["status"], ()) or record.get("archived", False) != is_archived:
+        if (
+            metadata.get("status", "draft") not in expected.get(record["status"], ())
+            or record.get("archived", False) != is_archived
+        ):
             issues.append(
                 _issue(
                     name,

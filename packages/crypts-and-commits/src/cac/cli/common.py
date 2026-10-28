@@ -70,6 +70,27 @@ def resolve_body_input(body: str | None, body_file: str | None) -> str | None:
         raise typer.BadParameter(f"Cannot read UTF-8 body file {body_file!r}: {exc}", param_hint="--body-file") from exc
 
 
+CURSOR_HELP = "Continue a truncated body from a previous page's next_cursor."
+
+
+def fitted(console: Console, build):
+    """Run a core get fit, rendering cursor/budget errors literally."""
+    try:
+        return build()
+    except ValueError as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(code=1) from exc
+
+
+def print_body(console: Console, response: dict) -> None:
+    """Print a fitted body; a truncated page ends with its notice and continuation cursor."""
+    console.print(response["body"], markup=False, soft_wrap=True)
+    if response.get("next_cursor"):
+        console.print()
+        console.print(response["notice"], markup=False, soft_wrap=True)
+        console.print(f"next_cursor: {response['next_cursor']}", markup=False, soft_wrap=True)
+
+
 def fail(console: Console, message: str) -> NoReturn:
     console.print(f"[bold red]{message}[/bold red]")
     raise typer.Exit(code=1)

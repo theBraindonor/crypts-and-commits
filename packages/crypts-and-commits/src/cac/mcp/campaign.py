@@ -1,7 +1,7 @@
 from typing import Any
 
 from cac.core import campaign as campaign_core
-from cac.core import coupling, references
+from cac.core import references
 from cac.core.paths import resolve_project_root
 from cac.mcp.instance import mcp
 
@@ -25,13 +25,11 @@ def campaign_to_dict(campaign: campaign_core.Campaign) -> dict[str, Any]:
 
 @mcp.tool()
 @references.inputs("campaign")
-def campaign_get(name: str) -> dict[str, Any]:
+def campaign_get(name: str, cursor: str | None = None) -> dict[str, Any]:
     """Show a campaign's frontmatter attributes and body - a long-running initiative, similar to a
-    Jira Epic, expected to span many encounters. Body is truncated under the response budget; read
-    the file directly at the reported path if truncated."""
-    root = resolve_project_root()
-    metadata, body = campaign_core.read_metadata(root, name)
-    return {"metadata": metadata, "body": body, "boss_link": coupling.inspection(root, name)}
+    Jira Epic, expected to span many encounters. Body is fitted to the response budget; a truncated result carries notice and next_cursor - call
+    again with cursor=next_cursor to continue (a cursor fails once the record changes)."""
+    return campaign_core.get_payload(resolve_project_root(), name)
 
 
 @mcp.tool()

@@ -408,8 +408,8 @@ def test_get_truncates_body_over_budget(monkeypatch: pytest.MonkeyPatch, tmp_pat
     result = runner.invoke(app, ["campaign", "get", "opening-gambit"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    assert str(tmp_path / ".sourcebook" / "campaigns" / "opening-gambit.md") in result.output
+    assert "[TRUNCATED" in result.output and "next_cursor: " in result.output
+    assert ".sourcebook" not in result.output
 
 
 def test_list_pages_under_budget_and_cursor_resumes(monkeypatch: pytest.MonkeyPatch) -> None:

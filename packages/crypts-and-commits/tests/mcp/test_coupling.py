@@ -36,7 +36,8 @@ def test_literal_campaign_creation_name_and_broken_origin_diagnostics(tmp_path):
     campaigns.campaign_create("c001-existing", "Existing")
     result = bosses.boss_assign_campaign("b001", "c001", "Literal")
     assert result["campaign"] == "c001"
-    assert result["campaign_identity"]["short"] is None
+    # The exact literal name owns c001; c001-existing keeps its full name.
+    assert result["campaign_identity"]["short"] == "c001"
     path = campaign.campaign_path(tmp_path, "c001")
     post = frontmatter.load(path)
     post["bosses"] = ["missing-goal"]
@@ -59,3 +60,13 @@ def test_abandon_releases_current_link_but_retains_origin(tmp_path):
     bosses.boss_assign_campaign("b001", "c002-new", "Second")
     campaigns.campaign_archive("c001")
     assert boss.read_metadata(tmp_path, "b001-goal")[0]["campaign"] == "c002-new"
+
+
+def test_assignment_retry_on_legacy_campaign_without_status(tmp_path):
+    bosses.boss_assign_campaign("b001", "c001-work", "Plan")
+    path = campaign.campaign_path(tmp_path, "c001-work")
+    post = frontmatter.load(path)
+    post.metadata.pop("status")
+    path.write_text(frontmatter.dumps(post), encoding="utf-8")
+    result = bosses.boss_assign_campaign("b001", "c001-work", "Retry")
+    assert result["reused"] is True and result["status"] == "draft"

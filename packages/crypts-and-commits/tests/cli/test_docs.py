@@ -50,5 +50,5 @@ def test_get_truncates_body_over_dedicated_budget(monkeypatch: pytest.MonkeyPatc
     result = runner.invoke(app, ["docs", "get", "workflow"])
 
     assert result.exit_code == 0
-    assert "[TRUNCATED" in result.output
-    assert str(docs_core.doc_source_path("workflow")) in result.output
+    assert "[TRUNCATED" in result.output and "next_cursor: " in result.output
+    assert str(docs_core.doc_source_path("workflow")) not in result.output

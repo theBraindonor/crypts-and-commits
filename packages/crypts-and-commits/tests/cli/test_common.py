@@ -201,3 +201,127 @@ def test_configure_output_encoding_ignores_streams_without_reconfigure(monkeypat
     monkeypatch.setattr(sys, "stderr", io.StringIO())
 
     configure_output_encoding()  # must not raise
+
+
+# Escaping-heavy, non-ASCII, markup-like text; ends without whitespace, which storage would strip.
+CONTINUED_BODY = 'Intro "quoted" \\ back\nCafé ✓ — [tool.ruff] ' * 150 + "end."
+
+
+def _continuation_domains():
+    from cac.mcp import boss as boss_mcp
+    from cac.mcp import campaign as campaign_mcp
+    from cac.mcp import encounter as encounter_mcp
+    from cac.mcp import lore as lore_mcp
+    from cac.mcp import region as region_mcp
+    from cac.mcp import world as world_mcp
+
+    def encounter_setup():
+        campaign_mcp.campaign_create("c001-work", "Plan")
+        encounter_mcp.encounter_create("e001-task", CONTINUED_BODY, campaign="c001")
+        for index in range(6):
+            region_mcp.region_create(f"area-{index}-with-a-long-name", "Body", "Summary")
+            encounter_mcp.encounter_assign_region("c001/e001", f"area-{index}-with-a-long-name")
+
+    return {
+        "world": (
+            lambda: world_mcp.world_set_body(CONTINUED_BODY),
+            lambda cursor: world_mcp.world_get(cursor=cursor),
+            lambda: world_mcp.world_set_body(CONTINUED_BODY + "edit"),
+            ["world", "get"],
+        ),
+        "lore": (
+            lambda: lore_mcp.lore_create("style", CONTINUED_BODY, "Summary"),
+            lambda cursor: lore_mcp.lore_get("style", cursor=cursor),
+            lambda: lore_mcp.lore_update("style", CONTINUED_BODY + "edit", "Summary"),
+            ["lore", "get", "style"],
+        ),
+        "region": (
+            lambda: region_mcp.region_create("north", CONTINUED_BODY, "Summary"),
+            lambda cursor: region_mcp.region_get("north", cursor=cursor),
+            lambda: region_mcp.region_update("north", CONTINUED_BODY + "edit", "Summary"),
+            ["region", "get", "north"],
+        ),
+        "campaign": (
+            lambda: campaign_mcp.campaign_create("c001-work", CONTINUED_BODY),
+            lambda cursor: campaign_mcp.campaign_get("c001", cursor=cursor),
+            lambda: campaign_mcp.campaign_update("c001", CONTINUED_BODY + "edit"),
+            ["campaign", "get", "c001"],
+        ),
+        "boss": (
+            lambda: boss_mcp.boss_create("b001-goal", CONTINUED_BODY, "Summary"),
+            lambda cursor: boss_mcp.boss_get("b001", cursor=cursor),
+            lambda: boss_mcp.boss_update("b001", CONTINUED_BODY + "edit", "Summary"),
+            ["boss", "get", "b001"],
+        ),
+        "encounter": (
+            encounter_setup,
+            lambda cursor: encounter_mcp.encounter_get("c001/e001", cursor=cursor),
+            lambda: encounter_mcp.encounter_update("c001/e001", CONTINUED_BODY + "edit"),
+            ["encounter", "get", "c001/e001"],
+        ),
+    }
+
+
+@pytest.mark.parametrize("domain", ["world", "lore", "region", "campaign", "boss", "encounter"])
+def test_get_continuation_reassembles_and_matches_cli(
+    domain: str, seed_world: Callable[[], None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from cac.core import budget, config, references
+
+    setup, get, edit, args = _continuation_domains()[domain]
+    seed_world()
+    setup()
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 2000)
+    pages, cursor, cursors = [], None, []
+    while True:
+        page = get(cursor)
+        assert len(references.encoded(page)) <= 2000
+        assert ".sourcebook" not in page.get("notice", "")
+        cli = runner.invoke(app, args + (["--cursor", cursor] if cursor else []))
+        assert cli.exit_code == 0, cli.output
+        assert page["body"] in cli.output and ".sourcebook" not in cli.output
+        pages.append(page["body"])
+        cursor = page.get("next_cursor")
+        if cursor is None:
+            assert "next_cursor:" not in cli.output
+            break
+        assert f"next_cursor: {cursor}" in cli.output and "[TRUNCATED" in cli.output
+        cursors.append(cursor)
+    assert len(pages) > 2 and "".join(pages) == CONTINUED_BODY
+    edit()
+    with pytest.raises(budget.InvalidCursorError):
+        get(cursors[0])
+    stale = runner.invoke(app, args + ["--cursor", cursors[0]])
+    assert stale.exit_code == 1 and "stale" in stale.output
+    invalid = runner.invoke(app, args + ["--cursor", "not-a-cursor"])
+    assert invalid.exit_code == 1
+
+
+def test_archived_records_continue_by_short_reference(
+    seed_world: Callable[[], None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from cac.core import config
+    from cac.mcp import campaign as campaign_mcp
+    from cac.mcp import encounter as encounter_mcp
+
+    seed_world()
+    campaign_mcp.campaign_create("c001-old", CONTINUED_BODY)
+    encounter_mcp.encounter_create("e001-old", CONTINUED_BODY, campaign="c001")
+    encounter_mcp.encounter_abandon("c001/e001", "Dropped")
+    campaign_mcp.campaign_abandon("c001", "Dropped")
+    campaign_mcp.campaign_archive("c001")
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 2000)
+    for get in (
+        lambda cursor: campaign_mcp.campaign_get("c001", cursor=cursor),
+        lambda cursor: encounter_mcp.encounter_get("c001/e001", cursor=cursor),
+    ):
+        pages, cursor = [], None
+        while True:
+            page = get(cursor)
+            pages.append(page["body"])
+            cursor = page.get("next_cursor")
+            if cursor is None:
+                break
+        assert page["metadata"]["archived"] is True
+        # Abandonment appended a log entry after the original body.
+        assert "".join(pages).startswith(CONTINUED_BODY)

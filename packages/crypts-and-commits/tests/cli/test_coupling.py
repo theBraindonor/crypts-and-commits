@@ -81,3 +81,16 @@ def test_reactivation_requires_reason():
     result = invoke("campaign", "reactivate", "c001")
     assert result.exit_code != 0
     assert "--message" in result.output
+
+
+def test_assignment_retry_on_legacy_campaign_without_status(tmp_path):
+    import frontmatter
+
+    assert invoke("boss", "assign-campaign", "b001", "c001-work", "--body", "Plan").exit_code == 0
+    path = campaign.campaign_path(tmp_path, "c001-work")
+    post = frontmatter.load(path)
+    post.metadata.pop("status")
+    path.write_text(frontmatter.dumps(post), encoding="utf-8")
+    result = invoke("boss", "assign-campaign", "b001", "c001-work", "--body", "Retry")
+    assert result.exit_code == 0, result.output
+    assert '"reused":true' in result.output and '"status":"draft"' in result.output

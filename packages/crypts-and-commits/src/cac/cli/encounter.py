@@ -3,7 +3,15 @@ from typing import Any
 import typer
 from rich.console import Console
 
-from cac.cli.common import edit_markdown, fail, reference_inputs, resolve_body_input
+from cac.cli.common import (
+    CURSOR_HELP,
+    edit_markdown,
+    fail,
+    fitted,
+    print_body,
+    reference_inputs,
+    resolve_body_input,
+)
 from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
@@ -58,23 +66,21 @@ def _resolve_campaign(campaign: str | None, *, require_mutable: bool) -> str:
 def get_encounter(
     name: str = typer.Argument(..., help="Encounter name to show."),
     campaign: str | None = _campaign_option(),
+    cursor: str | None = typer.Option(None, "--cursor", help=CURSOR_HELP),
 ) -> None:
-    """Show an encounter file's frontmatter and body."""
+    """Show an encounter file's frontmatter and body; long bodies continue with --cursor."""
     campaign = _resolve_campaign(campaign, require_mutable=False)
+    root = resolve_project_root()
     try:
-        metadata, body = encounter_core.read_metadata(resolve_project_root(), campaign, name)
+        payload = encounter_core.get_payload(root, campaign, name)
     except encounter_core.EncounterNotFoundError as exc:
         fail(console, str(exc))
+    response = fitted(console, lambda: references.get_response(root, "encounter", payload, name, cursor, campaign))
 
-    for key, value in metadata.items():
+    for key, value in response["metadata"].items():
         console.print(f"{key}: {value}", markup=False)
     console.print()
-    body = budget_core.truncate_body(
-        body,
-        encounter_core.encounter_path(resolve_project_root(), campaign, name),
-        budget=references.body_allowance(resolve_project_root(), "encounter", name, campaign),
-    )
-    console.print(body, markup=False, soft_wrap=True)
+    print_body(console, response)
 
 
 @app.command("list")
