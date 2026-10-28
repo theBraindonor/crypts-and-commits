@@ -120,18 +120,18 @@ the full workflow into every project.
 
 | Older CAC guidance | Targeted replacement or clarification |
 | --- | --- |
-| Plan every future idea as a campaign; only two skills exist | Route static context to world-manager, goal/roadmap/readiness and rumor planning to world-planner, and explicit tactical selection/execution to campaign-manager. |
+| Plan every future idea as a campaign; only two skills exist | Route static context to world-manager, goal/roadmap/readiness and rumor triage to world-planner, and explicit tactical selection/execution to campaign-manager. |
 | An available boss is immediately executable, or one campaign always has one boss | Availability records readiness; selection checks prerequisites/graph/integration and exclusive ownership. A draft can choose zero/one/many bosses; tactics address the whole group. Assignment freezes designs; opening locks draft membership. |
 | Open campaigns directly on main | Main/planning/assignment have no open campaign under the recommended workflow. Register selected bosses on the campaign's -assignment branch, then open on the exact campaign-name execution branch. Bossless campaigns may skip registration. |
-| Pick the next number from the visible list or reuse an old number | Skills use complete retained/archive-inclusive inventories plus known campaign branch reservations, numeric max plus one and per-campaign encounters. Check collisions at creation, after integration and before completion/recompletion; resolve manually. |
-| Edit assigned goal notes when discoveries appear | Capture execution discoveries with rumors operations; distill integrated rumors on planning with world-planner into selected goals/refinements without automatic deletion or scope expansion. |
+| Pick the next number from the visible list or reuse an old number | Skills use complete retained/archive-inclusive inventories plus known campaign branch reservations, numeric max plus one and per-campaign encounters. Check collisions at creation, after integration and before completion/recompletion; resolve manually. Rumor numbers may collide across branches and are renumbered on planning. |
+| Edit assigned goal notes when discoveries appear | Capture discoveries from anywhere as standalone rumors (`rumor_create`); triage integrated rumors on planning with world-planner into selected goals or dismissals, without deletion or scope expansion. |
 | Completion proves merged work, or review fixes overwrite completed history | Verify integration separately. Complete before implementation integration; reactivate completed campaigns for pre-merge fixes, add follow-up encounters, verify and complete again. Retain history and group membership. |
 | Codex hook blocks shell access to managed paths | The packaged hook now denies apply_patch file-operation targets inside managed sourcebook paths. Shell calls are not filtered. MCP/CLI-only access remains binding; narrower enforcement grants no bypass. Developer redeployment and hook review/trust are separate. |
 
 A shared guidance replacement might read:
 
 > Before nontrivial CAC work, orient with world-manager. Use world-planner for
-> goal planning, roadmap capture and integrated rumor distillation; use
+> goal planning, roadmap capture and integrated rumor triage; use
 > campaign-manager for explicit tactical selection and encounter execution.
 > Follow the installed Branching Guide via docs_get("branching-guide") or
 > cac docs get branching-guide, with workflow as the procedural authority.

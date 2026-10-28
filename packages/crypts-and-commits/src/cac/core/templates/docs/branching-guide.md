@@ -21,12 +21,12 @@ registration and implementation integrate into trunk and goals evolve on plans/t
 | Branch | Work that belongs here | Campaign state |
 | --- | --- | --- |
 | main | Accepted integration history and shared registrations | No open campaign |
-| planning | Goal capture/refinement, readiness, prerequisites, rumor distillation and planning-side archive | No open campaign |
+| planning | Goal capture/refinement, readiness, prerequisites, rumor triage and planning-side archive | No open campaign |
 | c012-search-tools-assignment | Register a draft campaign and reciprocal selected-boss links | Draft only |
-| c012-search-tools | Campaign tactics, encounters, rumors and lifecycle outcomes | Its own campaign may be open; paused work stays here |
+| c012-search-tools | Campaign tactics, encounters, captured rumors and lifecycle outcomes | Its own campaign may be open; paused work stays here |
 
 Create planning from synchronized main. Synchronize accepted merge-target history
-before editing goals, selecting work or distilling rumors. Publish planning goals
+before editing goals, selecting work or triaging rumors. Publish planning goals
 through the project's normal integration policy before assignment registration.
 The goal definitions must be visible in the history used to register their owner.
 Assigned boss designs stay frozen; registration and campaign lifecycle update their
@@ -35,7 +35,8 @@ archive operation for integrated terminal campaigns and their current bosses.
 It does not execute campaigns or revise their tactics.
 
 world-manager supplies static context; world-planner owns goal planning and rumor
-distillation; campaign-manager turns explicit selections into deliberate tactics.
+triage; campaign-manager turns explicit selections into deliberate tactics. Any
+branch may capture rumors; only planning renumbers, promotes, dismisses or archives them.
 Available means ready for consideration. Eligible also requires an intact graph,
 no assignment and vanquished prerequisites. Neither state proves implementation
 was integrated: inspect accepted history before relying on a prerequisite.
@@ -49,16 +50,17 @@ merge, destructive cleanup or communication to others. Follow repository policy.
 
 ## Allocate numbers and check conflicts
 
-Use canonical names such as `b007-search`, `c012-search-tools` and
-`e001-index-search`. Boss and campaign numbers are independent project allocations;
-encounter numbers start at e001 within each campaign. Existing targets accept
-`b007`, `c012` and `c012/e001`; a bare e001 needs an explicit or active campaign.
+Use canonical names such as `b007-search`, `c012-search-tools`,
+`e001-index-search` and `r031-cache-wheels`. Boss, campaign and rumor numbers are
+independent project allocations; encounter numbers start at e001 within each
+campaign. Existing targets accept `b007`, `c012`, `r031` and `c012/e001`; a bare
+e001 needs an explicit or active campaign.
 Create names are literal. Legacy full names remain readable and need no bulk rename.
 
 Skills choose numeric maximum plus one from complete inventories, including retained
-archives. Use boss_list, campaign_list and encounter_list with include_archived=true
-(CLI lists: `--include-archived`), follow every next_cursor, and use explicit campaign
-context for encounter inventories. Also inspect known local/remote campaign branches
+archives. Use boss_list, campaign_list, encounter_list and rumor_list with
+include_archived=true (CLI lists: `--include-archived`), follow every next_cursor, and
+use explicit campaign context for encounter inventories. Also inspect known local/remote campaign branches
 for reservations absent from records. Refresh remote refs when available and already
 authorized; disclose offline or incomplete visibility. No central allocator exists.
 
@@ -68,12 +70,19 @@ allocate numbers. A branch-only c020 reservation excludes c020 even without a re
 The matching c020-slug-assignment/c020-slug pair reserves one number, not two.
 Reserve the -assignment suffix for registration branches. Numbers convey no priority.
 
+Rumors are the exception to branch reservations: any branch may capture them, so
+two branches can allocate the same rumor number. That collision is expected. After
+integration, fix it on planning with rumor_renumber / `cac rumor renumber r031
+r032-cache-wheels`, which accepts open or dismissed rumors only. Promotion happens on
+planning, so a promoted rumor's number is already settled and is never renumbered.
+
 Check at campaign creation, after branch integrations, and before completion; repeat
 the last check after review fixes. Compare numeric IDs with different slugs, same-campaign
 encounter numbers and reciprocal boss/campaign ownership. Two cleanly merged files can
 still claim the same number or boss. Explain and reconcile such conflicts manually;
-do not silently renumber history, rewrite managed files or treat a clean Git merge as
-proof of logical consistency. MCP/CLI operations remain the managed-record interface.
+do not silently renumber history (explicit rumor renumbering on planning is the only
+renumbering operation), rewrite managed files or treat a clean Git merge as proof of
+logical consistency. MCP/CLI operations remain the managed-record interface.
 
 ## Worked path from goals to integrated work
 
@@ -107,11 +116,12 @@ managed-file writes. Inspect exact command help where argument detail is needed.
    developer confirmation to complete after verification. A passing plan review is
    not execution approval. Locked changes become recorded messages. Both scripted
    and unscripted kinds retain their canonical gates. See workflow for exact rules.
-5. Capture discoveries on execution through rumors_create / `cac rumors create --campaign c012`
-   with an explicit body or body file; replace an existing document through
-   rumors_update / `cac rumors update --campaign c012`. Rumors are one freeform document per campaign,
-   not automatic expansion of the chosen goals. Inspect through rumors_get /
-   `cac rumors get --campaign c012`; preserve useful context.
+5. Capture discoveries on execution as standalone rumors. Allocate the next number
+   from every rumor_list(include_archived=true) page, then use rumor_create /
+   `cac rumor create r031-cache-wheels --summary "Cache wheel builds" --origin "c012
+   execution" --body-file notes/rumor.md`. A rumor records an idea for later; it is
+   not automatic expansion of the chosen goals. Edit an open rumor with rumor_update
+   and inspect it with rumor_get / `cac rumor get r031`.
 6. Finish and verify encounters, run collision/ownership checks, and complete the
    campaign with its required postmortem through campaign_complete / `cac campaign complete`.
    Completion moves the selected group to vanquished. Integrate the completed branch
@@ -120,12 +130,18 @@ managed-file writes. Inspect exact command help where argument detail is needed.
    changes, campaign_reactivate / `cac campaign reactivate c012 --message "Review fixes"`
    reopens the campaign on execution without unlocking membership/history. Use new
    follow-up encounters, verify, repeat collision checks, and complete again before merge.
-7. Synchronize planning from accepted main. Distill integrated rumors with world-planner
-   into developer-selected goals/refinements; do not automatically delete the rumors
-   document, edit assigned goals or fabricate lineage. Archive only when the campaign
+7. Synchronize planning from accepted main. Triage integrated open rumors with
+   world-planner: list them with rumor_list / `cac rumor list --status open`, and
+   renumber collisions first. To act on one, create or refine a developer-selected
+   unassigned boss, then rumor_promote / `cac rumor promote r031 b009`; many rumors
+   may share a boss, and the boss record is not written. Otherwise rumor_dismiss /
+   `cac rumor dismiss r031 --message "Out of scope"`. Archive resolved rumors with
+   rumor_archive. Never delete rumors, edit assigned goals or fabricate lineage.
+   Archive the campaign only when it
    is terminal, integrated and every encounter is terminal. campaign_archive /
    `cac campaign archive c012` archives its encounters and current bosses; released
-   bosses owned by later attempts remain untouched. Rumors stay live. Standalone
+   bosses owned by later attempts remain untouched, and rumors are never touched by
+   campaign archiving. Standalone
    boss archive accepts unassigned withdrawn goals or valid externally completed
    roadmap goals. Archive restoration is deferred, not a deletion workaround.
 

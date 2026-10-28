@@ -13,7 +13,7 @@ summary: 'Core `cac` Python package, console script and MCP server - the project
   root). Architecture rule: `cli/` and `mcp/` modules are thin wrappers and all domain
   logic lives in `core/`. Tests mirror `src/cac/`.'
 updated_by: John Hoff
-updated_on: '2026-10-28T04:02:20Z'
+updated_on: '2026-10-28T16:52:54Z'
 ---
 
 # Crypts and Commits (core library)
@@ -32,7 +32,7 @@ The core `cac` Python package, its console script and its MCP server - the deliv
 
 ## Architecture rule
 
-`cac/cli/` and `cac/mcp/` modules are thin wrappers only - argument parsing, calling into `core`, and printing or returning output. All real domain logic lives in `cac/core/`, one module per concept (`world.py`, `lore.py`, `region.py`, `boss.py`, `campaign.py`, `encounter.py`, `rumors.py`, `prime.py`, `docs.py`), with supporting modules for boss candidates/provenance, campaign membership and boss coupling, short references, the search index, response budgets and recovery.
+`cac/cli/` and `cac/mcp/` modules are thin wrappers only - argument parsing, calling into `core`, and printing or returning output. All real domain logic lives in `cac/core/`, one module per concept (`world.py`, `lore.py`, `region.py`, `boss.py`, `campaign.py`, `encounter.py`, `rumor.py`, `prime.py`, `docs.py`), with supporting modules for boss candidates/provenance, campaign membership and boss coupling, short references, the search index, response budgets and recovery.
 
 ## Commands
 
