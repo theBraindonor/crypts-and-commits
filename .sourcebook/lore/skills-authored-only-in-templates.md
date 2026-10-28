@@ -11,7 +11,7 @@ summary: .claude/skills/ and .agents/skills/ are deployed artifacts, never edite
   then the developer (never the agent) deploys them via `cac bootstrap init`. Check
   when an encounter's Plan touches skill behavior or wording.
 updated_by: John Hoff
-updated_on: '2026-07-28T03:53:02Z'
+updated_on: '2026-10-28T04:02:13Z'
 ---
 
 # Skills Are Authored Only in Templates
@@ -22,7 +22,7 @@ directly - not with `Edit`/`Write`, not via shell redirection or `sed -i`, no
 matter how small the change.
 
 All skill content changes are made in exactly one place:
-`packages/crypts-and-commits/src/cac/core/templates/skills/{claude,codex}/{world_manager,campaign_manager}/SKILL.md`.
+`packages/crypts-and-commits/src/cac/core/templates/skills/{claude,codex}/{world_manager,world_planner,campaign_manager}/SKILL.md`.
 Once a template is edited, the developer - never the agent - deploys it into
 the working copies by running `cac bootstrap init`
 (`skills_core.deploy_skills` overwrites every deployed `SKILL.md`
