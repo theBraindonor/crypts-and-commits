@@ -29,7 +29,7 @@ them in.
 
 ## Domain model at a glance
 
-Six record types, each Markdown with YAML frontmatter, live in the sourcebook:
+Seven record types, each Markdown with YAML frontmatter, live in the sourcebook:
 
 | Type | Scope | Lifecycle |
 | --- | --- | --- |
@@ -39,9 +39,7 @@ Six record types, each Markdown with YAML frontmatter, live in the sourcebook:
 | Boss | Project goals | proposed, available, withdrawn, vanquished |
 | Campaign | Initiatives; at most one open per checkout | draft, open, paused, completed, abandoned |
 | Encounter | Units of work within a campaign | draft, reviewed, open, completed, abandoned |
-
-Rumors are a seventh, simpler kind of content: at most one plain Markdown
-document per campaign, with no frontmatter and no lifecycle.
+| Rumor | Backlog notes from anywhere | open, promoted, dismissed |
 
 Every record carries common audit stamps (`created_by`, `created_on`,
 `updated_by`, `updated_on`).
@@ -64,6 +62,8 @@ Every record carries common audit stamps (`created_by`, `created_on`,
 - Bosses and campaigns link reciprocally: a campaign lists its `bosses`, and
   each linked boss names its current `campaign`. A boss's `depends_on` lists
   prerequisite bosses.
+- A promoted rumor's `boss` names the boss it was linked to, stored only on
+  the rumor. Bosses keep no back-reference, and many rumors may share one.
 
 No relationship grants permission to bypass a lifecycle guard.
 
@@ -78,7 +78,7 @@ Markdown and it has no status. Its frontmatter holds `name`, `assigned_lore`,
 | Attribute | Effective default | Purpose |
 | --- | --- | --- |
 | `merge_target_branch` | `main` | Where accepted work is integrated |
-| `planning_branch` | `planning` | Where goals, rumors distillation and archival happen |
+| `planning_branch` | `planning` | Where goals, rumor triage and archival happen |
 
 New worlds store these defaults. An older world without them reports the
 defaults in returned data only: reads and unrelated writes never backfill the
@@ -261,8 +261,7 @@ remain readable so past work stays inspectable.
 
 A boss is a project goal that can be captured and refined before any campaign
 commits to it. Bosses live in the sourcebook's boss collection, and archived
-bosses move to the archive area. The reserved rumors area inside the boss
-collection is never treated as a boss.
+bosses move to the archive area.
 
 - **Frontmatter:** `name`, `summary` (required, at most 500 characters),
   `status`, `archived`, `depends_on` (direct prerequisites by canonical name),
@@ -409,29 +408,30 @@ Lifecycle effects on bosses:
 Archiving a completed campaign moves its assigned bosses along with its
 terminal encounters, preserving status and readable history. Archiving an
 abandoned campaign never touches released bosses, whatever has happened to
-them since. Rumors stay live. Current and historical membership lists and
-reverse claims protect against deletion. Broken or competing ownership, or an
-inconsistent lifecycle state, blocks mutation until it is repaired.
+them since. Rumors are never touched. Current and historical membership lists
+and reverse claims protect against deletion. Broken or competing ownership, or
+an inconsistent lifecycle state, blocks mutation until it is repaired.
 
-## Campaign rumors
+## Rumors
 
-Rumors preserve discoveries made during a campaign. Each existing campaign can
-have one optional plain UTF-8 document, created lazily. It has no frontmatter,
-audit metadata, status, summary, required structure, review gate or number, and
-all text round-trips exactly. Capturing a rumor does not expand scope, create
-bosses, or require conversion or lineage.
+A rumor (`rNNN-slug`) is a backlog note, "we think X should be done", from
+anywhere: execution, a review, a customer, the running project. It carries a
+summary, a free-text `origin` and an optional body, and can be captured on any
+branch. Only `open` rumors can be edited.
 
-Rumors never count as bosses, never reserve boss numbers, and never affect
-candidates or dependencies. They are excluded from index freshness checks.
-Document operations work for terminal and archived campaigns without weakening
-campaign or boss guards. Completion, abandonment, reactivation and archiving
-leave a rumors document's content and location unchanged; rumors are never
-archived or cleaned up automatically.
+- **Promote** (`open` to `promoted`) links the rumor to an existing unassigned
+  `proposed` or `available` boss, recorded only on the rumor; the boss is never
+  written. Many rumors may share a boss.
+- **Dismiss** (`open` to `dismissed`) requires a reason; **reopen** returns
+  either to `open` with a message. **Archive** retires a promoted or dismissed
+  rumor read-only. There is no delete, and transition messages stay in
+  `history`.
 
-During execution, a campaign edits and integrates its own rumors. On the
-planning branch, world-planner distills, keeps or deletes integrated notes.
-Assigned bosses stay frozen, and Git keeps the history. Endpoints never inspect
-Git or enforce branches.
+Numbers captured on different branches can collide. They are renumbered on the
+planning branch; promoted rumors keep their number, because promotion happens
+on planning, where numbering is settled. Similar rumors are never merged:
+repetition is a signal. Rumors never affect bosses, candidates or campaign
+lifecycle, are searchable under their own type, and are not part of prime.
 
 ## Explicit user gates
 
@@ -554,8 +554,8 @@ developer rebuild.
 - **world-manager** owns static context: the world, lore, regions, the
   disclosure ladder and migration routing.
 - **world-planner** owns goals: planning, roadmap adoption, readiness,
-  dependencies and splitting, distilling integrated rumors, and planning-side
-  archival.
+  dependencies and splitting, triaging integrated rumors (renumbering,
+  promotion and dismissal), and planning-side archival.
 - **campaign-manager** owns tactical work: selection and registration, draft
   membership, encounters and execution.
 
@@ -582,7 +582,7 @@ supplied evidence, not proof of a CAC merge.
 
 ### Allocate numbers
 
-CAC numbers bosses, campaigns and encounters by convention: core never
+CAC numbers bosses, campaigns, encounters and rumors by convention: core never
 allocates. Choose the numeric maximum plus one, padded to three digits below
 1000 and continuing at 1000. Never reuse a retained ID, and never infer the
 maximum from lexical, time or search order.
@@ -594,6 +594,9 @@ maximum from lexical, time or search order.
   matching `c00N-example` and `c00N-example-assignment` pair counts once.
 - **Encounters:** every page of the encounter list including archives, within
   the exact campaign.
+- **Rumors:** every page of the rumor list including archives, on the current
+  branch. Rumors may be numbered on any branch; collisions found after
+  integration are renumbered on planning.
 
 Unnumbered legacy names remain valid. Ambiguous shorthand requires the
 canonical name.
@@ -674,10 +677,13 @@ merging need the developer's authorization.
 
 ### Planning handoff
 
-Capture execution discoveries in the campaign's rumors document through CAC.
-On the planning branch, distill only integrated rumors into developer-selected
-goals or refinements, with no forced categories or lineage, no implicit scope
-expansion, no edits to assigned designs, and no automatic deletion. After
+Any skill captures rumors through CAC on whatever branch the work happens,
+without expanding the current scope. On the planning branch, world-planner
+triages integrated open rumors: it renumbers collisions, promotes a rumor to
+a new or existing unassigned boss the developer selects, or dismisses it with
+a reason, and archives resolved rumors that are no longer useful. There are
+no forced categories, no implicit scope expansion, no edits to assigned
+designs, and no deletion. After
 synchronizing, world-planner may archive integrated terminal campaigns whose
 encounters are all terminal; only their current bosses move, while released
 history and rumors stay where they are. Standalone boss archiving follows its

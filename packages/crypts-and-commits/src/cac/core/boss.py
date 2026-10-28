@@ -23,15 +23,8 @@ class BossAlreadyExistsError(FileExistsError):
 
 
 def validate_name(name: str) -> None:
-    if (
-        not isinstance(name, str)
-        or not NAME_PATTERN.fullmatch(name)
-        or name in RESERVED_NAMES
-        or name.lower() == "rumors"
-    ):
-        raise BossError(
-            f"Invalid boss name {name!r}: use letters, numbers, underscores, hyphens, or periods; rumors is reserved."
-        )
+    if not isinstance(name, str) or not NAME_PATTERN.fullmatch(name) or name in RESERVED_NAMES:
+        raise BossError(f"Invalid boss name {name!r}: use letters, numbers, underscores, hyphens, or periods.")
 
 
 def boss_dir(root: Path, *, archived: bool = False) -> Path:
@@ -81,11 +74,6 @@ def _names(root: Path, archived: bool) -> list[str]:
         return []
     names = []
     for path in sorted(directory.iterdir()):
-        if path.name == "rumors" and not archived:
-            if path.is_symlink() or not path.is_dir():
-                raise BossError(f"Reserved rumors namespace collision at {path}.")
-            _safe_path(root, path / "_probe.md")
-            continue
         if path.suffix == ".md":
             validate_name(path.stem)
             _safe_path(root, path)

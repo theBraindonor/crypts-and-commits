@@ -14,6 +14,7 @@ from cac.core.config import (
     ENCOUNTER_DIR_NAME,
     LORE_DIR_NAME,
     REGION_DIR_NAME,
+    RUMOR_DIR_NAME,
     SEARCH_DEFAULT_MAX_RESULTS,
     SEARCH_DEFAULT_SNIPPET_TOKENS,
     SEARCH_INDEX_BUSY_TIMEOUT_MS,
@@ -22,6 +23,7 @@ from cac.core.config import (
     SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER,
     SEARCH_INDEX_OBJECT_TYPE_LORE,
     SEARCH_INDEX_OBJECT_TYPE_REGION,
+    SEARCH_INDEX_OBJECT_TYPE_RUMOR,
     SEARCH_INDEX_OBJECT_TYPE_WORLD,
     SEARCH_INDEX_OBJECT_TYPES,
     SEARCH_MAX_SNIPPET_TOKENS,
@@ -138,6 +140,7 @@ def rebuild_index(root: Path) -> int:
             + _reindex_regions(root, conn)
             + _reindex_campaigns(root, conn)
             + _reindex_bosses(root, conn)
+            + _reindex_rumors(root, conn)
         )
         index_snapshot.initialize(conn, snapshot)
         index_snapshot.check(conn, root)
@@ -169,6 +172,35 @@ def _reindex_bosses(root: Path, conn: sqlite3.Connection) -> int:
             ),
         )
     return len(names)
+
+
+def _reindex_rumors(root: Path, conn: sqlite3.Connection) -> int:
+    from cac.core import rumor
+
+    if not rumor.rumor_dir(root).exists() and not rumor.rumor_dir(root, archived=True).exists():
+        return 0
+    names = rumor.list_rumors(root, include_archived=True)
+    for name in names:
+        metadata, body = rumor.read_metadata(root, name)
+        conn.execute(
+            f"INSERT INTO {SEARCH_INDEX_FTS_TABLE} "
+            "(object_type,campaign,name,status,updated_on,archived,body) VALUES (?,?,?,?,?,?,?)",
+            (
+                SEARCH_INDEX_OBJECT_TYPE_RUMOR,
+                "",
+                name,
+                metadata["status"],
+                metadata.get("updated_on", ""),
+                metadata.get("archived", False),
+                _rumor_text(metadata, body),
+            ),
+        )
+    return len(names)
+
+
+def _rumor_text(metadata: dict, body: str) -> str:
+    """Rumors are searchable by summary, free-text origin, and body."""
+    return f"{metadata.get('summary', '')}\n\n{metadata.get('origin', '')}\n\n{body}"
 
 
 def _reindex_encounters(root: Path, conn: sqlite3.Connection) -> int:
@@ -330,6 +362,10 @@ def _classify(root: Path, path: Path) -> tuple[str, str, str, bool] | None:
         return "boss", "", path.stem, False
     if len(parts) == 3 and parts[0] == ARCHIVE_DIR_NAME and parts[1] == BOSS_DIR_NAME:
         return "boss", "", path.stem, True
+    if len(parts) == 2 and parts[0] == RUMOR_DIR_NAME:
+        return SEARCH_INDEX_OBJECT_TYPE_RUMOR, "", path.stem, False
+    if len(parts) == 3 and parts[0] == ARCHIVE_DIR_NAME and parts[1] == RUMOR_DIR_NAME:
+        return SEARCH_INDEX_OBJECT_TYPE_RUMOR, "", path.stem, True
     if len(parts) == 2 and parts[0] == LORE_DIR_NAME:
         return SEARCH_INDEX_OBJECT_TYPE_LORE, "", path.stem, False
     if len(parts) == 2 and parts[0] == REGION_DIR_NAME:
@@ -367,6 +403,13 @@ def sync_write(root: Path, path: Path, post: frontmatter.Post) -> None:
         name = stem
         status = post.get("status", "")
 
+    if object_type == "boss":
+        text = post.get("summary", "") + "\n\n" + post.content
+    elif object_type == SEARCH_INDEX_OBJECT_TYPE_RUMOR:
+        text = _rumor_text(post.metadata, post.content)
+    else:
+        text = post.content
+
     conn = _connect(root)
     try:
         if object_type == SEARCH_INDEX_OBJECT_TYPE_WORLD:
@@ -385,7 +428,7 @@ def sync_write(root: Path, path: Path, post: frontmatter.Post) -> None:
                 status,
                 post.get("updated_on", ""),
                 archived,
-                post.get("summary", "") + "\n\n" + post.content if object_type == "boss" else post.content,
+                text,
             ),
         )
         index_snapshot.sync(conn, root, path)

@@ -301,11 +301,11 @@ def test_large_details_and_diagnostics_remain_bounded(tmp_path, monkeypatch):
         discovery.candidates(tmp_path)
 
 
-def test_collection_ambiguity_errors_and_rumors_exclusion(tmp_path):
+def test_collection_ambiguity_errors_and_nested_directory_exclusion(tmp_path):
     live = goal(tmp_path)
-    rumors = boss.boss_dir(tmp_path) / "rumors"
-    rumors.mkdir()
-    (rumors / "b999-rumor.md").write_text("Not a boss", encoding="utf-8")
+    nested = boss.boss_dir(tmp_path) / "notes"
+    nested.mkdir()
+    (nested / "b999-not-a-boss.md").write_text("Not a boss", encoding="utf-8")
     assert discovery.candidates(tmp_path)["counts"]["total_live"] == 1
     archived = boss.boss_dir(tmp_path, archived=True) / live.name
     archived.parent.mkdir(parents=True)

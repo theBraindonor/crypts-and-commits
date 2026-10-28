@@ -65,7 +65,7 @@ def test_packaged_skill_metadata_and_callable_examples_match_interfaces(flavor, 
     assert prefixed <= tool_names
     normalized = body.replace("mcp__crypts-and-commits__", "")
     calls = set(
-        re.findall(r"\b((?:boss|campaign|encounter|world|lore|region|prime|rumors|docs|index)_[a-z_]+)\(", normalized)
+        re.findall(r"\b((?:boss|campaign|encounter|world|lore|region|prime|rumor|docs|index)_[a-z_]+)\(", normalized)
     )
     assert calls and calls <= tool_names
     cli = get_command(app)

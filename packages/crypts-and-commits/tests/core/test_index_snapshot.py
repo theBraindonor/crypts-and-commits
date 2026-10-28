@@ -3,7 +3,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from cac.core import boss, campaign, coupling, encounter, index_snapshot, lore, rumors, search_index, world
+from cac.core import boss, campaign, coupling, encounter, index_snapshot, lore, rumor, search_index, world
 from cac.core.paths import search_index_db_path
 
 
@@ -70,14 +70,16 @@ def test_unrelated_cac_writes_cannot_bless_external_change(tmp_path):
     assert search_index.search(tmp_path, "Supported")[0].name == "new-lore"
 
 
-def test_rumors_and_unrelated_files_do_not_stale_snapshot(tmp_path):
+def test_unrelated_files_do_not_stale_snapshot_and_rumors_stay_fresh(tmp_path):
     search_index.rebuild_index(tmp_path)
     before = snapshot(tmp_path)
-    rumors.write(tmp_path, "b999-rumor", "c001")
     (tmp_path / "unrelated.md").write_text("new", encoding="utf-8")
     assert_fresh(tmp_path)
     assert snapshot(tmp_path) == before
-    assert search_index.search(tmp_path, "b999-rumor", object_type="boss") == []
+    rumor.create_rumor(tmp_path, "r001-idea", "Body", "Summary", "b999-origin")
+    assert_fresh(tmp_path)
+    assert search_index.search(tmp_path, "b999-origin", object_type="boss") == []
+    assert [hit.name for hit in search_index.search(tmp_path, "b999-origin", object_type="rumor")] == ["r001-idea"]
 
 
 @pytest.mark.parametrize("defect", ["legacy", "format", "corrupt", "parse", "unreadable", "directory"])

@@ -49,7 +49,7 @@ def test_empty_collection_and_creation_defaults(tmp_path, legacy_world):
     )
 
 
-@pytest.mark.parametrize("name", [".", "..", "../escape", "a/b", "a\\b", "", "rumors", "RUMORS"])
+@pytest.mark.parametrize("name", [".", "..", "../escape", "a/b", "a\\b", ""])
 def test_invalid_names_do_not_create_storage(tmp_path, name):
     with pytest.raises(boss.BossError):
         create(tmp_path, name)
@@ -166,11 +166,11 @@ def test_archive_failure_restores_exact_record(tmp_path, monkeypatch, failure):
     assert not (boss.boss_dir(tmp_path, archived=True) / "goal.md").exists()
 
 
-def test_collisions_and_rumors_exclusion(tmp_path):
+def test_collisions_and_nested_directory_exclusion(tmp_path):
     live = create(tmp_path)
-    rumors = boss.boss_dir(tmp_path) / "rumors"
-    rumors.mkdir()
-    (rumors / "b999-not-a-boss.md").write_text("Rumor", encoding="utf-8")
+    nested = boss.boss_dir(tmp_path) / "notes"
+    nested.mkdir()
+    (nested / "b999-not-a-boss.md").write_text("Not a boss", encoding="utf-8")
     assert boss.list_bosses(tmp_path, include_archived=True) == ["goal"]
     archive = boss.boss_dir(tmp_path, archived=True)
     archive.mkdir(parents=True)
@@ -186,17 +186,14 @@ def test_collisions_and_rumors_exclusion(tmp_path):
     assert live.read_bytes() == before
 
 
-@pytest.mark.parametrize("collision", ["collection-file", "record-directory", "rumors-file"])
+@pytest.mark.parametrize("collision", ["collection-file", "record-directory"])
 def test_namespace_collisions(tmp_path, collision):
     directory = boss.boss_dir(tmp_path)
     if collision == "collection-file":
         directory.write_text("not a directory", encoding="utf-8")
     else:
         directory.mkdir()
-        if collision == "record-directory":
-            (directory / "goal.md").mkdir()
-        else:
-            (directory / "rumors").write_text("collision", encoding="utf-8")
+        (directory / "goal.md").mkdir()
     with pytest.raises(boss.BossError):
         create(tmp_path)
 

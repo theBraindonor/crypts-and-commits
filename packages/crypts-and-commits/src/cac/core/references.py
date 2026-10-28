@@ -1,7 +1,8 @@
 """External reference selection. Storage/domain routines keep exact canonical lookup.
 
 Input matrix (the entry adapter uses this for every shipped CLI/MCP command):
-boss/campaign targets: all get/update/lifecycle/archive/delete lookups; create is literal.
+boss/campaign/rumor targets: all get/update/lifecycle/archive/delete/renumber lookups; create and
+renumber's new name are literal; rumor promotion resolves its boss target in core.
 encounter targets: all get/update/delete/review/lifecycle/message/region/dependency lookups;
 create is literal; campaign filters on list/order/create and applicable-lore use campaign refs.
 dependency is scoped/canonicalized on assign/unassign only; region/lore/doc/text/cursor inputs
@@ -29,6 +30,10 @@ class AmbiguousReferenceError(ReferenceError):
     """More than one retained identity matches the requested reference."""
 
 
+_PREFIXES = {"boss": "b", "campaign": "c", "encounter": "e", "rumor": "r"}
+_SYNTAX = {"boss": "bNNN", "campaign": "cNNN", "encounter": "eNNN or cNNN/eNNN", "rumor": "rNNN"}
+
+
 def encoded(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
@@ -51,6 +56,7 @@ class Inventory:
             "boss": config.BOSS_DIR_NAME,
             "campaign": config.CAMPAIGN_DIR_NAME,
             "encounter": config.ENCOUNTER_DIR_NAME,
+            "rumor": config.RUMOR_DIR_NAME,
         }[domain]
         if domain == "encounter":
             self.validate(campaign)
@@ -67,8 +73,6 @@ class Inventory:
             for path in sorted(location.glob("*.md")):
                 boss._safe_path(self.root, path)
                 self.validate(path.stem)
-                if domain == "boss" and path.stem.lower() == "rumors":
-                    raise ReferenceError("Reserved rumors namespace contains a boss record.")
                 found.append(path.stem)
         duplicates = sorted(name for name, count in Counter(found).items() if count > 1)
         if duplicates:
@@ -93,7 +97,7 @@ class Inventory:
             # An exact canonical name always selects its record, so short-shaped legacy names stay reachable.
             return value
         short = config.SHORT_REFERENCE_PATTERN.fullmatch(value)
-        prefix = {"boss": "b", "campaign": "c", "encounter": "e"}[domain]
+        prefix = _PREFIXES[domain]
         if short:
             if short[1] != prefix or int(short[2]) == 0:
                 raise ReferenceError(f"Reference {value!r} is not a positive {domain} short ref.")
@@ -108,13 +112,14 @@ class Inventory:
         elif value in names or missing_literal:
             return value
         # Preserve existing domain not-found errors for canonical callers.
-        from cac.core import boss, encounter
+        from cac.core import boss, encounter, rumor
         from cac.core import campaign as campaign_core
 
         error = {
             "boss": boss.BossNotFoundError,
             "campaign": campaign_core.CampaignNotFoundError,
             "encounter": encounter.EncounterNotFoundError,
+            "rumor": rumor.RumorNotFoundError,
         }[domain]
         suffix = f" in campaign {campaign!r}" if domain == "encounter" else ""
         raise error(f"{domain.capitalize()} {value!r} does not exist{suffix}.")
@@ -148,7 +153,7 @@ class Inventory:
         return selected, self.resolve("encounter", value, selected, missing_literal=missing_literal)
 
     def identity(self, domain: str, canonical: str, campaign: str | None = None) -> dict[str, Any]:
-        prefix = {"boss": "b", "campaign": "c", "encounter": "e"}[domain]
+        prefix = _PREFIXES[domain]
         match = config.NUMBERED_NAME_PATTERN.fullmatch(canonical) or config.SHORT_REFERENCE_PATTERN.fullmatch(canonical)
         result = {"canonical": canonical, "short": None, "reason": "unnumbered"}
         if campaign is not None:
@@ -255,6 +260,9 @@ def inputs(
             if selection.name is not None:
                 if identity is None:
                     identity = Inventory(root).identity(domain, selection.name, selection.campaign)
+                if "renumber" in function.__name__.split("_"):
+                    # The result names the record under its new literal name.
+                    identity = Inventory(root).identity(domain, values["new_name"], selection.campaign)
                 if "delete" in function.__name__.split("_"):
                     identity = {key: value for key, value in identity.items() if key != "bare_short"}
                     identity.update(short=None, reason="deleted")
@@ -267,7 +275,7 @@ def inputs(
             return result
 
         invoke.reference_contract = {"domain": domain, "create": create, "mutable": mutable, "remove": remove}
-        syntax = "bNNN" if domain == "boss" else "cNNN" if domain == "campaign" else "eNNN or cNNN/eNNN"
+        syntax = _SYNTAX[domain]
         invoke.__doc__ = (function.__doc__ or "") + (
             f"\nExisting {domain} targets accept full canonical names or {syntax}; exact canonical names win; refs include archived records and reject ambiguity. "
             "Create names are literal. Qualified encounter context overrides active fallback and must agree with an explicit campaign. "

@@ -6,7 +6,7 @@ description: Select goals into tactical campaigns, manage campaign execution and
 # Campaign Manager
 
 Own tactical commitment and execution. world-planner owns goal planning/readiness,
-roadmap adoption, integrated rumor distillation and planning-side archival;
+roadmap adoption, integrated rumor triage and planning-side archival;
 world-manager owns static context and the disclosure ladder. Use connected
 crypts-and-commits MCP tools first, cac CLI only when unavailable. Managed records
 are MCP/CLI-only, never direct filesystem inspection/repair. Missing bootstrap
@@ -119,12 +119,15 @@ rumors stay untouched.
 
 ## Discoveries and unusual handoffs
 
-Use rumors_get/create/update/delete / cac rumors get/create/update/delete with
-explicit campaign context (or active fallback); Markdown is freeform, one document
-per campaign, no frontmatter/categories. MCP get can page by cursor. CLI writes
-use --campaign REF with --body/--body-file; MCP receives body strings. Capture
-follow-ups without editing assigned bosses or expanding execution scope. Integrated
-rumors are distilled by world-planner; deletion is deliberate, never automatic.
+Capture discoveries as standalone rumors with rumor_create(name,body,summary,
+origin) / cac rumor create NAME --summary TEXT --origin TEXT --body-file PATH,
+numbered rNNN-slug from every rumor_list(include_archived=True) page on this
+branch (numeric max+1). Origin is free text, such as this campaign/encounter or
+whoever raised it. Capturing never edits assigned bosses or expands execution
+scope; only open rumors can be edited, with rumor_update(name,body,summary,
+origin). Numbers that collide after integration are renumbered on planning.
+Triage (promotion, dismissal, renumbering, archival) belongs to world-planner;
+rumors are never deleted.
 
 For rejected registration, establish whether it integrated and inspect visible
 assignment/execution branches; revise or explicitly abandon, retain useful context

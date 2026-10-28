@@ -53,8 +53,10 @@ def inventory(root: Path) -> list[tuple]:
         config.REGION_DIR_NAME,
         config.CAMPAIGN_DIR_NAME,
         config.BOSS_DIR_NAME,
+        config.RUMOR_DIR_NAME,
         f"{config.ARCHIVE_DIR_NAME}/{config.CAMPAIGN_DIR_NAME}",
         f"{config.ARCHIVE_DIR_NAME}/{config.BOSS_DIR_NAME}",
+        f"{config.ARCHIVE_DIR_NAME}/{config.RUMOR_DIR_NAME}",
     ):
         paths.extend(path for path in children(base / directory) if path.suffix == ".md")
     for directory in (base / config.ENCOUNTER_DIR_NAME, base / config.ARCHIVE_DIR_NAME / config.ENCOUNTER_DIR_NAME):

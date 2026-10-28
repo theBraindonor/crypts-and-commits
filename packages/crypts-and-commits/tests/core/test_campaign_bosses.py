@@ -11,7 +11,7 @@ from cac.core import (
     index_snapshot,
     prime,
     references,
-    rumors,
+    rumor,
     search_index,
     world,
 )
@@ -191,9 +191,10 @@ def test_group_prerequisites_cannot_be_bypassed(tmp_path):
 def test_group_completion_reactivation_archive_and_downstream_eligibility(tmp_path):
     boss.assign_dependency(tmp_path, "b004-goal", "b001-goal")
     boss.assign_dependency(tmp_path, "b004-goal", "b002-goal")
+    rumor_path = rumor.create_rumor(tmp_path, "r001-discovery", "Discoveries", "Idea", "execution")
+    rumor.promote(tmp_path, "r001-discovery", "b001-goal")
+    rumor_bytes = rumor_path.read_bytes()
     create(tmp_path)
-    rumors.write(tmp_path, "Discoveries", "c001")
-    rumor_path = rumors._path(tmp_path, "c001-work")
     designs = {
         name: coupling._body_suffix(boss.boss_path(tmp_path, name).read_bytes())[1]
         for name in boss.list_bosses(tmp_path)
@@ -210,7 +211,8 @@ def test_group_completion_reactivation_archive_and_downstream_eligibility(tmp_pa
     for name in ("b001-goal", "b002-goal", "b003-goal"):
         assert boss.read_metadata(tmp_path, name)[0]["archived"] is True
         assert coupling._body_suffix(boss.boss_path(tmp_path, name).read_bytes())[1] == designs[name]
-    assert rumor_path.read_text(encoding="utf-8") == "Discoveries"
+    # Campaign lifecycle and archival never touch rumors, including ones promoted to its bosses.
+    assert rumor_path.read_bytes() == rumor_bytes
     assert search_index.status(tmp_path)["freshness"] == "fresh"
     with pytest.raises(coupling.CampaignLinkedError):
         campaign.delete_campaign(tmp_path, "c001-work")

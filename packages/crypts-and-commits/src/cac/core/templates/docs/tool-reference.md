@@ -50,7 +50,7 @@ JSON print compact JSON literally.
 
 ### Response budgets and continuation
 
-Every `get` (world, lore, region, campaign, boss, encounter, rumors, docs) fits
+Every `get` (world, lore, region, campaign, boss, encounter, rumor, docs) fits
 its whole compact-JSON result, identity included, into a response budget. Docs
 use a dedicated budget of 64,000 characters measured on the body; every other
 response uses the ordinary response budget.
@@ -100,8 +100,8 @@ fails; inspect the paged lists instead of expecting rows to be dropped.
 ### Short references
 
 Selectors accept canonical names and the short forms `bNNN` (boss), `cNNN`
-(campaign) and `cNNN/eNNN` (encounter in a campaign). A bare `eNNN` needs an
-explicit campaign or the active campaign. Short references use lowercase
+(campaign), `rNNN` (rumor) and `cNNN/eNNN` (encounter in a campaign). A bare
+`eNNN` needs an explicit campaign or the active campaign. Short references use lowercase
 prefixes and at least three ASCII digits, and the ID must be positive. Padding
 is normalized numerically: `c12` is rejected, while `c1000` and `c01000` both
 resolve to campaign number 1000, including across the 999/1000 transition.
@@ -118,7 +118,6 @@ current project:
 - Duplicate canonical files across live and archive storage are integrity
   errors, even for full-name lookups.
 - Malformed, unknown or wrong-domain references fail before any write.
-- Rumors do not participate in resolution.
 
 A qualified encounter reference overrides the active-campaign fallback, and an
 explicit `campaign` argument must resolve to the same campaign. Qualification
@@ -143,13 +142,16 @@ numbers, performs branch or network lookups, or migrates records.
 | Encounter assign/unassign-region | name, optional campaign | region |
 | Encounter assign/unassign-dependency | source, prerequisite, optional campaign | missing canonical edge on explicit removal |
 | Encounter list/order, encounter create | existing campaign | new create name, body, kind, cursor |
-| Boss/campaign create | none | new name, body, summary where applicable |
+| Rumor get/update/dismiss/reopen/archive | existing name | body, summary, origin, message |
+| Rumor promote | existing rumor, existing boss | message |
+| Rumor renumber | existing rumor | new name |
+| Boss/campaign/rumor create | none | new name, body, summary, origin where applicable |
 | Prime applicable-lore | encounter, optional campaign | returned lore refs unchanged |
-| Boss/campaign lists and candidates | none | cursor, flags |
+| Boss/campaign/rumor lists and candidates | none | cursor, flags, rumor status |
 
 Lore, region and doc names, world keys and values, messages, bodies, summaries
 and search phrases are always literal. There is no resolver endpoint, no boss
-deletion, and no generic status setter.
+or rumor deletion, and no generic status setter.
 
 Creation names are literal. Encounter create may select its campaign by
 reference but cannot create a qualified path. Dependencies are canonicalized
@@ -162,14 +164,14 @@ rewrite stored links or graph names.
 
 Every encounter tool takes an optional `campaign` (CLI `--campaign`/`-c`).
 When it is omitted, the tool uses the single open campaign and fails if none is
-open. Rumors tools follow the same fallback. Mutating encounter tools refuse a
+open. Mutating encounter tools refuse a
 completed or abandoned campaign; `encounter_get`, `encounter_list` and
 `encounter_order` accept any existing campaign.
 
 ### Deletion confirmation
 
 CLI delete commands (`cac lore delete`, `cac region delete`, `cac campaign
-delete`, `cac encounter delete`, `cac rumors delete`) prompt for confirmation
+delete`, `cac encounter delete`) prompt for confirmation
 unless given `--yes`/`-y`. MCP delete tools never prompt. Confirmation never
 bypasses a core guard.
 
@@ -383,28 +385,46 @@ journal, or cross-process guarantee.
 
 | Operation | MCP | CLI |
 | --- | --- | --- |
-| List | `rumors_list(cursor=None)` | `cac rumors list [--cursor]` |
-| Read | `rumors_get(campaign=None, cursor=None)` | `cac rumors get [-c] [--cursor]` |
-| Create | `rumors_create(body, campaign=None)` | `cac rumors create [-c] [--body/-b \| --body-file]` |
-| Replace | `rumors_update(body, campaign=None)` | `cac rumors update [-c] [--body/-b \| --body-file]` |
-| Delete | `rumors_delete(campaign=None)` | `cac rumors delete [-c] [--yes/-y]` |
+| Capture | `rumor_create(name, body, summary, origin)` | `cac rumor create NAME --summary/-s --origin/-o [--body/-b \| --body-file]` |
+| Read | `rumor_get(name, cursor=None)` | `cac rumor get NAME [--cursor]` |
+| List canonical names | `rumor_list(cursor=None, include_archived=False, status=None)` | `cac rumor list [--cursor] [--include-archived] [--status]` |
+| Replace body, summary and origin | `rumor_update(name, body, summary, origin)` | `cac rumor update NAME --summary/-s --origin/-o [--body/-b \| --body-file]` |
+| Promote to a boss | `rumor_promote(name, boss, message=None)` | `cac rumor promote NAME BOSS [--message/-m]` |
+| Dismiss | `rumor_dismiss(name, message)` | `cac rumor dismiss NAME --message/-m` |
+| Reopen | `rumor_reopen(name, message)` | `cac rumor reopen NAME --message/-m` |
+| Archive | `rumor_archive(name)` | `cac rumor archive NAME` |
+| Renumber | `rumor_renumber(name, new_name)` | `cac rumor renumber NAME NEW_NAME` |
 
-`campaign` accepts canonical or legacy names, `cNNN` references, or the
-active-campaign fallback. A missing or ambiguous owner fails. Create rejects an
-existing document; get, update and delete reject an absent one. CLI create and
-update use the shared body/body-file input, or an editor initialized with empty
-or current text. MCP requires `body` and accepts an empty string. Unsafe names,
-storage links or junctions, and path or type collisions fail before writes.
+Rumors live at `rumors/<name>.md` and, once archived, `archive/rumors/<name>.md`.
+Create and update take the body, summary and origin together. The summary is
+required, nonblank and at most 500 characters; the origin is required, nonblank
+free text and is never validated against records. The body may be empty. The
+CLI accepts `--body`, `--body-file`, or an editor initialized from the empty
+template or the current body; MCP requires explicit strings. Update is a full
+replacement and requires an `open` rumor.
 
-Both surfaces return identical compact JSON, which the CLI prints literally.
-Mutations return the canonical `campaign` and the campaign `identity`. Get uses
-the shared body continuation, and always includes `truncated`, `next_cursor`
-and `notice` (false or null when the body is complete).
+`status` is `open`, `promoted` or `dismissed`. Promote requires an `open` rumor
+and an existing unassigned, unarchived `proposed` or `available` boss, given by
+canonical name or `bNNN`; it records `boss` and an optional `resolution` and
+never writes the boss. Many rumors may share a boss. Dismiss requires an `open`
+rumor and a nonblank reason, stored as `resolution`. Reopen requires an
+unarchived promoted or dismissed rumor and a nonblank message, and clears
+`boss` and `resolution`. Promote, dismiss and reopen each append an
+`{action, message, by, on}` entry to `history`, which update never changes.
+Archive requires a promoted or dismissed rumor; archived rumors are read-only.
+There is no delete.
 
-List returns bounded `{items, next_cursor}` in filename order. Each item
-contains `campaign`, `identity` and `diagnostic`. Archived owners are included.
-A document whose owning campaign is missing yields a null identity and an
-orphan diagnostic that needs history reconciliation.
+Renumber renames a live `open` or `dismissed` rumor to an unused literal name,
+live or archived, changing its file and `name` and refreshing the update stamp.
+Promoted and archived rumors are refused; reopen a promoted rumor first.
+
+MCP get and mutation results contain `metadata` (including `origin`, `status`,
+`boss`, `resolution`, `history` and `archived`), `summary`, `body` (bounded) and
+`identity`; renumber reports the new name's identity. List returns canonical
+names and parallel identities with cursor paging, and its order is not
+priority; `status` filters by status, and an unknown status fails. CLI get
+prints metadata, summary and body literally. Unsafe names, storage links or
+junctions, and path or type collisions fail before writes.
 
 ## Prime
 
@@ -445,9 +465,11 @@ routing is never silently dropped. The CLI renders the same facts literally.
 | Search | `index_search(phrase, max_results=10, skip=0, object_type=None, snippet_tokens=20, include_archived=False)` | `cac index search PHRASE [-n] [--skip/-s] [--type/-t] [--snippet-tokens] [--include-archived]` |
 | Rebuild (developer-only) | none | `cac index rebuild` |
 
-Search covers world, lore, region, boss, campaign and encounter records. Boss
-hits index the summary and body with name, status, audit and archive metadata;
-every status is searchable, and a hit is not an eligibility assertion. Archived
+Search covers world, lore, region, boss, campaign, encounter and rumor
+records. Boss hits index the summary and body, and rumor hits index the
+summary, origin and body, each with name, status, audit and archive
+metadata; every status is searchable, and a hit is not an eligibility
+assertion. Archived
 records are excluded unless `include_archived` is set. Each hit has `rank`,
 `score`, `object_type`, `campaign`, `name`, `status`, `updated_on`, `archived`
 and `excerpt`. An oversized response fails with guidance to lower
@@ -469,8 +491,8 @@ describe the indexed snapshot. Counts total live and archived content together.
 
 Freshness compares each record's identity, relative location and SHA-256 of
 its raw UTF-8 bytes (metadata included) against a versioned manifest. The
-inventory covers world, lore, region, and live and archived boss, campaign and
-encounter records, including orphaned encounters; it excludes rumors and
+inventory covers world, lore, region, and live and archived boss, campaign,
+encounter and rumor records, including orphaned encounters; it excludes
 unrelated files. Git state and modification times are never used. Legacy,
 unsupported, divergent, unreadable or invalid index data requires a developer
 rebuild. Reads never write, migrate or rebuild the index. Returning to the

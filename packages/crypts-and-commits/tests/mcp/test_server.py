@@ -9,11 +9,15 @@ def test_all_domain_tools_are_registered() -> None:
     tool_names = {tool.name for tool in tools}
 
     assert tool_names == {
-        "rumors_list",
-        "rumors_get",
-        "rumors_create",
-        "rumors_update",
-        "rumors_delete",
+        "rumor_list",
+        "rumor_get",
+        "rumor_create",
+        "rumor_update",
+        "rumor_promote",
+        "rumor_dismiss",
+        "rumor_reopen",
+        "rumor_archive",
+        "rumor_renumber",
         "boss_create",
         "boss_record",
         "boss_candidates",
@@ -87,5 +91,5 @@ def test_all_domain_tools_are_registered() -> None:
 
 def test_domain_get_tools_accept_continuation_cursor() -> None:
     tools = {tool.name: tool for tool in asyncio.run(mcp.list_tools())}
-    for name in ("world_get", "lore_get", "region_get", "campaign_get", "boss_get", "encounter_get", "rumors_get"):
+    for name in ("world_get", "lore_get", "region_get", "campaign_get", "boss_get", "encounter_get", "rumor_get"):
         assert "cursor" in tools[name].input_schema["properties"], name
