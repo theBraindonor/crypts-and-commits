@@ -27,9 +27,13 @@ a first-boss alias or treat broken membership as bossless. Encounter lists remai
 on demand. Full-text index_search can find encounter text; it is not a dedicated
 encounter graph/discovery API or a complete retained-allocation inventory.
 
-Read docs_get("workflow") / cac docs get workflow, especially "Agent planning
-and campaign workflow", for configured planning/merge-target branches, numbering,
-collision checkpoints, and reconciliation examples. Check Git branch/worktree,
+Do not read the workflow guide or tool reference during routine orientation.
+When a procedural question arises (configured planning/merge-target branches,
+numbering, collision checkpoints, reconciliation), read docs_get("workflow") /
+cac docs get workflow and use its "Agent planning and campaign workflow" section;
+for lifecycle guards use its Campaign, Encounter and Bosses sections. For an exact
+argument, result shape, error or budget, read docs_get("tool-reference") /
+cac docs get tool-reference. Check Git branch/worktree,
 dirty changes and detached HEAD before mutations. Explain mismatches and reconcile
 without silently switching/overwriting; endpoints remain branch-agnostic.
 Use existing authorization without repeat prompts. Invoking this skill does not
@@ -128,7 +132,7 @@ For an accepted draft cancelled before execution, abandon with reason on its
 execution branch, integrate cleanup and synchronize planning. For legacy open
 unnumbered work, inspect encounters/local guidance and agree a matching execution
 branch, finishing/abandoning open encounters before pausing/closing; preserve
-history instead of inventing bosses or bulk renaming. Follow workflow's examples.
+history instead of inventing bosses or bulk renaming. Follow workflow's "Reconciliation examples".
 Remote/integration uncertainty and failed recovery need explicit reconciliation.
 
 ## Encounters

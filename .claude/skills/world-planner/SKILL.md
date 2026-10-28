@@ -21,9 +21,12 @@ local instruction updates, use mcp__crypts-and-commits__docs_get("migration-guid
 cac docs get migration-guide; workflow remains the procedural authority.
 
 Orient with mcp__crypts-and-commits__prime_get / cac prime get and effective planning_branch /
-merge_target_branch. Follow mcp__crypts-and-commits__docs_get("workflow") / cac docs get workflow,
-especially "Agent planning and campaign workflow", for the canonical branch,
-numbering and collision procedure. Branch names are configuration, not proof
+merge_target_branch. Do not read the workflow guide or tool reference during
+routine orientation. When a branch, numbering or collision question arises, read
+mcp__crypts-and-commits__docs_get("workflow") / cac docs get workflow and use its "Agent planning and
+campaign workflow" section; for boss lifecycle, roadmap and candidate rules use its
+Bosses section. For an exact argument, result shape, error or budget, read
+mcp__crypts-and-commits__docs_get("tool-reference") / cac docs get tool-reference. Branch names are configuration, not proof
 of branch existence/integration. Inspect current branch/worktree, explain
 detached/unrelated/dirty state, and reconcile without silent switches/overwrites.
 Synchronize accepted merge-target history into planning under the project's
@@ -118,6 +121,6 @@ Hand campaign-manager the chosen canonical goals, success conditions, eligibilit
 and unresolved integration limits. Selection uses deliberate tactics on an
 assignment branch, not a copy of these notes; it neither opens a campaign nor
 authorizes encounters. Bossless campaigns remain possible. Follow workflow's
-manual reconciliation examples for legacy open work/rejected registration rather
+"Reconciliation examples" for legacy open work/rejected registration rather
 than inventing repair APIs. Bootstrap redeployment is developer-only, separate
 from authoring or record migration.
