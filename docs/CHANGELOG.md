@@ -3,7 +3,7 @@
 All notable changes to Crypts and Commits (CAC) are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] - Boss Edition
+## [0.3.0] - 2026-10-28 - Boss Edition
 
 Boss Edition adds project goals ("bosses") that can be captured and refined
 before any campaign commits to them, plus the numbered-name and branch
