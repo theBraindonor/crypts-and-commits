@@ -1,11 +1,12 @@
 ---
 archived: false
+bosses: []
 created_by: John Hoff
 created_on: '2026-10-27T03:26:33Z'
 name: c001-boss-edition
 status: open
 updated_by: John Hoff
-updated_on: '2026-10-27T03:35:48Z'
+updated_on: '2026-10-28T14:46:32Z'
 ---
 
 Deliver "Boss Edition", the next CAC release: add **bosses**, project goals that can be captured and refined before any campaign commits to them, plus the numbered-name and branch workflow that ties bosses, campaigns, and encounters together. The full design, including all agreed decisions, lives in `docs/boss-edition.md` (committed on this branch). That doc is the reference for every encounter in this campaign. Where an encounter and the doc disagree, fix the doc in the same change rather than drifting from it.
@@ -16,8 +17,8 @@ This is the first numbered campaign. It has no boss, since no boss records exist
 
 - **Boss records.** A new managed `bosses` collection with `proposed` / `available` / `withdrawn` / `vanquished` statuses, an `archived` flag (moving the record to `archive/bosses`), `depends_on` prerequisites with graph validation, and `boss_candidates` explaining eligibility and blockers, ordered by boss number.
 - **Promotion and coupling.** `boss_assign_campaign` creates a draft campaign linked to a boss. Campaign complete/abandon/reactivate/archive update the linked boss's frontmatter (never its body). Add `campaign_reactivate` (`completed` -> `open`) for PR review fixes.
-- **Rumors.** One optional freeform markdown file per campaign under `bosses/rumors/`, with simple CLI/MCP document operations; it can be deleted on planning, never archived.
-- **Numbered names and short refs.** Resolve `bNNN`, `cNNN`, and `cNNN/eNNN` short references. Skills allocate numbers; core does not.
+- **Rumors.** Standalone, numbered backlog records (`rNNN-slug`, under `.sourcebook/rumors/`, archived under `archive/rumors/`): "we think X should be done" notes with a free-text origin, captured from anywhere and on any branch. Lifecycle `open` -> `promoted` (linked, on the rumor only, to an unassigned proposed/available boss; many rumors may share a boss) or `dismissed` (with a reason), `reopen`, and `archive`; no delete and no dedupe. Number collisions are resolved on the planning branch with `rumor_renumber`, which works on open and dismissed rumors but not on promoted ones. Rumors have their own search type and stay out of prime. (Revised during e023 drafting; replaces the e011 per-campaign rumors document, which was never released.)
+- **Numbered names and short refs.** Resolve `bNNN`, `cNNN`, `cNNN/eNNN` and `rNNN` short references. Skills allocate numbers; core does not.
 - **Branch workflow as skill guidance.** `merge_target_branch` and `planning_branch` world settings. Endpoints stay branch-agnostic, and the skills carry the planning / assignment / execution branch rules and collision checks.
 - **Skills and docs.** A new planning skill (working name `world-planner`), campaign-manager updates, the canonical workflow reference, a new `branching-guide.md`, and migration-guide guidance for adopting projects (including targeted `CLAUDE.md` / `AGENTS.md` updates).
 - **Quality-of-life.** CLI `--body-file` for every `--body` command, and a narrower packaged Codex hook that denies only `apply_patch` edits to managed content.
@@ -44,6 +45,7 @@ Not a commitment. Each encounter is drafted, reviewed, and approved through the 
 11. Planning skill, campaign-manager updates, and workflow reference.
 12. Branching guide and migration guide.
 13. Adopt the new workflow in this repo's own `CLAUDE.md` / `AGENTS.md` and sourcebook.
+14. Replace item 9's per-campaign rumors documents with standalone `rNNN` rumor records: core/CLI/MCP and owning docs, then skills and guides, then public docs.
 
 ## Completion
 
