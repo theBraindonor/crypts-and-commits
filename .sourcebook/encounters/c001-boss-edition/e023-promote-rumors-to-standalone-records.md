@@ -9,9 +9,9 @@ kind: scripted
 name: e023-promote-rumors-to-standalone-records
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-10-28T15:23:50Z'
+updated_on: '2026-10-28T15:46:28Z'
 ---
 
 ## Requirements
@@ -107,3 +107,7 @@ Opened with developer approval after committing the draft and campaign revision 
 ### Message - 2026-10-28T15:23:50Z - John Hoff
 
 Plan steps 2-8 done. Code: config (RUMOR_DIR_NAME at the sourcebook root, RUMOR_STATUSES, rumor search type, r in short/numbered patterns, RUMORS_DIR_NAME removed); new core/rumor.py plus templates/sourcebook/rumor.md; references gains the rumor domain (rNNN), and the shared inputs adapter gains a renumber case so results carry the new name's identity; search_index/index_snapshot index and snapshot live and archived rumors (summary, origin and body searchable; VERSION stays "1"); boss.py and references.py drop the reserved "rumors" boss-namespace special case; cli/rumor.py and mcp/rumor.py replace the deleted rumors modules (registered in app.py and _TOOL_MODULES). Recovery needed no change: it is path-classified and generic. Assumption checks: identity_page and the boss helpers exist and are importable; -s/-o do not collide; no other src/ references to rumors remain; an existing index stays fresh (tested). Tests: new tests/{core,cli,mcp}/test_rumor.py (47 core, CLI end-to-end walkthrough, exact nine-command help, nine-tool registration with required MCP args, paging, continuation, recovery of a failed renumber, inconsistent-metadata rejection); updated test_boss, test_boss_candidates, test_campaign_bosses (rumor promoted to a campaign boss stays byte-identical through complete/reactivate/archive), test_index_snapshot, test_skills (regex now `rumor`), and test_server (exactly nine rumor_* tools). Docs and skills: workflow.md rewrites all rumor statements (domain table, connections, branch-settings purpose, boss storage note, campaign archive note, new Rumors section, ownership, numbering, planning handoff); tool-reference.md has a new Rumors contract section plus fixes to lines 53, 103 (rNNN), 121, 165, 172, the input matrix, search coverage and index coverage. Both flavors of world_planner and campaign_manager were rewritten identically apart from tool prefixes. world_manager mentions no discoveries, so no pointer was added. The case-insensitive grep over templates/ finds stale rumor text only in branching-guide.md (lines 24-38, 110-128) and migration-guide.md (lines 123-134), both deferred to e024. Deviations: (1) renumber refreshes updated_by/updated_on, documented in tool-reference; all other fields are unchanged. (2) Rumor bodies are frontmatter records like bosses, so line endings and trailing whitespace are normalized, where the old raw document round-tripped bytes exactly. (3) test_docs caps workflow.md at 40,000 characters; the first draft reached 40,661, so the Rumors section was condensed to procedure and lifecycle with field-level detail kept in tool-reference (now 39,593; the cap was not raised). Gate: pytest 1601 passed; ruff check clean; ruff format applied to 4 new or edited files, then left 288 unchanged.
+
+### Completed - 2026-10-28T15:46:28Z - John Hoff
+
+Verification passed. Code, docs and skills committed in 8281dca; pytest 1601 passed, ruff check and format clean. Developer ran cac bootstrap init and restarted the session. All six deployed skill copies match their templates (line-ending-normalized diff), and the restarted MCP server serves the rumor_* tools (rumor_list returns an empty page) with rumors_* gone. Developer confirmed completion.

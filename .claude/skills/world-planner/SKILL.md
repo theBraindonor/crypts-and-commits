@@ -1,7 +1,7 @@
 ---
 name: world-planner
 allowed-tools: Bash(cac *), Bash(git status *), Bash(git for-each-ref *), Bash(git rev-parse *), Bash(git merge-base *), mcp__crypts-and-commits
-description: Plan and refine project goals, adopt an existing roadmap, assess boss readiness and dependencies, and distill campaign discoveries before tactical campaign selection.
+description: Plan and refine project goals, adopt an existing roadmap, assess boss readiness and dependencies, and triage backlog rumors into goals before tactical campaign selection.
 ---
 
 # World Planner
@@ -75,8 +75,8 @@ Scope/dependency edits leave an available goal available. Reassess readiness and
 affected dependents with the developer; core does not reset it. To split an
 oversized unassigned goal, create smaller goals and refine the original without
 reusing/renaming its identity. Reconcile dependencies explicitly, never redirect
-them automatically. Assigned and archived designs are frozen; record follow-up
-ideas as rumors instead. Eligibility does not certify adequate design.
+them automatically. Assigned and archived designs are frozen; capture follow-up
+ideas as new rumors instead. Eligibility does not certify adequate design.
 
 ## Adopt existing roadmap context
 
@@ -104,12 +104,27 @@ depends_on=None) / cac boss record NAME --progress VALUE --source TEXT
 
 ## Rumors, archival, and handoff
 
-After integrating campaign work and synchronizing planning, use mcp__crypts-and-commits__rumors_list
-/ cac rumors list, then mcp__crypts-and-commits__rumors_get(campaign,cursor) / cac rumors get --campaign REF
-[--cursor TOKEN]. Distill selected discoveries into approved new/refined goals;
-do not force categories/lineage, expand old campaign scope, edit assigned goals,
-or delete rumors automatically. If explicitly requested, mcp__crypts-and-commits__rumors_delete(campaign)
-/ cac rumors delete --campaign REF is supported; CLI deletion may prompt.
+Rumors are numbered backlog notes (rNNN-slug), "we think X should be done", that
+can come from anywhere. Any skill captures them with mcp__crypts-and-commits__rumor_create(name,body,
+summary,origin) / cac rumor create NAME --summary TEXT --origin TEXT --body-file
+PATH; origin is free text naming who or what raised it. Allocate the number from
+every mcp__crypts-and-commits__rumor_list(include_archived=True) page on the current branch (numeric
+max+1); numbers captured on other branches may collide and are fixed on planning.
+
+On synchronized planning, triage integrated open rumors with the developer: page
+mcp__crypts-and-commits__rumor_list(status="open") / cac rumor list --status open, read with
+mcp__crypts-and-commits__rumor_get(name) / cac rumor get REF, and search with
+mcp__crypts-and-commits__index_search(phrase,object_type="rumor"). Renumber collisions first with
+mcp__crypts-and-commits__rumor_renumber(name,new_name) / cac rumor renumber REF NEW_NAME (open or
+dismissed only; promoted numbers are settled). To act on a rumor, create or
+refine a developer-selected unassigned proposed/available boss, then link it
+with mcp__crypts-and-commits__rumor_promote(name,boss,message) / cac rumor promote REF BOSS; many
+rumors may share one boss, and the boss record is never written. Otherwise
+dismiss with mcp__crypts-and-commits__rumor_dismiss(name,message) / cac rumor dismiss REF --message
+TEXT. mcp__crypts-and-commits__rumor_reopen(name,message) / cac rumor reopen REF --message TEXT undoes
+either. Archive resolved rumors with mcp__crypts-and-commits__rumor_archive(name) / cac rumor archive
+REF. Never merge similar rumors (repetition is a signal), expand old campaign
+scope, or edit assigned goals; rumors cannot be deleted.
 
 Planning's narrow campaign operation is archive: mcp__crypts-and-commits__campaign_archive(name) /
 cac campaign archive NAME only after integrated completed/abandoned history and
