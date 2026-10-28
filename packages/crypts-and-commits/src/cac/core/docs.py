@@ -29,13 +29,22 @@ _DOCS: dict[str, DocEntry] = {
             "Read for a worked Git workflow; workflow remains the lifecycle authority."
         ),
     ),
+    "tool-reference": DocEntry(
+        name="tool-reference",
+        filename="tool-reference.md",
+        summary=(
+            "The Tool Reference: MCP tool and CLI command names, arguments, result and identity shapes, "
+            "errors, response budgets, cursor continuation and short-reference grammar. "
+            "Read when you need an exact contract; workflow owns the rules and procedure."
+        ),
+    ),
     "workflow": DocEntry(
         name="workflow",
         filename="workflow.md",
         summary=(
             "The Workflow Reference Guide: the .sourcebook domain model's structure, status "
-            "lifecycles, cross-type connections, and the encounter review/approval procedure. "
-            "Read this when a task needs the exact rule, not just a summary of it."
+            "lifecycles and guards, cross-type connections, approval gates, review flow and "
+            "planning/branch procedure. Read this when a task needs the exact rule, not just a summary of it."
         ),
     ),
     "migration-guide": DocEntry(

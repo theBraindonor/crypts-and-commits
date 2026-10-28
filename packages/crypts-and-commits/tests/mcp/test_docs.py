@@ -9,10 +9,11 @@ def test_docs_list_returns_name_and_summary() -> None:
     assert {"name": "workflow", "summary": docs_core.doc_summary("workflow")} in result["items"]
     assert {"name": "migration-guide", "summary": docs_core.doc_summary("migration-guide")} in result["items"]
     assert {"name": "branching-guide", "summary": docs_core.doc_summary("branching-guide")} in result["items"]
+    assert {"name": "tool-reference", "summary": docs_core.doc_summary("tool-reference")} in result["items"]
     assert result["next_cursor"] is None
 
 
-@pytest.mark.parametrize("name", ["workflow", "branching-guide", "migration-guide"])
+@pytest.mark.parametrize("name", ["workflow", "tool-reference", "branching-guide", "migration-guide"])
 def test_docs_get_returns_full_body(name: str) -> None:
     result = mcp_docs.docs_get(name)
 
@@ -34,7 +35,7 @@ def test_docs_get_missing_raises() -> None:
         mcp_docs.docs_get("missing")
 
 
-@pytest.mark.parametrize("name", ["workflow", "branching-guide", "migration-guide"])
+@pytest.mark.parametrize("name", ["workflow", "tool-reference", "branching-guide", "migration-guide"])
 def test_docs_get_truncates_over_dedicated_budget(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     monkeypatch.setattr("cac.mcp.docs.DOCS_RESPONSE_BUDGET", 50)
 

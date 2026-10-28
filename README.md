@@ -62,10 +62,15 @@ re-explaining yourselves to the other, or to whoever picks this up next.
 - **[Quickstart](docs/QUICKSTART.md)** — adopting CAC in your own project:
   install the package, bootstrap `.sourcebook/`, and hand off to your agent.
 - **[Workflow Reference Guide](packages/crypts-and-commits/src/cac/core/templates/docs/workflow.md)**
-  — the single source of truth for the `.sourcebook` domain model: every
-  object's structure, its status lifecycle, and how the types connect. Also
-  retrievable on demand by an agent via `docs_get("workflow")` (MCP) or
-  `cac docs get workflow` (CLI), once a project is bootstrapped.
+  — the source of truth for the `.sourcebook` domain model and workflow: every
+  object's structure, its status lifecycle, how the types connect, and the
+  approval and branch procedure. Also retrievable on demand by an agent via
+  `docs_get("workflow")` (MCP) or `cac docs get workflow` (CLI), once a project
+  is bootstrapped.
+- **[Tool Reference](packages/crypts-and-commits/src/cac/core/templates/docs/tool-reference.md)**
+  — the paired contract reference: MCP tool and CLI command arguments, result
+  shapes, errors, response budgets and continuation. Retrieve via
+  `docs_get("tool-reference")` / `cac docs get tool-reference`.
 - **[Sourcebook Migration Guide](packages/crypts-and-commits/src/cac/core/templates/docs/migration-guide.md)**
   — library upgrades, workflow adoption and targeted local instruction updates,
   separate from carrying records across schema versions.
@@ -238,6 +243,7 @@ pdm run cac region list            # documented paths within the repo
 pdm run cac campaign list          # every campaign and its status
 pdm run cac encounter list         # encounters in the active campaign
 pdm run cac docs get workflow      # the full domain-model reference
+pdm run cac docs get tool-reference  # exact tool and command contracts
 ```
 
 An AI coding assistant working in this repository uses the equivalent

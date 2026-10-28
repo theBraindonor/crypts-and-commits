@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -12,9 +13,10 @@ def test_list_docs_returns_registered_entries() -> None:
     assert "workflow" in names
     assert "migration-guide" in names
     assert "branching-guide" in names
+    assert "tool-reference" in names
 
 
-@pytest.mark.parametrize("name", ["branching-guide", "migration-guide", "workflow"])
+@pytest.mark.parametrize("name", ["branching-guide", "migration-guide", "tool-reference", "workflow"])
 def test_registered_guide_resource_fits_response_budget(name: str) -> None:
     path = docs.doc_source_path(name)
     body = docs.read_doc(name)
@@ -30,6 +32,25 @@ def test_doc_summary_returns_registered_summary() -> None:
     summary = docs.doc_summary("workflow")
 
     assert "Workflow Reference Guide" in summary
+
+
+def test_tool_reference_doc_returns_full_body() -> None:
+    assert docs.read_doc("tool-reference").startswith("# Crypts and Commits Tool Reference")
+    assert "Tool Reference" in docs.doc_summary("tool-reference")
+
+
+def test_workflow_leaves_contracts_to_tool_reference_with_headroom() -> None:
+    body = docs.read_doc("workflow")
+
+    assert "(tool-reference.md)" in body
+    assert len(body) <= 40_000
+
+
+@pytest.mark.parametrize("name", ["workflow", "tool-reference"])
+def test_paired_docs_ship_no_repository_campaign_or_encounter_names(name: str) -> None:
+    body = docs.read_doc(name)
+
+    assert re.search(r"(?<!\w)[ce]0\d\d(?!\w)|boss-edition", body) is None
 
 
 def test_doc_summary_missing_raises() -> None:

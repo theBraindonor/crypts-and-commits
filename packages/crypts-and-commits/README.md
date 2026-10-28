@@ -17,7 +17,8 @@ From your project's root directory, run `cac bootstrap init`. This developer-run
 For the full walkthrough, see the [Quickstart guide](https://github.com/theBraindonor/crypts-and-commits/blob/main/docs/QUICKSTART.md).
 
 Use `cac docs get branching-guide` for planning, assignment and execution branch
-examples, and `cac docs get migration-guide` before upgrading an existing project.
+examples, `cac docs get tool-reference` for exact tool and command contracts, and
+`cac docs get migration-guide` before upgrading an existing project.
 The migration guide explains obtaining target-release guidance from verified source
 or distribution when the older installed library cannot expose it, and separates
 local instruction adoption from developer-run redeployment and schema migration.

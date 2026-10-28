@@ -51,7 +51,7 @@ may know nothing about Boss Edition. Use the target artifact instead:
    repository, https://github.com/theBraindonor/crypts-and-commits. In a separate
    source checkout at that verified revision, read
    `packages/crypts-and-commits/src/cac/core/templates/docs/migration-guide.md`
-   and its sibling branching-guide.md/workflow.md. A tag alone is insufficient
+   and its siblings branching-guide.md, workflow.md and tool-reference.md. A tag alone is insufficient
    if it lacks those files or predates the required feature contracts.
 2. Alternatively obtain the selected wheel through the project's approved
    package source, verify its identity under local policy and inspect
@@ -63,9 +63,11 @@ may know nothing about Boss Edition. Use the target artifact instead:
    missing input before dependent upgrade work.
 
 The [Branching Guide](branching-guide.md) provides worked Git examples and edge
-cases; [workflow.md](workflow.md) is the canonical lifecycle/procedure authority.
+cases; [workflow.md](workflow.md) is the canonical lifecycle/procedure authority,
+and [tool-reference.md](tool-reference.md) holds exact tool and command contracts.
 After installation the equivalent routes are `docs_get("branching-guide")` /
-`cac docs get branching-guide`, and `docs_get("workflow")` / `cac docs get workflow`.
+`cac docs get branching-guide`, `docs_get("workflow")` / `cac docs get workflow`,
+and `docs_get("tool-reference")` / `cac docs get tool-reference`.
 Ordinary workflow adoption does not require changing the schema version.
 
 ### Upgrade in distinct stages

@@ -65,7 +65,8 @@ From here, your agent drives `.sourcebook/` for you: building out lore,
 regions, future goals with world-planner, and chosen campaigns with campaign-manager.
 If you (or your agent) ever need the
 full domain-model reference, it's one call away - `cac docs get workflow`, or
-ask the agent to look it up.
+ask the agent to look it up. Exact tool and command contracts are in
+`cac docs get tool-reference`.
 
 Read the [Branching Guide](../packages/crypts-and-commits/src/cac/core/templates/docs/branching-guide.md)
 via `cac docs get branching-guide` / `docs_get("branching-guide")` before choosing
@@ -126,7 +127,8 @@ goals. Archived names are retained;
 get still reads them. There is no deletion/restoration operation. Missing storage
 is empty; first create provisions it without migrating existing records.
 All commands have matching `boss_*` MCP tools. See `cac docs get workflow` for
-state guards, dependency validation, paging, and response contracts.
+state guards and dependency validation, and `cac docs get tool-reference` for
+paging and response contracts.
 Rumors operations and boss search/plural active-boss prime integration are available.
 Skills allocate numbers from complete retained inventories and known branch
 reservations; endpoints never allocate them. world-planner also supports incremental
@@ -171,7 +173,7 @@ parallel identities; candidates include identity in their existing bounded JSON.
 Create names remain literal: `cac boss create b001-new-goal ...` creates that
 name; it never expands into an existing record. Newly written dependencies use
 canonical names. Reference resolution does not allocate, rename, discover Git
-branches, migrate, or assign campaigns. See `cac docs get workflow` for exact grammar,
+branches, migrate, or assign campaigns. See `cac docs get tool-reference` for exact grammar,
 legacy-name precedence, context rules, operation coverage, and response budgets.
 
 ### Pursue a boss with a campaign

@@ -3,6 +3,8 @@
 This guide explains how to use Git with Boss Edition. The [Workflow Reference
 Guide](workflow.md) remains authoritative for domain rules, approval gates and
 skill procedure. Read it through `docs_get("workflow")` / `cac docs get workflow`.
+Exact tool and command contracts live in the [Tool Reference](tool-reference.md),
+read through `docs_get("tool-reference")` / `cac docs get tool-reference`.
 Read this guide through `docs_get("branching-guide")` / `cac docs get branching-guide`.
 For an existing installation, start with the [Migration Guide](migration-guide.md).
 
