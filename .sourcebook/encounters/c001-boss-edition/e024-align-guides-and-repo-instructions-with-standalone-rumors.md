@@ -9,9 +9,9 @@ kind: scripted
 name: e024-align-guides-and-repo-instructions-with-standalone-rumors
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-10-28T16:56:46Z'
+updated_on: '2026-10-28T17:33:03Z'
 ---
 
 ## Requirements
@@ -87,3 +87,7 @@ Plan steps 2-8 done. branching-guide.md: the branch table now has planning doing
 ### Message - 2026-10-28T16:56:46Z - John Hoff
 
 Deviation, developer-approved: folded the stale WORLD body into e024 scope. world_set_body changed three spots and nothing else: (1) the "Rumors - one optional freeform document per campaign ... distilled back into planning later" bullet became a "Rumor" bullet describing standalone backlog notes from anywhere, captured on any branch with summary and free-text origin, open -> promoted (linked on the rumor only to an unassigned boss) or dismissed, reopen and archival, no delete, triaged on planning where collisions are renumbered; (2) the numbered-names line gains r001-... and rNNN; (3) "world-planner owns goal planning and rumor distillation" became "rumor triage". The world frontmatter (assigned lore, branch settings) is unchanged. The Verification file scope expands to the world record accordingly.
+
+### Completed - 2026-10-28T17:33:03Z - John Hoff
+
+Verification passed. Guides, CLAUDE.md and region body committed in 45c2210; world body deviation committed in 5733013. Stale-wording grep is clean apart from two legitimate "per campaign" hits; all named commands and tools exist; pytest 1601 passed, ruff check and format clean; no owning-doc contradiction. Developer confirmed completion.
