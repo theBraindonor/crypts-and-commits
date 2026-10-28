@@ -6,9 +6,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-10-27T03:26:33Z'
 name: c001-boss-edition
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-10-28T17:59:37Z'
+updated_on: '2026-10-28T22:42:24Z'
 ---
 
 Deliver "Boss Edition", the next CAC release: add **bosses**, project goals that can be captured and refined before any campaign commits to them, plus the numbered-name and branch workflow that ties bosses, campaigns, and encounters together. The full design, including all agreed decisions, lives in `docs/boss-edition.md` (committed on this branch). That doc is the reference for every encounter in this campaign. Where an encounter and the doc disagree, fix the doc in the same change rather than drifting from it.
@@ -58,3 +58,7 @@ The campaign completes when the features above are implemented and verified, wit
 ### GM override - 2026-10-28 - John Hoff
 
 c001 opened bossless, before any boss records existed. On 2026-10-28 the developer, acting as Game Master, deliberately side-stepped the draft-only membership rule and linked this open campaign to `b001-boss-records` and `b002-rumor-records` by hand-editing their reciprocal frontmatter (`bosses` here, `campaign` on each boss). The goal is that completing c001 vanquishes both through the normal coupled lifecycle. The bosses were created through MCP on this execution branch as a first-adoption exception, because no planning branch exists yet. The link was verified through `prime_get`, `boss_candidates` and `index_status` after a developer index rebuild. The full record, rationale and independent review are in encounter `c001/e025-record-gm-override-linking-c001-bosses`. Rumor `r001-open-campaign-adopts-goals` captures the supported operation that would make this override unnecessary.
+
+### Completed - 2026-10-28T22:42:24Z - John Hoff
+
+c001 delivered Boss Edition across 26 encounters (e001–e026). Shipped: boss records with a proposed/available/withdrawn/vanquished lifecycle, archival, prerequisites checked for cycles, `boss_candidates`, and roadmap adoption with a fixed provenance snapshot (`boss_record`). Numbered names with short-ref resolution, where exact canonical names win. Promotion of bosses into campaigns, multiple bosses per campaign, and campaign complete/abandon/reactivate/archive updating the linked bosses. Standalone rumors that replace the unreleased per-campaign rumors document from e011. Active bosses in prime, plus their own search types. World branch settings, CLI `--body-file`, the narrower Codex `apply_patch` hook, the world-planner skill and campaign-manager updates, and the reworked workflow guide, tool reference, branching guide and migration guide. This repo has adopted the new workflow. What worked: the independent review gate caught real problems, and e017/e018 fixed them before release. What didn't go to plan: the rumor design was revised partway through (e023), which meant a second round of docs alignment (e024, e026). c001 also opened before any bosses existed, so linking b001 and b002 took a GM override (recorded in e025). Follow-ups are captured as r001–r003. Verified: 1,601 tests pass, ruff check and format are clean, no numbering or ownership collisions, and the index is fresh.

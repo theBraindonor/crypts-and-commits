@@ -1,18 +1,18 @@
 ---
 archived: false
+campaign: c001-boss-edition
 created_by: John Hoff
 created_on: '2026-10-28T17:42:49Z'
 depends_on: []
 name: b001-boss-records
-status: available
+status: vanquished
 summary: 'Boss Edition core: bosses as managed project goals (proposed/available/withdrawn/vanquished,
   archive, graph-validated prerequisites, candidates, roadmap recording), numbered
   names and short refs, boss-campaign promotion and coupled lifecycle with multi-boss
   campaigns and reactivation, active bosses in prime, boss search, and the planning
   skill, branch workflow and guides.'
-campaign: c001-boss-edition
 updated_by: John Hoff
-updated_on: '2026-10-28T17:42:57Z'
+updated_on: '2026-10-28T22:42:24Z'
 ---
 
 ## Goal

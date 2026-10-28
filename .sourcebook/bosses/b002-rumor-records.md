@@ -1,18 +1,18 @@
 ---
 archived: false
+campaign: c001-boss-edition
 created_by: John Hoff
 created_on: '2026-10-28T17:42:54Z'
 depends_on:
 - b001-boss-records
 name: b002-rumor-records
-status: available
+status: vanquished
 summary: 'Standalone rumor records: numbered rNNN backlog notes ("we think X should
   be done") captured from anywhere on any branch with a free-text origin, triaged
   on planning by renumbering collisions, promoting to unassigned bosses (link stored
   only on the rumor), or dismissing; reopen, archive, no delete; own search type.'
-campaign: c001-boss-edition
 updated_by: John Hoff
-updated_on: '2026-10-28T17:42:57Z'
+updated_on: '2026-10-28T22:42:24Z'
 ---
 
 ## Goal
