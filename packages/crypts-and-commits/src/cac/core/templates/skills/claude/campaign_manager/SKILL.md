@@ -111,8 +111,9 @@ draft new follow-up encounters (completed encounters never reopen), verify and
 recomplete before integration. Post-merge new scope goes back to planning.
 No campaign completion/push/merge is implied by completing one encounter.
 
-Deletion is not unconditional: linked/historical memberships, reverse boss claims
-and archived state are protected. MCP has no interactive deletion prompt; CLI
+Deletion is not unconditional: a non-empty bosses list (current or historical
+membership) or a reverse boss claim blocks it; archiving does not protect a
+bossless campaign. MCP has no interactive deletion prompt; CLI
 can prompt or accept --yes, without bypassing core guards. Do not use deletion
 as a rollback/renumber shortcut. world-planner archives integrated terminal history
 on synchronized planning: current bosses move; released/reassigned goals and

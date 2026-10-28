@@ -9,9 +9,9 @@ kind: scripted
 name: e022-correct-campaign-deletion-guard-wording
 regions:
 - crypts-and-commits
-status: draft
+status: open
 updated_by: John Hoff
-updated_on: '2026-10-28T04:11:57Z'
+updated_on: '2026-10-28T13:00:59Z'
 ---
 
 ## Requirements
@@ -45,3 +45,17 @@ The skills currently tell agents that archived campaigns are protected from dele
 - `pdm run pytest -q` passes; `ruff check .` reports zero errors; `ruff format .` changes nothing.
 - The developer redeploys with `cac bootstrap init`, and the deployed copies then match the templates (normalized blob comparison).
 - The developer confirms completion.
+
+## Log
+
+### Review - 2026-10-28T12:57:27Z - John Hoff
+
+Reviewed against clean-tests-and-lint, skills-authored-only-in-templates, workflow-doc-source-of-truth, cli-mcp-parity and console-best-practices. The defect is real: both campaign_manager templates (claude lines 114-115, codex lines 112-113) say archived state protects a campaign from deletion. In fact core/coupling.py campaign_operation exempts delete from the archived guard and refuses deletion only for a non-empty bosses list or a reverse boss claim, which matches workflow.md lines 176-178. The Plan edits only the two template paths, keeps the provider variants identical, and leaves the deployed copies and the bootstrap redeploy to the developer, which satisfies skills-authored-only-in-templates. It explicitly justifies not changing workflow.md and tool-reference.md: this is a wording correction that aligns the skills with the owning doc and makes no doc statement inaccurate, which satisfies workflow-doc-source-of-truth. Plan and Verification include the full pytest and ruff check/format gate. cli-mcp-parity and console-best-practices are not triggered. Notes: tool-reference.md being accurate was only partly checked (campaign-delete rows); the committed e022 sourcebook record should contain only changes made through MCP.
+
+### Opened - 2026-10-28T12:58:21Z - John Hoff
+
+Opened with developer approval. Working tree clean apart from this encounter's own review record.
+
+### Message - 2026-10-28T13:00:59Z - John Hoff
+
+Executed Plan steps 1-4. Both campaign_manager templates now read: "Deletion is not unconditional: a non-empty bosses list (current or historical membership) or a reverse boss claim blocks it; archiving does not protect a bossless campaign. MCP has no interactive deletion prompt; CLI ..." (rest of paragraph unchanged). The two paragraphs diff identical; "archived state are protected" no longer appears under templates/skills. Reviewer note resolved: a full grep of tool-reference.md for "delet" finds no archived-protection claim (only the confirmation section and the delete rows), so it stays accurate. test_skills.py 10 passed; full suite 1564 passed; ruff check clean; ruff format left 286 files unchanged. Changed files: the two templates plus this sourcebook record.
