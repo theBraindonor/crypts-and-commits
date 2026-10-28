@@ -9,9 +9,9 @@ kind: scripted
 name: e020-adopt-boss-edition-workflow-in-this-repo
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-10-28T04:06:30Z'
+updated_on: '2026-10-28T04:07:17Z'
 ---
 
 ## Requirements
@@ -107,3 +107,7 @@ Checked every section against workflow.md, tool-reference.md, branching-guide.md
 ### Message - 2026-10-28T04:06:30Z - John Hoff
 
 Adoption verification (step 9) and gate (step 10). Rumors: `rumors_delete` succeeded, `rumors_get(c001)` now reports "Rumors for campaign 'c001-boss-edition' do not exist.", and `rumors_list` is empty. Docs: `docs_list` registers workflow, tool-reference, branching-guide and migration-guide. `docs_get` returns each one whole with no `next_cursor`: workflow 39,121 chars, tool-reference 29,032, branching-guide 12,577, migration-guide 20,528, all under the 64,000 docs budget. Skills: the deployed copies of all three skills match their templates (committed cdb7505) and match the ownership now described in CLAUDE.md, AGENTS.md and the world body. World settings: merge_target_branch=main, planning_branch=planning, schema_version=1. State: c001-boss-edition is open with no bosses; e001-e019 are completed and e020 is open. BRANCH GAP, disclosed and not fixed: the configured `planning` branch exists neither locally nor on origin (`git ls-remote --heads origin planning` returned nothing). Only c001-boss-edition and main exist. The developer must create `planning` before any boss planning under the recommended workflow. Remote state was observed through ls-remote at this time only. Gate: `pdm run pytest -q` 1564 passed; `ruff check .` all checks passed; `ruff format .` 284 files left unchanged (no fixes needed).
+
+### Completed - 2026-10-28T04:07:17Z - John Hoff
+
+Completed with developer approval. Boss Edition workflow adopted in CLAUDE.md, AGENTS.md and the sourcebook. Changelog entry added, docs/boss-edition.md and the c001 rumors retired (carried forward in this log). Commits cdb7505 and c2a3490, not pushed. pytest 1564 passed; ruff check/format clean; all four docs untruncated. Open follow-ups: create the `planning` branch; the campaign-deletion guard wording mismatch; the two design decisions missing from the packaged guides (Git required; messaging/runtimes outside CAC).
