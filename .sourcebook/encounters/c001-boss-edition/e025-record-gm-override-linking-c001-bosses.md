@@ -9,9 +9,9 @@ kind: unscripted
 name: e025-record-gm-override-linking-c001-bosses
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-10-28T17:59:41Z'
+updated_on: '2026-10-28T18:01:28Z'
 ---
 
 ## Requirements
@@ -51,3 +51,7 @@ Opened with developer approval. Follow-up from review note (b): add a GM-overrid
 ### Message - 2026-10-28T17:59:41Z - John Hoff
 
 Review follow-up done. (b) c001's campaign body gained a `## Log` section whose first entry, "GM override - 2026-10-28 - John Hoff", summarizes the override and points to this encounter and r001, so the frozen boss bodies' reference to "the c001 log" now resolves. Future lifecycle entries (such as the completion postmortem) append under the same section. campaign_update changed only the body; bosses stay [b001-boss-records, b002-rumor-records] and boss_link is current with no diagnostics. (a) The link evidence was rechecked through campaign_get (boss_link current, no diagnostics) in addition to the earlier prime_get/boss_candidates/index_status results. (c) Region is nominal; no action. No code changed, so there is no test or lint gate.
+
+### Completed - 2026-10-28T18:01:28Z - John Hoff
+
+Recorded Requirements/Rationale confirmed accurate. Review follow-up (c001 Log entry for the GM override) done and committed in 6b164d0; the c001 boss link is current with no diagnostics. Developer confirmed completion.
