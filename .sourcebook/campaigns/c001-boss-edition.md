@@ -8,7 +8,7 @@ created_on: '2026-10-27T03:26:33Z'
 name: c001-boss-edition
 status: open
 updated_by: John Hoff
-updated_on: '2026-10-28T14:46:32Z'
+updated_on: '2026-10-28T17:59:37Z'
 ---
 
 Deliver "Boss Edition", the next CAC release: add **bosses**, project goals that can be captured and refined before any campaign commits to them, plus the numbered-name and branch workflow that ties bosses, campaigns, and encounters together. The full design, including all agreed decisions, lives in `docs/boss-edition.md` (committed on this branch). That doc is the reference for every encounter in this campaign. Where an encounter and the doc disagree, fix the doc in the same change rather than drifting from it.
@@ -52,3 +52,9 @@ Not a commitment. Each encounter is drafted, reviewed, and approved through the 
 ## Completion
 
 The campaign completes when the features above are implemented and verified, with tests and ruff clean per `clean-tests-and-lint`. The skills and docs must be consistent with each other, and the campaign must be ready for its implementation PR into `main`.
+
+## Log
+
+### GM override - 2026-10-28 - John Hoff
+
+c001 opened bossless, before any boss records existed. On 2026-10-28 the developer, acting as Game Master, deliberately side-stepped the draft-only membership rule and linked this open campaign to `b001-boss-records` and `b002-rumor-records` by hand-editing their reciprocal frontmatter (`bosses` here, `campaign` on each boss). The goal is that completing c001 vanquishes both through the normal coupled lifecycle. The bosses were created through MCP on this execution branch as a first-adoption exception, because no planning branch exists yet. The link was verified through `prime_get`, `boss_candidates` and `index_status` after a developer index rebuild. The full record, rationale and independent review are in encounter `c001/e025-record-gm-override-linking-c001-bosses`. Rumor `r001-open-campaign-adopts-goals` captures the supported operation that would make this override unnecessary.
