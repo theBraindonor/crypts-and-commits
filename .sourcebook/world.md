@@ -4,7 +4,7 @@ assigned_lore:
 name: Crypts and Commits
 schema_version: '1'
 updated_by: John Hoff
-updated_on: '2026-10-28T04:02:08Z'
+updated_on: '2026-10-28T16:56:44Z'
 ---
 
 # Crypts and Commits
@@ -20,14 +20,14 @@ This repository is both the framework's implementation and its first user: as `c
 - **Region** - a documented path within the repository (e.g. frontend vs. backend) that carries its own conventions and lore.
 - **Boss** - a project goal captured and refined before any campaign commits to it: `proposed` -> `available` -> `vanquished` (only by completing its campaign), or `withdrawn`; with graph-validated `depends_on` prerequisites, optional roadmap provenance, and archival.
 - **Campaign** - a long-running initiative, analogous to a Jira Epic, expected to span many encounters. Selects zero, one or many bosses while `draft`; `draft` -> `open` <-> `paused` -> `completed` / `abandoned`, at most one open per checkout, and reactivation of a completed campaign for pre-merge review fixes.
-- **Rumors** - one optional freeform document per campaign for discoveries made during execution, distilled back into planning later.
+- **Rumor** - a standalone backlog note ("we think X should be done") from anywhere, captured on any branch with a summary and free-text origin: `open` -> `promoted` (linked, on the rumor only, to an unassigned boss) or `dismissed`, with reopen and archival but no delete. Triaged on the planning branch, where number collisions are renumbered.
 - **Encounter** - a concrete unit of work within a campaign, `scripted` (Requirements, Rationale, Plan, Verification) or `unscripted` (a record of already-done work), carried through `draft` -> `reviewed` (independent lore review) -> `open` -> `completed`, or `abandoned` from any non-completed status.
 
-Bosses, campaigns and encounters use numbered names (`b001-...`, `c001-...`, `e001-...`), referenceable by short refs (`bNNN`, `cNNN`, `cNNN/eNNN`); the skills allocate numbers, core never does.
+Bosses, campaigns, encounters and rumors use numbered names (`b001-...`, `c001-...`, `e001-...`, `r001-...`), referenceable by short refs (`bNNN`, `cNNN`, `rNNN`, `cNNN/eNNN`); the skills allocate numbers, core never does.
 
 ## Skills and workflow
 
-`world-manager` primes static context, `world-planner` owns goal planning and rumor distillation, and `campaign-manager` owns tactical selection and encounter execution. The recommended branch workflow - planning on the planning branch, goal registration on an assignment branch, execution on the campaign's own branch, integration into the merge target - is skill guidance; endpoints stay branch-agnostic. The registered `workflow`, `tool-reference`, `branching-guide` and `migration-guide` docs (`docs_get`) are the detailed references.
+`world-manager` primes static context, `world-planner` owns goal planning and rumor triage, and `campaign-manager` owns tactical selection and encounter execution. The recommended branch workflow - planning on the planning branch, goal registration on an assignment branch, execution on the campaign's own branch, integration into the merge target - is skill guidance; endpoints stay branch-agnostic. The registered `workflow`, `tool-reference`, `branching-guide` and `migration-guide` docs (`docs_get`) are the detailed references.
 
 ## Guardrail
 
