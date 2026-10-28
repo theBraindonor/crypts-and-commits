@@ -9,9 +9,9 @@ kind: scripted
 name: e026-document-current-cac-usage
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-10-28T18:18:02Z'
+updated_on: '2026-10-28T18:19:51Z'
 ---
 
 ## Requirements
@@ -85,3 +85,7 @@ Opened with developer approval after committing the draft/review record (clean t
 ### Message - 2026-10-28T18:18:02Z - John Hoff
 
 Plan steps 2-8 done. README.md: skills paragraph says "rumor triage"; the domain-model Rumors bullet describes numbered r001 backlog notes from anywhere with free-text origin, triaged into bosses or dismissed, never deleted; numbered names/short refs gain r001/rNNN; "How work flows" is now 6 steps (capture rumors anywhere, then triage and capture bosses on planning, select before opening because membership locks at open, open, encounters, complete); the dogfooding paragraph states bosses and rumors as live content; the exploration block uses `cac rumor list` and `rumor_list`; a new "A worked example from this repository" subsection walks through boss list, boss get b001, campaign get c001, rumor list --status open and rumor get r001, explains what they show, and mentions the GM override only as a pointer to c001/e025 with "select bosses before opening" as normal use. QUICKSTART.md: new "Capture ideas as rumors" section after the bosses section (capture with numbered name/summary/origin and allocation from list --include-archived, list/get, update, triage on planning with renumber-first for open or dismissed only, two-step promote to an unassigned proposed/available boss with the link on the rumor only, dismiss, reopen, archive, no delete, no merging, history, `index search --type rumor`, rumor_* MCP parity); the old campaign-scoped Rumors paragraph became a short "Discoveries" pointer; the boss-section cross-reference points to the new section; Pursue-a-boss step 2 adds "membership locks when the campaign opens". Package README: rumors described as numbered backlog notes, and rNNN added. CHANGELOG: the Rumors entry describes standalone rNNN records (lifecycle, renumber, rumor search type); rNNN added to short refs; "rumor triage"; prime/search entry says bosses and rumors are search types. Review notes: (a) every QUICKSTART lifecycle/guard claim matches the owning docs (tool-reference lines 407, 411, 415, 417-419; workflow lines 393, 427, 635). (b) MCP names used (boss_list, campaign_list, encounter_list, rumor_list, rumor_*) are registered; the rumor search type was verified by a real `cac index search adopt --type rumor`, which found r001. (d) Grep hits were reviewed by hand. Accuracy: all five README example commands ran with exit 0 (earlier exit 120 came from head closing the pipe; rerun without truncation gave 0); every flag used exists per --help; the scripted check over all four files found 0 broken links and every cac group/command present; the stale grep (rumors_, cac rumors, per campaign, per-campaign, distill, bosses/rumors) has zero hits in the four files. Gate: pytest 1601 passed; ruff check clean; ruff format left 296 unchanged. Only the four docs and this record changed.
+
+### Completed - 2026-10-28T18:19:51Z - John Hoff
+
+Verification passed: README, QUICKSTART, package README and CHANGELOG describe the current cac (standalone rumors, worked example from this repo's live records); lifecycle claims match the owning docs; examples run; flags, commands and links verified; stale grep empty; pytest 1601 passed, ruff clean. Committed in 810ce0a. Developer confirmed completion.
