@@ -121,7 +121,7 @@ low-ambiguity interface between a developer's intent and a model's behavior
 — fewer bespoke conventions to define and re-explain per project, and less
 room for a session to quietly redefine its own scope or authority as it goes.
 
-`.sourcebook/` content is organized around six object types, plus the two
+`.sourcebook/` content is organized around seven object types, plus the two
 people/agents that drive them:
 
 - **World** — a project-level summary, read first to prime context.
@@ -133,7 +133,10 @@ people/agents that drive them:
 - **Boss** — a project goal refined before tactical campaign selection, with
   readiness, prerequisites and optional roadmap provenance.
 - **Campaign** — a long-running initiative, analogous to a Jira Epic,
-  expected to span many encounters before it's done.
+  expected to span many encounters before it's done. A campaign pursues
+  zero, one or many bosses.
+- **Rumors** — one optional, freeform document per campaign capturing
+  discoveries made during execution, distilled back into planning later.
 - **Encounter** — a concrete unit of work within a campaign: either a plan
   the agent is expected to execute (`scripted`, with Requirements,
   Rationale, Plan, and Verification sections) or a record of manual work
@@ -148,6 +151,24 @@ people/agents that drive them:
   judgment calls the assistant can't make for itself, and holds final
   authority: approving an encounter's move into review, its move into
   `open`, and its move into `completed`.
+
+Bosses, campaigns and encounters use numbered names (`b001-...`, `c001-...`,
+`e001-...`), and any existing record can be referred to by a short ref:
+`bNNN`, `cNNN`, or `cNNN/eNNN`.
+
+### How work flows
+
+1. Capture goals as bosses and refine them until they're ready.
+2. Select one or more ready bosses into a draft campaign.
+3. Open the campaign on its own execution branch.
+4. Carry the work out as encounters, each reviewed against lore and approved
+   before it runs and before it's marked complete.
+5. Complete the campaign, vanquishing the bosses it selected.
+
+The planning, assignment and execution branch workflow behind these steps is
+skill guidance: the endpoints themselves are branch-agnostic and never create
+or switch branches. See the [Branching Guide](packages/crypts-and-commits/src/cac/core/templates/docs/branching-guide.md)
+for worked examples.
 
 See the [Workflow Reference Guide](packages/crypts-and-commits/src/cac/core/templates/docs/workflow.md)
 for the full structural and procedural detail behind all of the above.
@@ -178,9 +199,10 @@ non-`cac` application code in the same repository.
 
 Beyond hosting that demo, this repository dogfoods the framework on itself:
 its own `.sourcebook` — a populated world summary, lore, regions, and
-campaign/encounter history — is live and is the actual source of truth for
-this project's context and in-flight work, driven through the same `cac`
-CLI/MCP surface described above rather than treated as a placeholder. See
+campaign/encounter history, with bosses and rumors recorded as goals and
+discoveries arise — is live and is the actual source of truth for this
+project's context and in-flight work, driven through the same `cac` CLI/MCP
+surface described above rather than treated as a placeholder. See
 [Exploring this repository's sourcebook](#exploring-this-repositorys-sourcebook)
 below to look at it yourself.
 
@@ -230,8 +252,9 @@ header's status indicator go online and the chat UI respond.
 ## Exploring this repository's sourcebook
 
 Since this repository drives its own `.sourcebook` through `cac`, its world
-summary, lore, regions, and campaign/encounter history are all inspectable
-the same way an agent session would read them. From the repository root
+summary, lore, regions, bosses, rumors, and campaign/encounter history are
+all inspectable the same way an agent session would read them. From the
+repository root
 (`cac` is an editable install inside this workspace's `.venv`, not a global
 install, so it's only on `PATH` here via `pdm run`):
 
@@ -240,15 +263,18 @@ pdm install
 pdm run cac world get              # project-level summary
 pdm run cac lore list              # standards and conventions in force
 pdm run cac region list            # documented paths within the repo
+pdm run cac boss list              # goals captured for future campaigns
 pdm run cac campaign list          # every campaign and its status
-pdm run cac encounter list         # encounters in the active campaign
+pdm run cac encounter list --campaign c001  # encounters in campaign c001
+pdm run cac rumors list            # campaign rumors documents
 pdm run cac docs get workflow      # the full domain-model reference
 pdm run cac docs get tool-reference  # exact tool and command contracts
 ```
 
 An AI coding assistant working in this repository uses the equivalent
 `crypts-and-commits` MCP tools instead (`world_get`, `lore_list`,
-`region_list`, `campaign_list`, `encounter_list`, `docs_get`, and more) —
+`region_list`, `boss_list`, `campaign_list`, `encounter_list`, `rumors_*`,
+`docs_get`, and more) —
 the same operations, over the same content, without shelling out.
 
 ## License

@@ -46,6 +46,10 @@ from a verified source revision or distribution as it describes. Library upgrade
 developer-run redeployment, user-owned instruction edits and schema migration are
 separate. Boss Edition keeps schema 1 and needs no bulk record conversion.
 
+After upgrading the library, restart or reconnect any long-running MCP servers
+and agent sessions so they load the new package. A server started on the old
+version keeps serving the old tools and docs list.
+
 After upgrading CAC, run `cac bootstrap init` yourself to replace the packaged
 hook script and upgrade its old Bash/apply_patch registration to apply_patch
 only. Unrelated hooks and configuration are preserved. In Codex, review and
@@ -91,69 +95,113 @@ MCP exposes the same values through `world_get`, `world_set`, and the world
 portion of `prime_get`. Legacy worlds missing these attributes use the defaults
 without being rewritten, so no migration or bootstrap rerun is needed. Existing
 explicit values are preserved. New worlds record both defaults at initialization.
-These settings configure intended branch names; setting them does not create or
-switch branches or enforce a branching workflow.
+
+These settings only name the branches the recommended workflow uses. CAC never
+creates or switches branches and does not enforce a branching workflow. Before
+you use the recommended planning workflow, create the configured planning branch
+yourself under your own Git policy, and do the same for the merge target if it
+isn't your existing default branch.
 
 ### Capture future goals as bosses
 
-Boss records capture goals before choosing a campaign:
+A boss is a goal you capture and refine before any campaign commits to it. A
+typical lifecycle:
 
-```bash
-cac boss create b001-improve-planning --body-file "notes/goal.md" --summary "Simplify planning."
-cac boss get b001-improve-planning
-cac boss update b001-improve-planning --body "Simplify planning." --summary "Simplify planning."
-cac boss make-available b001-improve-planning
-cac boss create b002-document-planning --body "Document the workflow." --summary "Document planning."
-cac boss assign-dependency b002-document-planning b001-improve-planning
-cac boss list
-cac boss unassign-dependency b002-document-planning b001-improve-planning
-cac boss withdraw b002-document-planning
-cac boss reactivate b002-document-planning
-cac boss withdraw b002-document-planning
-cac boss archive b002-document-planning
-cac boss list --include-archived
-```
+1. **Create** it as `proposed`. A routing summary (at most 500 characters) is
+   required; the body comes from `--body`, `--body-file`, or your editor if
+   neither is given.
 
-Create/update require a summary (at most 500 characters) and accept inline body,
-`--body-file`, or an editor if neither body option is supplied. Create with literal
-full names; existing targets accept short refs. Recommended skill workflows allocate
-numbered names, while endpoints also accept legacy names. Make-available records
-readiness even if prerequisites remain unsatisfied. Unassigned proposed/available
-goals can be edited; available goals stay available. Linked, vanquished, withdrawn,
-and archived goals cannot have their designs edited.
+   ```bash
+   cac boss create b001-improve-planning --body-file "notes/goal.md" --summary "Simplify planning."
+   cac boss get b001-improve-planning
+   ```
 
-Archive accepts unassigned withdrawn bosses or valid externally completed roadmap
-goals. Archived names are retained;
-get still reads them. There is no deletion/restoration operation. Missing storage
-is empty; first create provisions it without migrating existing records.
-All commands have matching `boss_*` MCP tools. See `cac docs get workflow` for
-state guards and dependency validation, and `cac docs get tool-reference` for
-paging and response contracts.
-Rumors operations and boss search/plural active-boss prime integration are available.
-Skills allocate numbers from complete retained inventories and known branch
-reservations; endpoints never allocate them. world-planner also supports incremental
-roadmap capture; see the migration guide for evidence/provenance and legacy limits.
+2. **Refine** it. Update replaces the body and summary together:
+
+   ```bash
+   cac boss update b001-improve-planning --body "Simplify planning." --summary "Simplify planning."
+   ```
+
+3. **Mark it ready.** `make-available` records readiness even if prerequisites
+   are not yet satisfied:
+
+   ```bash
+   cac boss make-available b001-improve-planning
+   ```
+
+4. **Link prerequisites.** Dependencies are validated as a graph:
+
+   ```bash
+   cac boss create b002-document-planning --body "Document the workflow." --summary "Document planning."
+   cac boss assign-dependency b002-document-planning b001-improve-planning
+   cac boss list
+   cac boss unassign-dependency b002-document-planning b001-improve-planning
+   ```
+
+5. **Retire it** if plans change. Withdraw an unassigned goal, reactivate it
+   back to `proposed`, or withdraw and archive it for good:
+
+   ```bash
+   cac boss withdraw b002-document-planning
+   cac boss reactivate b002-document-planning
+   cac boss withdraw b002-document-planning
+   cac boss archive b002-document-planning
+   cac boss list --include-archived
+   ```
+
+Good to know:
+
+- Unassigned `proposed` and `available` goals can be edited, and an available
+  goal stays available. A goal's design freezes once it is linked to a campaign,
+  vanquished, withdrawn or archived.
+- Archive accepts unassigned withdrawn bosses and valid externally completed
+  roadmap goals. Archived names stay reserved and `get` still reads them. There
+  is no delete or restore operation.
+- Create with literal full names; existing targets also accept short refs (see
+  below). The recommended skill workflows allocate numbered names from complete
+  retained inventories and known branch reservations. Endpoints never allocate
+  numbers, and legacy unnumbered names stay valid.
+- A project with no bosses has empty storage; the first create provisions it
+  without migrating existing records.
+- To adopt an existing roadmap, use world-planner's incremental roadmap capture.
+  The migration guide covers evidence, provenance and legacy limits.
+- Every command has a matching `boss_*` MCP tool. Bosses are searchable, and
+  `prime get` includes every boss selected by the active campaign. Rumors are
+  covered under "Pursue a boss with a campaign" below.
+
+State guards and dependency validation are in `cac docs get workflow`; paging
+and response contracts are in `cac docs get tool-reference`.
 
 ### Discover the next goal
 
-Run `cac boss candidates` (MCP: `boss_candidates`) for a read-only JSON page of
-summaries, eligibility, prerequisite states, and integrity diagnostics. Resume
-with `cac boss candidates --cursor TOKEN` using the returned `next_cursor`.
+`cac boss candidates` (MCP: `boss_candidates`) answers "what could we work on
+next?" It returns a read-only JSON page of summaries, eligibility, prerequisite
+states and integrity diagnostics. When the result has a `next_cursor`, continue
+with `cac boss candidates --cursor TOKEN`.
 
-Available, unassigned goals with vanquished direct prerequisites are eligible
-when their reachable graph is sound. Proposed goals are `not_ready`; unsatisfied
-available goals are `blocked`. Assigned/retired/archived goals are excluded roots,
-but archived vanquished prerequisites still count. Numeric ordering is not priority.
-Counts distinguish an empty collection from blocked or not-ready goals. Check
-`healthy` and diagnostic/omission fields before treating the inventory as sound.
-Hydrate named records with `cac boss get` or `cac campaign get`; discovery omits
-bodies and bounds explanation lists. It neither selects work nor proves a goal's
-implementation merged; confirm integration through your normal Git workflow.
+How to read it:
+
+- **Eligible**: available, unassigned, every direct prerequisite vanquished, and
+  a sound reachable graph.
+- **`not_ready`**: still proposed.
+- **`blocked`**: available, but prerequisites are not yet satisfied.
+- Assigned, retired and archived goals are excluded as roots, but an archived
+  vanquished prerequisite still counts as satisfied.
+- Counts distinguish an empty collection from one where every goal is blocked
+  or not ready. Check `healthy` and the diagnostic/omission fields before
+  treating the inventory as sound.
+- Numeric order is not priority.
+
+Discovery omits bodies and bounds its explanation lists, so hydrate anything you
+want to read with `cac boss get` or `cac campaign get`. It doesn't select work,
+and it can't prove a goal's implementation merged; confirm integration through
+your normal Git workflow.
 
 ### Use short references
 
-Existing targets accept `b001`, `c001`, and `c001/e001`; bare `e001` uses an
-explicit or active campaign. For example:
+Wherever an existing record is expected, numbered records accept short refs:
+`b001`, `c001` and `c001/e001`. A bare `e001` uses the explicit or active
+campaign. For example:
 
 ```bash
 cac boss get b001
@@ -163,53 +211,89 @@ cac encounter list --campaign c001
 cac boss assign-dependency b002 b001
 ```
 
-Qualified encounter refs supply their own campaign, even when another campaign
-is active. A conflicting explicit campaign is an error. Live and archived
-records participate; duplicate numeric IDs are ambiguous. Use full canonical
-names to inspect colliding records. Returned identity metadata shows canonical
-names and usable refs, or null with a reason. Lists retain canonical items with
-parallel identities; candidates include identity in their existing bounded JSON.
+- A qualified encounter ref carries its own campaign, even when another campaign
+  is active. A conflicting explicit campaign is an error.
+- Live and archived records both resolve. Duplicate numeric IDs are ambiguous;
+  use full canonical names to inspect colliding records.
+- Results include identity metadata: canonical names and usable refs, or null
+  with a reason. Lists keep canonical items with parallel identities, and
+  candidates include identity in their bounded JSON.
+- Create names stay literal: `cac boss create b001-new-goal ...` creates exactly
+  that name and never expands into an existing record. Newly written
+  dependencies use canonical names.
+- Resolution never allocates, renames, discovers Git branches, migrates, or
+  assigns campaigns.
 
-Create names remain literal: `cac boss create b001-new-goal ...` creates that
-name; it never expands into an existing record. Newly written dependencies use
-canonical names. Reference resolution does not allocate, rename, discover Git
-branches, migrate, or assign campaigns. See `cac docs get tool-reference` for exact grammar,
-legacy-name precedence, context rules, operation coverage, and response budgets.
+Exact grammar, legacy-name precedence, context rules, operation coverage and
+response budgets are in `cac docs get tool-reference`.
 
 ### Pursue a boss with a campaign
 
-Publish goal planning into the configured merge target, confirm eligibility and
-integrated prerequisites, and allocate an unused campaign number. On its assignment
-branch, prepare tactical notes and promote the selected boss:
+The recommended flow, which the skills walk through with you:
+
+1. **Plan.** Publish goal planning into the configured merge target. Confirm the
+   goal is eligible and its prerequisites are integrated, and allocate an unused
+   campaign number.
+2. **Select.** On the campaign's assignment branch, write tactical notes and
+   promote the boss into a draft campaign:
+
+   ```bash
+   cac boss assign-campaign b001 c001-planning --body-file "notes/campaign.md"
+   cac campaign get c001
+   ```
+
+   Promotion creates a draft with reciprocal links; it doesn't open the campaign
+   or create encounters. To pursue several bosses together, create the campaign
+   with a repeated `--boss` option:
+
+   ```bash
+   cac campaign create c002-planning-docs --boss b003 --boss b004 --body-file "notes/campaign.md"
+   ```
+
+3. **Execute.** Integrate the accepted registration, then open the campaign on
+   its exact-name execution branch once you have authorized it. A bossless
+   campaign may skip registration. Each encounter still gets its own review,
+   open and completion approvals, and work is verified before its outcome is
+   recorded.
+4. **Finish.** Completion vanquishes every selected boss. Abandonment releases
+   them for a new campaign while keeping the old campaign's history.
+
+The [Branching Guide](../packages/crypts-and-commits/src/cac/core/templates/docs/branching-guide.md)
+covers the local-merge and hosted-PR paths, both subject to repository policy.
+
+**Review feedback.** To address feedback on a completed, unarchived campaign,
+reopen it:
 
 ```bash
-cac boss assign-campaign b001 c001-planning --body-file "notes/campaign.md"
-cac campaign get c001
+cac campaign reactivate c001 --message "Address PR feedback"
 ```
 
-Promotion creates a draft with reciprocal links; it does not open it or create
-encounters. For several bosses, campaign create accepts repeated --boss options.
-Integrate accepted registration, then open the campaign on its exact-name execution
-branch after authorization. Bossless campaigns may skip registration. Follow each
-encounter's separate review/open/completion approvals and verify work before its
-outcome. Completion vanquishes the selected group; abandonment releases it for a
-new campaign while retaining the old campaign's history. See the Branching Guide
-for local-merge and hosted-PR paths, both subject to repository policy.
+Earlier closing entries and completed encounters remain intact. Create new
+follow-up encounters, then verify and complete again before integration.
 
-For feedback on a completed, unarchived campaign, use
-`cac campaign reactivate c001 --message "Address PR feedback"`. Earlier closing
-entries and completed encounters remain intact; create new follow-up encounters,
-then verify and complete again before integration. On synchronized planning,
-archive integrated terminal campaigns to archive their current bosses
-and terminal encounters together. Archiving an abandoned old attempt never
-changes a reassigned boss. Origin/reverse links prevent campaign deletion.
+**Archiving.** On synchronized planning, archive integrated terminal campaigns;
+this archives their current bosses and terminal encounters together. Archiving
+an abandoned old attempt never changes a boss that was reassigned.
 
-Capture execution discoveries using `cac rumors create --campaign c001 --body-file notes/rumors.md`
-(or update for an existing document). world-planner distills integrated rumors
-on planning without automatically deleting them or expanding campaign scope.
+**Deletion.** A campaign can be deleted only when its `bosses` list (current or
+historical membership) is empty and no boss claims it. Archiving does not
+protect a bossless campaign. Deletion is never a rollback or renumbering
+shortcut.
 
-`boss_assign_campaign` and `campaign_reactivate` provide MCP parity. Same current
-assignment retries are read-only and never replace campaign content. Inconsistent
-ownership fails with diagnostics; recovery failures identify residual records
-for explicit repair. These operations use local records, with no automatic Git,
-merge verification, allocation, or record migration.
+**Rumors.** Capture execution discoveries in the campaign's optional rumors
+document:
+
+```bash
+cac rumors create --campaign c001 --body-file notes/rumors.md
+```
+
+Use `cac rumors update` for an existing document. world-planner distills
+integrated rumors on planning, without deleting them automatically or expanding
+campaign scope.
+
+**MCP and recovery.** `boss_assign_campaign` and `campaign_reactivate` provide
+MCP parity. Retrying the same current assignment is read-only and never replaces
+campaign content. Inconsistent ownership fails with diagnostics, and recovery
+failures identify residual records for explicit repair. These operations use
+local records only, with no automatic Git, merge verification, allocation, or
+record migration.
