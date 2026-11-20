@@ -1,19 +1,25 @@
 ---
 archived: false
-boss: null
+boss: b003-sourcebook-integrity
 created_by: John Hoff
 created_on: '2026-10-28T17:53:44Z'
-history: []
+history:
+- action: promote
+  by: John Hoff
+  message: 'Planning 2026-11-20: developer chose refuse-while-referenced (listing
+    referrers) over cascade cleanup; shared goal with r001.'
+  'on': '2026-11-20T23:43:36Z'
 name: r002-cascade-clean-deleted-references
 origin: Known limitation recorded in this repository's CLAUDE.md ("deleting a lore/region/campaign
   entry does not cascade-clean stale references").
-resolution: null
-status: open
+resolution: 'Planning 2026-11-20: developer chose refuse-while-referenced (listing
+  referrers) over cascade cleanup; shared goal with r001.'
+status: promoted
 summary: Deleting a lore, region or campaign entry leaves stale references in records
   that pointed at it; consider cascade cleanup or a guarded refusal with a clear list
   of referrers.
 updated_by: John Hoff
-updated_on: '2026-10-28T17:53:44Z'
+updated_on: '2026-11-20T23:43:36Z'
 ---
 
 Today `lore_delete`, `region_delete` and `campaign_delete` remove the record but leave dangling names behind: world and region `assigned_lore`, encounter `regions`, and similar link lists. Later reads either skip or trip over the missing target.
