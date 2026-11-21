@@ -1,5 +1,6 @@
 ---
 archived: false
+campaign: c002-rulings
 created_by: John Hoff
 created_on: '2026-11-21T00:04:48Z'
 depends_on: []
@@ -11,7 +12,7 @@ summary: 'Add rulings: ADR-style records of developer (GM)-confirmed decisions m
   one a narrative disposition with hindsight: canonized (how the lore was updated)
   or noted (why it needs no lore), then archives it.'
 updated_by: John Hoff
-updated_on: '2026-11-21T00:13:53Z'
+updated_on: '2026-11-21T00:32:17Z'
 ---
 
 ## Goal
