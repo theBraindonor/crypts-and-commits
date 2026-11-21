@@ -4,14 +4,14 @@ created_by: John Hoff
 created_on: '2026-11-21T00:04:48Z'
 depends_on: []
 name: b005-ruling-records
-status: proposed
+status: available
 summary: 'Add rulings: ADR-style records of developer (GM)-confirmed decisions made
   in an open campaign, named cNNN-eNNN-slug (e000 for campaign-level). Archived independently
   of campaigns, like rumors. Prime shows every recorded ruling. Planning gives each
   one a narrative disposition with hindsight: canonized (how the lore was updated)
   or noted (why it needs no lore), then archives it.'
 updated_by: John Hoff
-updated_on: '2026-11-21T00:12:47Z'
+updated_on: '2026-11-21T00:13:53Z'
 ---
 
 ## Goal
