@@ -8,9 +8,9 @@ kind: scripted
 name: e001-ruling-records-core
 regions:
 - crypts-and-commits
-status: draft
+status: reviewed
 updated_by: John Hoff
-updated_on: '2026-11-21T00:36:38Z'
+updated_on: '2026-11-21T00:41:14Z'
 ---
 
 ## Requirements
@@ -113,3 +113,14 @@ Search indexing (the `ruling` type, `_classify`, snapshot inventory) and prime e
   5. Archive both, and confirm `get` still reads the archived records.
   6. Pause the campaign and confirm that creating another ruling is refused.
 - `workflow.md` and `tool-reference.md` describe exactly the shipped names, arguments, guards and lifecycle, checked by reading the diff against the implementation.
+
+## Log
+
+### Review - 2026-11-21T00:41:14Z - John Hoff
+
+Independent review against clean-tests-and-lint, cli-mcp-parity, console-best-practices, skills-authored-only-in-templates and workflow-doc-source-of-truth: PASS-WITH-NOTES. Verification enforces the pytest and ruff gates. All eight `cac ruling` commands ship with matching thin-wrapper `ruling_*` MCP tools, registered in `cli/app.py` and `_TOOL_MODULES` with the server registration test updated, and they keep cursor paging and get-body continuation. Stored content prints with `markup=False`. No skill templates are touched. `workflow.md` and `tool-reference.md` are updated in the same change, and Verification checks them against the shipped behavior. The Rationale's index-isolation claims were confirmed in code: `_classify` returns None for ruling paths, `sync_write` and `Recovery` skip unclassified paths, and `index_snapshot.inventory` does not enumerate `rulings/`. Notes for execution:
+(1) State explicitly that the CLI editor fallback becomes a required body argument on MCP create/update.
+(2) In `workflow.md`, document the ruling→campaign/encounter link as one-directional, recorded only on the ruling.
+(3) Reflect the references-decorator docstring change in `tool-reference.md`.
+(4) Pin down how a canonical-only `ruling` domain fits into the single-prefix `_PREFIXES`/`_SYNTAX` maps, and test that a ruling name like `c002-e001-x` is never matched as a campaign reference by `NUMBERED_NAME_PATTERN`/`SHORT_REFERENCE_PATTERN`.
+(5) Consider a test that `_load` validates rulings whose campaign or encounter has since been archived.
