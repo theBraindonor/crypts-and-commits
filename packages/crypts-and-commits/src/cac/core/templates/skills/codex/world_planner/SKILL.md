@@ -1,6 +1,6 @@
 ---
 name: world-planner
-description: Plan and refine project goals, adopt an existing roadmap, assess boss readiness and dependencies, triage backlog rumors into goals, and triage recorded rulings into lore before tactical campaign selection.
+description: Plan and refine project goals, adopt an existing roadmap, assess boss readiness and dependencies, triage backlog rumors into goals, and triage recorded rulings into lore, region or world updates before tactical campaign selection.
 ---
 
 # World Planner

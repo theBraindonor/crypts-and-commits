@@ -144,7 +144,8 @@ people/agents that drive them:
   for overriding a reviewer's rejection. Named after the campaign and
   encounter where the decision was made (`cNNN-eNNN-slug`, or `e000` for a
   campaign-level decision). Planning reviews them in hindsight, either
-  canonizing a ruling into the world's lore or noting why it needs none,
+  canonizing a ruling into the world's lore, a region or the world summary,
+  or noting why it needs none,
   then archives it. Rulings are never deleted.
 - **Encounter** — a concrete unit of work within a campaign: either a plan
   the agent is expected to execute (`scripted`, with Requirements,
@@ -180,7 +181,8 @@ number of their own and always use their full name.
    Game Master confirms along the way as a ruling.
 6. Complete the campaign, vanquishing the bosses it selected.
 7. Back on the planning branch, triage the campaign's recorded rulings:
-   canonize the ones that should become lore, note the rest, and archive them.
+   canonize the ones that should become lore, region or world context, note
+   the rest, and archive them.
 
 The planning, assignment and execution branch workflow behind these steps is
 skill guidance: the endpoints themselves are branch-agnostic and never create

@@ -7,8 +7,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 Rulings give the decisions a developer (Game Master) confirms during active
 development an identity and a lifecycle, so planning can review them in
-hindsight and decide which ones become standing lore. Everything below is the
-result of the `c002-rulings` campaign tracked in this repository's own
+hindsight and decide which ones become standing lore, region or world
+context. Everything below is the result of the `c002-rulings` campaign tracked in this repository's own
 `.sourcebook`. The sourcebook schema stays at version 1: ruling storage is
 additive and created lazily, with no record migration or bootstrap rerun
 required.
@@ -33,8 +33,8 @@ required.
 - Skills: campaign-manager captures developer-confirmed decisions as
   rulings, including the reason for a GM override of a reviewer REJECT;
   world-planner triages recorded rulings on planning (canonize into approved
-  lore/world changes, or note, then archive); world-manager's prime and
-  disclosure ladder cover recorded rulings.
+  lore, region or world changes, or note, then archive); world-manager's
+  prime and disclosure ladder cover recorded rulings.
 - Docs: rulings in the Workflow Reference Guide, Tool Reference, Branching
   Guide and Migration Guide.
 

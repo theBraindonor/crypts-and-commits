@@ -158,7 +158,7 @@ managed-file writes. Inspect exact command help where argument detail is needed.
    Triage integrated recorded rulings the same way: list them with
    ruling_list(status="recorded") / `cac ruling list --status recorded` (prime also
    shows them until triaged) and read each with ruling_get. If the developer wants
-   standing lore, make the approved lore, region or world changes through
+   it to stand, make the approved lore, region or world changes through
    world-manager, then ruling_canonize / `cac ruling canonize
    c012-e003-cache-key-format --message "Added lore cache-keys"` with a narrative
    of what changed. Otherwise ruling_note / `cac ruling note ... --message "..."`

@@ -250,12 +250,13 @@ moment is often clear only in hindsight, so capture freely and judge later.
 
 2. **Triage on planning.** Every recorded ruling shows up in prime until it is
    triaged. With hindsight, either canonize it, after making the lore, region or
-   world changes you approve, or note it with the reason it needs no lore. Both
+   world changes you approve, or note it with the reason no change is needed. Both
    take a narrative, and a superseded ruling is noted with a narrative naming
    its successor.
 
    ```bash
    cac ruling canonize c012-e003-cache-keys --message "Added lore cache-keys"
+   cac ruling canonize c012-e005-ci-region --message "Documented the ci region's runner path"
    cac ruling note c012-e000-release-order --message "One-off sequencing choice"
    ```
 

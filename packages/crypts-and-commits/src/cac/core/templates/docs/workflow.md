@@ -448,8 +448,8 @@ capture a rumor instead. Slugs are unique, live or archived.
 A new ruling is `recorded` and stays editable until planning disposes of it in
 hindsight: **canonize** with a narrative of the world, lore or region updates
 made, or **note** with a narrative of why none is needed. Either narrative
-becomes `resolution`; **reopen** returns it to `recorded`. Rulings name no lore
-records. **Archive** retires a canonized or noted ruling, independently of
+becomes `resolution`; **reopen** returns it to `recorded`. Rulings name no lore,
+region or world records. **Archive** retires a canonized or noted ruling, independently of
 campaign archival. There is no delete. Rulings are searchable under their own
 type, and recorded rulings appear in prime until triaged.
 

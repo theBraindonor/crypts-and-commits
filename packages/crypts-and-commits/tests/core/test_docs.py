@@ -105,3 +105,11 @@ def test_supporting_guides_describe_rulings(name: str) -> None:
     assert "ruling_create" in body
     if name == "migration-guide":
         assert "Rulings are additive within schema version 1." in body
+
+
+@pytest.mark.parametrize("name", ["branching-guide", "migration-guide", "tool-reference", "workflow"])
+def test_guides_never_narrow_canonize_to_lore(name: str) -> None:
+    body = " ".join(docs.read_doc(name).split())  # catch phrases broken across wrapped lines
+
+    assert "rulings into lore" not in body
+    assert "name no lore records" not in body

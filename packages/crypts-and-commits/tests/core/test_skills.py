@@ -85,7 +85,13 @@ _RULING_GUIDANCE = {
         "GM override (REJECT only)",
         "NOT-REVIEWABLE** has no override",
     ),
-    "world-planner": ("ruling_canonize(", "ruling_note(", "ruling_archive(", 'ruling_list(status="recorded")'),
+    "world-planner": (
+        "ruling_canonize(",
+        "ruling_note(",
+        "ruling_archive(",
+        'ruling_list(status="recorded")',
+        "triage recorded rulings into lore, region or world updates",
+    ),
     "world-manager": ("recorded_rulings", "ruling_create("),
 }
 

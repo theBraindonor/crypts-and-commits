@@ -1,7 +1,7 @@
 ---
 name: world-planner
 allowed-tools: Bash(cac *), Bash(git status *), Bash(git for-each-ref *), Bash(git rev-parse *), Bash(git merge-base *), mcp__crypts-and-commits
-description: Plan and refine project goals, adopt an existing roadmap, assess boss readiness and dependencies, triage backlog rumors into goals, and triage recorded rulings into lore before tactical campaign selection.
+description: Plan and refine project goals, adopt an existing roadmap, assess boss readiness and dependencies, triage backlog rumors into goals, and triage recorded rulings into lore, region or world updates before tactical campaign selection.
 ---
 
 # World Planner
