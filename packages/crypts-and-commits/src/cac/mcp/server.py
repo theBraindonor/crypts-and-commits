@@ -1,4 +1,4 @@
-from cac.mcp import boss, campaign, docs, encounter, index, lore, prime, region, rumor, world
+from cac.mcp import boss, campaign, docs, encounter, index, lore, prime, region, ruling, rumor, world
 from cac.mcp.instance import mcp
 
 _TOOL_MODULES = (
@@ -12,6 +12,7 @@ _TOOL_MODULES = (
     docs,
     boss,
     rumor,
+    ruling,
 )  # registration side effects
 
 

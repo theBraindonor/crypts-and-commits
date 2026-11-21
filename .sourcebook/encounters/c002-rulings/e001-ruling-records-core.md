@@ -8,9 +8,9 @@ kind: scripted
 name: e001-ruling-records-core
 regions:
 - crypts-and-commits
-status: reviewed
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-21T00:41:14Z'
+updated_on: '2026-11-21T02:14:29Z'
 ---
 
 ## Requirements
@@ -124,3 +124,30 @@ Independent review against clean-tests-and-lint, cli-mcp-parity, console-best-pr
 (3) Reflect the references-decorator docstring change in `tool-reference.md`.
 (4) Pin down how a canonical-only `ruling` domain fits into the single-prefix `_PREFIXES`/`_SYNTAX` maps, and test that a ruling name like `c002-e001-x` is never matched as a campaign reference by `NUMBERED_NAME_PATTERN`/`SHORT_REFERENCE_PATTERN`.
 (5) Consider a test that `_load` validates rulings whose campaign or encounter has since been archived.
+
+### Opened - 2026-11-21T01:45:22Z - John Hoff
+
+Opened with developer approval. Implementation will fold in all five reviewer notes.
+
+### Message - 2026-11-21T02:14:29Z - John Hoff
+
+Implementation complete, pending developer confirmation.
+
+**Reviewer notes, all five addressed:**
+1. The MCP `ruling_create` docstring and the `tool-reference.md` Rulings section both state that `body` is a required string, with no editor fallback.
+2. `workflow.md` Connections says the ruling→campaign/encounter link is stored only on the ruling and is never written back.
+3. `tool-reference.md` (Short references, Canonical identity, operation matrix) documents the canonical-only contract text that the decorator now appends.
+4. `references.py` adds a `_CANONICAL_ONLY` set outside the single-prefix `_PREFIXES`/`_SYNTAX` maps. Rulings get no numeric map, `resolve` refuses non-exact names, and `identity` reports `short: null` with reason `canonical_only`. Tests cover that `c002-e001-x` never resolves as a campaign and that `RULING_NAME_PATTERN` and `SHORT_REFERENCE_PATTERN` are disjoint.
+5. A test confirms that `_load` still validates and dispositions a ruling after its encounter is abandoned and its campaign is completed and archived. `_load` checks campaign/encounter only against the name's numbers, never against live storage.
+
+**GM rulings during execution:**
+- `test_docs` capped `workflow.md` at 40,000 characters. It was about 39,600 before e001, and even a minimal Rulings section reaches about 40,750. The developer chose to raise the cap to 45,000 as a stopgap and to capture a split of the guide into development and planning flavors as rumor `r004-split-workflow-guide-by-phase`.
+- The docs leak-guard regex matched `e000`. The developer chose to exempt `e000` with a lookahead, because it is a reserved sentinel, not a repository encounter name.
+
+**Other deviation:** the workflow Rulings section was kept brief to limit growth. Contract detail lives in `tool-reference.md`.
+
+**Verification:**
+- `pdm run pytest -q`: 1670 passed.
+- `ruff check` and `ruff format --check`: clean.
+- `cac ruling -h` lists the 8 commands, and the 8 `ruling_*` MCP tools are registered.
+- Scratch-project smoke test passed every step: create under e001 and under e000; canonize and note; reopen and re-dispose; archive both; get the archived record; pause the campaign, then create is refused with the rumor hint; and `cac ruling get c001` is refused as not canonical. The scratch world was seeded through core `world.initialize_world`, not `cac bootstrap init`.

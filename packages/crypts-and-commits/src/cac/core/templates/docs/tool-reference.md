@@ -50,7 +50,7 @@ JSON print compact JSON literally.
 
 ### Response budgets and continuation
 
-Every `get` (world, lore, region, campaign, boss, encounter, rumor, docs) fits
+Every `get` (world, lore, region, campaign, boss, encounter, rumor, ruling, docs) fits
 its whole compact-JSON result, identity included, into a response budget. Docs
 use a dedicated budget of 64,000 characters measured on the body; every other
 response uses the ordinary response budget.
@@ -74,7 +74,8 @@ print an `identity:` JSON line. An identity contains:
 - `canonical` — the stored record name.
 - `short` — the usable normalized short reference, or null.
 - `reason` — null when `short` is usable; otherwise `unnumbered`, `ambiguous`,
-  `missing`, or `invalid_storage`.
+  `missing`, or `invalid_storage`. Rulings always report `short: null` with
+  reason `canonical_only`.
 
 Encounter identities also contain the canonical `campaign`. When the qualified
 reference is usable they add a contextual `bare_short` (the bare `eNNN` form).
@@ -119,6 +120,13 @@ current project:
   errors, even for full-name lookups.
 - Malformed, unknown or wrong-domain references fail before any write.
 
+Rulings take full canonical names only (`cNNN-eNNN-slug`), live or archived.
+A ruling name is never interpreted as a short or numbered reference: its
+`cNNN` prefix does not select a campaign, `ruling_*` tools reject `cNNN` and
+`cNNN/eNNN` forms, and ruling records are excluded from campaign inventories.
+The appended reference-contract text on every `ruling_*` tool and `cac ruling`
+command says so instead of listing short-reference syntax.
+
 A qualified encounter reference overrides the active-campaign fallback, and an
 explicit `campaign` argument must resolve to the same campaign. Qualification
 bypasses no closed-campaign, frozen, lifecycle or archive guard. Encounter IDs
@@ -145,13 +153,14 @@ numbers, performs branch or network lookups, or migrates records.
 | Rumor get/update/dismiss/reopen/archive | existing name | body, summary, origin, message |
 | Rumor promote | existing rumor, existing boss | message |
 | Rumor renumber | existing rumor | new name |
-| Boss/campaign/rumor create | none | new name, body, summary, origin where applicable |
+| Ruling get/update/canonize/note/reopen/archive | existing canonical name only | body, summary, origin, message |
+| Boss/campaign/rumor/ruling create | none | new name, body, summary, origin where applicable |
 | Prime applicable-lore | encounter, optional campaign | returned lore refs unchanged |
-| Boss/campaign/rumor lists and candidates | none | cursor, flags, rumor status |
+| Boss/campaign/rumor/ruling lists and candidates | none | cursor, flags, rumor/ruling status |
 
 Lore, region and doc names, world keys and values, messages, bodies, summaries
-and search phrases are always literal. There is no resolver endpoint, no boss
-or rumor deletion, and no generic status setter.
+and search phrases are always literal. There is no resolver endpoint, no boss,
+rumor or ruling deletion, and no generic status setter.
 
 Creation names are literal. Encounter create may select its campaign by
 reference but cannot create a qualified path. Dependencies are canonicalized
@@ -425,6 +434,57 @@ names and parallel identities with cursor paging, and its order is not
 priority; `status` filters by status, and an unknown status fails. CLI get
 prints metadata, summary and body literally. Unsafe names, storage links or
 junctions, and path or type collisions fail before writes.
+
+## Rulings
+
+| Operation | MCP | CLI |
+| --- | --- | --- |
+| Record | `ruling_create(name, body, summary, origin)` | `cac ruling create NAME --summary/-s --origin/-o [--body/-b \| --body-file]` |
+| Read | `ruling_get(name, cursor=None)` | `cac ruling get NAME [--cursor]` |
+| List canonical names | `ruling_list(cursor=None, include_archived=False, status=None)` | `cac ruling list [--cursor] [--include-archived] [--status]` |
+| Replace body, summary and origin | `ruling_update(name, body, summary, origin)` | `cac ruling update NAME --summary/-s --origin/-o [--body/-b \| --body-file]` |
+| Canonize | `ruling_canonize(name, message)` | `cac ruling canonize NAME --message/-m` |
+| Note | `ruling_note(name, message)` | `cac ruling note NAME --message/-m` |
+| Reopen | `ruling_reopen(name, message)` | `cac ruling reopen NAME --message/-m` |
+| Archive | `ruling_archive(name)` | `cac ruling archive NAME` |
+
+Rulings live at `rulings/<name>.md` and, once archived,
+`archive/rulings/<name>.md`. Names are literal `cNNN-eNNN-slug` canonical names
+(at least three digits each; a positive campaign number; a slug of letters,
+numbers, underscores, hyphens or periods); every input takes the full name.
+
+Create requires `cNNN` to resolve to an existing campaign whose status is
+`open`, and a nonzero `eNNN` to resolve to an existing encounter in that
+campaign, in any status; `e000` records `encounter: null`. A missing campaign or
+encounter fails with the campaign or encounter not-found error; a non-open
+campaign fails and suggests capturing a rumor instead. The name must be unused
+among live and archived rulings. Create and update take body, summary and
+origin together: the summary is required, nonblank and at most 500 characters;
+the origin is required, nonblank free text. The CLI accepts `--body`,
+`--body-file`, or an editor initialized from the template (`## Decision`,
+`## Context`, `## Consequences`) or the current body. MCP has no editor
+fallback: `body` is a required string on `ruling_create` and `ruling_update`.
+Update is a full replacement, requires an unarchived `recorded` ruling, and
+does not recheck the campaign status.
+
+`status` is `recorded`, `canonized` or `noted`. Canonize and note require an
+unarchived `recorded` ruling and a nonblank narrative, stored as `resolution`.
+Reopen requires an unarchived canonized or noted ruling and a nonblank reason,
+and clears `resolution`. Each appends an `{action, message, by, on}` entry to
+`history`, which update never changes. Archive requires an unarchived canonized
+or noted ruling; archived rulings are read-only and stay readable. There is no
+delete and no renumber. No ruling operation writes a campaign, encounter, boss
+or lore record.
+
+MCP get and mutation results contain `metadata` (including `campaign`,
+`encounter`, `origin`, `status`, `resolution`, `history` and `archived`),
+`summary`, `body` (bounded) and `identity`
+(`{"canonical": NAME, "short": null, "reason": "canonical_only"}`). List
+returns canonical names and parallel identities with cursor paging; `status`
+filters by status, and an unknown status fails. CLI get prints metadata,
+summary and body literally. Malformed names, unsafe storage, and live/archive
+name collisions fail before writes. Rulings are not yet indexed for search or
+included in prime.
 
 ## Prime
 

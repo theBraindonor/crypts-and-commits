@@ -10,6 +10,7 @@ from cac.cli.index import app as index_app
 from cac.cli.lore import app as lore_app
 from cac.cli.prime import app as prime_app
 from cac.cli.region import app as region_app
+from cac.cli.ruling import app as ruling_app
 from cac.cli.rumor import app as rumor_app
 from cac.cli.world import app as world_app
 
@@ -28,6 +29,7 @@ app.add_typer(lore_app, name="lore")
 app.add_typer(prime_app, name="prime")
 app.add_typer(region_app, name="region")
 app.add_typer(rumor_app, name="rumor")
+app.add_typer(ruling_app, name="ruling")
 app.add_typer(world_app, name="world")
 
 

@@ -29,7 +29,7 @@ them in.
 
 ## Domain model at a glance
 
-Seven record types, each Markdown with YAML frontmatter, live in the sourcebook:
+Eight record types, each Markdown with YAML frontmatter, live in the sourcebook:
 
 | Type | Scope | Lifecycle |
 | --- | --- | --- |
@@ -40,6 +40,7 @@ Seven record types, each Markdown with YAML frontmatter, live in the sourcebook:
 | Campaign | Initiatives; at most one open per checkout | draft, open, paused, completed, abandoned |
 | Encounter | Units of work within a campaign | draft, reviewed, open, completed, abandoned |
 | Rumor | Backlog notes from anywhere | open, promoted, dismissed |
+| Ruling | Developer decisions made during an open campaign | recorded, canonized, noted |
 
 Every record carries common audit stamps (`created_by`, `created_on`,
 `updated_by`, `updated_on`).
@@ -64,6 +65,8 @@ Every record carries common audit stamps (`created_by`, `created_on`,
   prerequisite bosses.
 - A promoted rumor's `boss` names the boss it was linked to, stored only on
   the rumor. Bosses keep no back-reference, and many rumors may share one.
+- A ruling's `campaign` and `encounter` are stored only on the ruling;
+  campaigns and encounters are never written and keep no back-reference.
 
 No relationship grants permission to bypass a lifecycle guard.
 
@@ -432,6 +435,22 @@ planning branch; promoted rumors keep their number, because promotion happens
 on planning, where numbering is settled. Similar rumors are never merged:
 repetition is a signal. Rumors never affect bosses, candidates or campaign
 lifecycle, are searchable under their own type, and are not part of prime.
+
+## Rulings
+
+A ruling (`cNNN-eNNN-slug`, canonical names only) records a developer decision
+made during active development, such as an answered open question or an
+overridden reviewer REJECT. Create requires the `cNNN` campaign to be `open`
+(reactivated qualifies) and a nonzero `eNNN` to be one of its encounters; `e000`
+marks a campaign-level decision. With no open campaign,
+capture a rumor instead. Slugs are unique, live or archived.
+
+A new ruling is `recorded` and stays editable until planning disposes of it in
+hindsight: **canonize** with a narrative of the world, lore or region updates
+made, or **note** with a narrative of why none is needed. Either narrative
+becomes `resolution`; **reopen** returns it to `recorded`. Rulings name no lore
+records. **Archive** retires a canonized or noted ruling, independently of
+campaign archival. There is no delete. Rulings are not yet searchable or primed.
 
 ## Explicit user gates
 

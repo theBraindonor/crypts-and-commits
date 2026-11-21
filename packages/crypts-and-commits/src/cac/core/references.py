@@ -6,7 +6,8 @@ renumber's new name are literal; rumor promotion resolves its boss target in cor
 encounter targets: all get/update/delete/review/lifecycle/message/region/dependency lookups;
 create is literal; campaign filters on list/order/create and applicable-lore use campaign refs.
 dependency is scoped/canonicalized on assign/unassign only; region/lore/doc/text/cursor inputs
-are untouched. There is no new resolver endpoint, allocation, or persistent cache.
+are untouched. ruling targets are canonical-only (cNNN-eNNN-slug): no short refs, never numbered,
+and kept out of the numeric map so a ruling name is never read as a campaign reference. There is no new resolver endpoint, allocation, or persistent cache.
 """
 
 import json
@@ -32,6 +33,8 @@ class AmbiguousReferenceError(ReferenceError):
 
 _PREFIXES = {"boss": "b", "campaign": "c", "encounter": "e", "rumor": "r"}
 _SYNTAX = {"boss": "bNNN", "campaign": "cNNN", "encounter": "eNNN or cNNN/eNNN", "rumor": "rNNN"}
+# Canonical-only domains have no prefix, short refs, or numeric inventory.
+_CANONICAL_ONLY = frozenset({"ruling"})
 
 
 def encoded(value: Any) -> str:
@@ -57,6 +60,7 @@ class Inventory:
             "campaign": config.CAMPAIGN_DIR_NAME,
             "encounter": config.ENCOUNTER_DIR_NAME,
             "rumor": config.RUMOR_DIR_NAME,
+            "ruling": config.RULING_DIR_NAME,
         }[domain]
         if domain == "encounter":
             self.validate(campaign)
@@ -79,6 +83,8 @@ class Inventory:
             raise AmbiguousReferenceError(f"Ambiguous live/archive {domain} records: {', '.join(duplicates)}.")
         self.cache[key] = sorted(found)
         self.numeric[key] = {}
+        if domain in _CANONICAL_ONLY:
+            return self.cache[key]
         for name in self.cache[key]:
             match = config.NUMBERED_NAME_PATTERN.fullmatch(name) or config.SHORT_REFERENCE_PATTERN.fullmatch(name)
             if match:
@@ -96,6 +102,14 @@ class Inventory:
         if value in names:
             # An exact canonical name always selects its record, so short-shaped legacy names stay reachable.
             return value
+        if domain in _CANONICAL_ONLY:
+            if missing_literal:
+                return value
+            from cac.core import ruling
+
+            raise ruling.RulingNotFoundError(
+                f"Ruling {value!r} does not exist; rulings take full canonical names only."
+            )
         short = config.SHORT_REFERENCE_PATTERN.fullmatch(value)
         prefix = _PREFIXES[domain]
         if short:
@@ -153,6 +167,8 @@ class Inventory:
         return selected, self.resolve("encounter", value, selected, missing_literal=missing_literal)
 
     def identity(self, domain: str, canonical: str, campaign: str | None = None) -> dict[str, Any]:
+        if domain in _CANONICAL_ONLY:
+            return {"canonical": canonical, "short": None, "reason": "canonical_only"}
         prefix = _PREFIXES[domain]
         match = config.NUMBERED_NAME_PATTERN.fullmatch(canonical) or config.SHORT_REFERENCE_PATTERN.fullmatch(canonical)
         result = {"canonical": canonical, "short": None, "reason": "unnumbered"}
@@ -275,12 +291,19 @@ def inputs(
             return result
 
         invoke.reference_contract = {"domain": domain, "create": create, "mutable": mutable, "remove": remove}
-        syntax = _SYNTAX[domain]
-        invoke.__doc__ = (function.__doc__ or "") + (
-            f"\nExisting {domain} targets accept full canonical names or {syntax}; exact canonical names win; refs include archived records and reject ambiguity. "
-            "Create names are literal. Qualified encounter context overrides active fallback and must agree with an explicit campaign. "
-            "Resolved identity metadata retains canonical names; numbering and Git automation are not performed."
-        )
+        if domain in _CANONICAL_ONLY:
+            contract = (
+                f"\nExisting {domain} targets accept full canonical names only (cNNN-eNNN-slug), live or archived; "
+                "there are no short refs. Create names are literal. Identity metadata reports short null with "
+                "reason canonical_only; numbering and Git automation are not performed."
+            )
+        else:
+            contract = (
+                f"\nExisting {domain} targets accept full canonical names or {_SYNTAX[domain]}; exact canonical names win; refs include archived records and reject ambiguity. "
+                "Create names are literal. Qualified encounter context overrides active fallback and must agree with an explicit campaign. "
+                "Resolved identity metadata retains canonical names; numbering and Git automation are not performed."
+            )
+        invoke.__doc__ = (function.__doc__ or "") + contract
         return invoke
 
     return decorate
