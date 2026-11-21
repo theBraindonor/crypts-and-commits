@@ -1,6 +1,6 @@
 ---
 name: world-planner
-description: Plan and refine project goals, adopt an existing roadmap, assess boss readiness and dependencies, and triage backlog rumors into goals before tactical campaign selection.
+description: Plan and refine project goals, adopt an existing roadmap, assess boss readiness and dependencies, triage backlog rumors into goals, and triage recorded rulings into lore before tactical campaign selection.
 ---
 
 # World Planner
@@ -35,7 +35,8 @@ Skill invocation supplies no permission to push, merge, publish, delete branches
 or message others; use existing user authorization without repeated approvals.
 
 Prime exposes active_boss_names, active_bosses and active_boss_diagnostics for
-actual active membership, not the entire roadmap. Hydrate relevant bodies and
+actual active membership, not the entire roadmap, plus recorded_rulings,
+recorded_ruling_count and ruling_diagnostics for every untriaged ruling. Hydrate relevant bodies and
 diagnostics; do not select a first boss or treat damaged context as bossless.
 Use all pages of boss_list(include_archived=True) / cac boss list --include-archived
 before allocating numeric max+1 (001..999, then 1000); never recycle retained IDs.
@@ -124,6 +125,22 @@ TEXT. rumor_reopen(name,message) / cac rumor reopen REF --message TEXT undoes
 either. Archive resolved rumors with rumor_archive(name) / cac rumor archive
 REF. Never merge similar rumors (repetition is a signal), expand old campaign
 scope, or edit assigned goals; rumors cannot be deleted.
+
+On synchronized planning, also triage integrated recorded rulings (decisions
+the developer confirmed during campaigns) with the developer: page
+ruling_list(status="recorded") / cac ruling list --status recorded, read with
+ruling_get(name) / cac ruling get NAME, and search with
+index_search(phrase,object_type="ruling"). To canonize, first make the lore,
+region or world changes the developer approves (world-manager tools, with its
+summary-approval rule), then ruling_canonize(name,message) / cac ruling
+canonize NAME --message TEXT with a narrative of what changed. Otherwise
+ruling_note(name,message) / cac ruling note NAME --message TEXT with a
+narrative of why no change is needed; note a superseded ruling with a narrative
+naming its successor. ruling_reopen(name,message) undoes either. Archive each
+dispositioned ruling with ruling_archive(name) / cac ruling archive NAME.
+There is no delete, renumber or formal lore link. Decisions made during
+planning itself, with no open campaign, are not rulings: record them in goal
+notes or lore with the developer.
 
 Planning's narrow campaign operation is archive: campaign_archive(name) /
 cac campaign archive NAME only after integrated completed/abandoned history and
