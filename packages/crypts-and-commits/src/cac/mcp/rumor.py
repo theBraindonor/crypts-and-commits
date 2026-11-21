@@ -9,7 +9,8 @@ from cac.mcp.instance import mcp
 @mcp.tool()
 @references.inputs("rumor")
 def rumor_list(cursor: str | None = None, include_archived: bool = False, status: str | None = None) -> dict[str, Any]:
-    """Page canonical rumor names, optionally including archived records or filtering by status."""
+    """Page canonical rumor names, optionally including archived records or filtering by status
+    (open, promoted, dismissed)."""
     names = rumor_core.list_rumors(resolve_project_root(), include_archived=include_archived, status=status)
     return references.identity_page(resolve_project_root(), "rumor", names, cursor)
 

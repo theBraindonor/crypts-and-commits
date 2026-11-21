@@ -117,7 +117,7 @@ def create_campaign(
         list[str] | None, typer.Option("--boss", help="Existing boss name/ref; repeat to select several.")
     ] = None,
 ) -> None:
-    """Create a new campaign file."""
+    """Create a draft campaign, optionally selecting eligible bosses with --boss."""
     body = resolve_body_input(body, body_file)
     content = body if body is not None else edit_markdown(campaign_core.template_body())
 
@@ -138,6 +138,8 @@ def set_bosses(
         list[str] | None, typer.Option("--boss", help="Complete new set; repeat, or omit to clear.")
     ] = None,
 ) -> None:
+    """Replace all draft boss membership atomically; omit --boss to clear it. Locked once the
+    campaign leaves draft."""
     path = campaign_core.set_bosses(resolve_project_root(), name, bosses or [], message)
     console.print(f"Updated boss membership: {path}", markup=False)
 
@@ -176,7 +178,8 @@ def delete_campaign(
     name: str = typer.Argument(..., help="Campaign name to delete."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
 ) -> None:
-    """Delete a campaign file."""
+    """Delete a bossless campaign only: refused while it has any current or historical bosses membership
+    or a boss still claims it."""
     if not yes:
         typer.confirm(f"Delete campaign {name!r}?", abort=True)
 
@@ -235,7 +238,7 @@ def complete_campaign(
 ) -> None:
     """Move a campaign from 'open' or 'paused' to 'completed'. Fails if it has an open encounter.
     The required message is recorded as the campaign's postmortem and its body is locked
-    thereafter."""
+    thereafter. All linked bosses are vanquished without design changes."""
     try:
         campaign_core.complete_campaign(resolve_project_root(), name, message)
     except (
@@ -258,7 +261,7 @@ def abandon_campaign(
 ) -> None:
     """Move a campaign from 'draft', 'open', or 'paused' to 'abandoned'. Fails if it has an open
     encounter. The required message is recorded as the campaign's postmortem and its body is
-    locked thereafter."""
+    locked thereafter. Releases all current boss links but retains the historical bosses list."""
     try:
         campaign_core.abandon_campaign(resolve_project_root(), name, message)
     except (
@@ -281,7 +284,7 @@ def archive_campaign(
     """Archive a campaign and all its encounters. The campaign must already be 'completed' or
     'abandoned', and every one of its encounters must also be 'completed' or 'abandoned'. Moves the
     campaign and its encounters into .sourcebook/archive/, mirroring their live layout, and sets
-    archived: true on each - status is preserved, not replaced."""
+    archived: true on each - status is preserved, not replaced. Current bosses are archived too."""
     try:
         campaign, archived_encounters = campaign_core.archive_campaign(resolve_project_root(), name)
     except (

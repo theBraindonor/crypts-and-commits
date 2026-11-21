@@ -109,7 +109,7 @@ def update_region(
         None, "--summary", "-s", help="Short routing summary (max 500 characters). Required alongside the body."
     ),
 ) -> None:
-    """Update an existing region file's body."""
+    """Replace an existing region file's body and summary together."""
     if summary is None:
         fail(console, "A summary is required: pass --summary/-s so the edited body is stored with a current summary.")
 

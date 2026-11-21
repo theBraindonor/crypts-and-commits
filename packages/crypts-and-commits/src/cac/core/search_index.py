@@ -533,9 +533,8 @@ def search(
 ) -> list[SearchHit] | None:
     """Search indexed content for `phrase`, ranked by relevance. Returns `None` if the index has
     never been built (a search is a read and must not create the index file), or the matching
-    page of `SearchHit`s otherwise - possibly empty if nothing matched. Archived campaigns/
-    encounters are excluded by default; pass `include_archived=True` to include them alongside
-    live content."""
+    page of `SearchHit`s otherwise - possibly empty if nothing matched. Archived records are
+    excluded by default; pass `include_archived=True` to include them alongside live content."""
     if not phrase.strip():
         raise EmptySearchPhraseError("Search phrase must not be empty.")
     if limit < 1:

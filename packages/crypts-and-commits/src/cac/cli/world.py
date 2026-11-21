@@ -39,7 +39,8 @@ def set_attribute(
     key: str = typer.Argument(..., help="Frontmatter attribute name, such as merge_target_branch or planning_branch."),
     value: str = typer.Argument(..., help="Frontmatter attribute value."),
 ) -> None:
-    """Set a frontmatter attribute on the world file."""
+    """Set a frontmatter attribute on the world file. Any string is accepted; branch names are not validated
+    against Git."""
     try:
         world_core.set_attribute(resolve_project_root(), key, value)
     except (world_core.WorldNotFoundError, GitIdentityError) as exc:

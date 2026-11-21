@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-21T05:50:00Z'
 name: c004-tool-description-accuracy
-status: draft
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-21T05:50:00Z'
+updated_on: '2026-11-21T06:20:55Z'
 ---
 
 # c004-tool-description-accuracy
@@ -38,3 +38,7 @@ Planned encounters (allocated when drafted):
 - Restructuring `tool-reference.md` itself beyond corrections needed for parity.
 
 ## Log
+
+### Completed - 2026-11-21T06:20:55Z - John Hoff
+
+b004 vanquished in two encounters. e001: index_search and cac index search now name all 8 indexed types and the text each indexes, guarded by tests on both surfaces. e002: audited all 85 MCP tools and 87 CLI commands against tool-reference.md, fixed drift in both surfaces and in tool-reference.md, corrected the world-manager skill templates, and added drift guards for statuses and doc names. Rulings: c004-e001-drift-guard-and-reference-specificity, c004-e002-docs-registry-summaries-in-scope. Rumors spun off: r005 (MCP applicable-lore paging) and r006 (a core description-formatting bug that leaves stray indentation). Lesson: wording-only sweeps need a contract owner to settle disagreements, and the drift guards only cover lists of names, not prose.

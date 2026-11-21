@@ -13,7 +13,7 @@ from cac.core.paths import resolve_project_root
 app = typer.Typer(
     help=(
         "Assemble cross-object context in one call instead of chaining the individual "
-        "world/lore/region/campaign/encounter reads. 'get' returns the global prime bundle; "
+        "world/lore/region/campaign/boss/ruling reads. 'get' returns the global prime bundle; "
         "'applicable-lore' resolves the enabled lore set that applies to a specific encounter."
     )
 )

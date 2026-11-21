@@ -40,7 +40,7 @@ def boss_list(cursor: str | None = None, include_archived: bool = False) -> dict
 @mcp.tool()
 @references.inputs("boss", create=True)
 def boss_create(name: str, body: str, summary: str) -> dict[str, Any]:
-    """create boss planning body and routing summary (maximum 500 characters) together."""
+    """create a proposed boss with planning body and routing summary (maximum 500 characters) together."""
     boss_core.create_boss(resolve_project_root(), name, body, summary)
     return _read_boss(name)
 

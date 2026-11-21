@@ -223,7 +223,7 @@ def delete_encounter(
     campaign: str | None = _campaign_option(),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
 ) -> None:
-    """Delete an encounter file."""
+    """Delete an encounter file. Fails while another encounter depends on it."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     if not yes:
         typer.confirm(f"Delete encounter {name!r}?", abort=True)
@@ -267,7 +267,8 @@ def open_encounter(
     campaign: str | None = _campaign_option(),
     message: str | None = typer.Option(None, "--message", "-m", help="Optional instructions or feedback."),
 ) -> None:
-    """Move an encounter from 'reviewed' to 'open' and begin execution."""
+    """Move an encounter from 'reviewed' to 'open' and begin execution. Fails until every direct
+    dependency is 'completed'."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.open_encounter(resolve_project_root(), campaign, name, message)
@@ -354,7 +355,8 @@ def assign_region(
     region: str = typer.Argument(..., help="Region name to assign the encounter to."),
     campaign: str | None = _campaign_option(),
 ) -> None:
-    """Assign an encounter to a region. An encounter may be assigned to one or more regions."""
+    """Assign an encounter to a region while it is 'draft'. An encounter may be assigned to one or more
+    regions."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.assign_region(resolve_project_root(), campaign, name, region)
@@ -376,7 +378,7 @@ def unassign_region(
     region: str = typer.Argument(..., help="Region name to unassign the encounter from."),
     campaign: str | None = _campaign_option(),
 ) -> None:
-    """Unassign an encounter from a region."""
+    """Unassign an encounter from a region while it is 'draft'."""
     campaign = _resolve_campaign(campaign, require_mutable=True)
     try:
         encounter_core.unassign_region(resolve_project_root(), campaign, name, region)

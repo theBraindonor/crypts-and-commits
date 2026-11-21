@@ -36,9 +36,12 @@ def index_search(
     include_archived: bool = False,
 ) -> dict[str, Any]:
     """Search the index for a phrase, ranked by relevance, with a matching excerpt per result.
-    Boss summary/body is searchable. Archives are excluded unless requested. Missing indexes
-    return built=false; stale indexes return stale=true with no hits and a recovery diagnostic.
-    Rebuild is developer-only via cac index rebuild, never automatic or exposed over MCP."""
+    object_type filters to one of world, lore, region, boss, campaign, encounter, rumor or ruling
+    (omit for all). Indexed text: world, lore, region, campaign and encounter bodies; boss summary
+    and body; rumor summary, origin and body; ruling summary, origin, resolution narrative and body.
+    Every status is searchable; archived records of any type are excluded unless include_archived.
+    Missing indexes return built=false; stale indexes return stale=true with no hits and a recovery
+    diagnostic. Rebuild is developer-only via cac index rebuild, never automatic or exposed over MCP."""
     try:
         hits = search_index_core.search(
             resolve_project_root(),

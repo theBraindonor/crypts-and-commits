@@ -19,7 +19,8 @@ def world_get(cursor: str | None = None) -> dict[str, Any]:
 
 @mcp.tool()
 def world_set(key: str, value: str) -> dict[str, Any]:
-    """Set a frontmatter attribute on the world file."""
+    """Set a frontmatter attribute on the world file, e.g. merge_target_branch or planning_branch.
+    Any string is accepted; branch names are not validated against Git."""
     return world_to_dict(world_core.set_attribute(resolve_project_root(), key, value))
 
 
