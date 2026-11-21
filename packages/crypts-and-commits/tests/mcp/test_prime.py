@@ -35,6 +35,9 @@ def test_prime_world_branch_settings_agree_with_world_tool(legacy_world: Path, o
         "active_bosses",
         "active_boss_diagnostics",
         "active_boss_names",
+        "recorded_rulings",
+        "recorded_ruling_count",
+        "ruling_diagnostics",
         "truncations",
     }
     assert result["world"] == mcp_world.world_get()
@@ -107,3 +110,18 @@ def test_prime_applicable_lore_missing_encounter_raises(tmp_path: Path) -> None:
 
     with pytest.raises(encounter.EncounterNotFoundError):
         mcp_prime.prime_applicable_lore("missing")
+
+
+def test_prime_get_returns_recorded_rulings_matching_core(tmp_path):
+    from cac.core import prime, ruling
+
+    world.initialize_world(tmp_path)
+    campaign.create_campaign(tmp_path, "c002-rulings", "Tactics")
+    campaign.open_campaign(tmp_path, "c002-rulings")
+    ruling.create_ruling(tmp_path, "c002-e000-scope", "Body", "Summary", "GM")
+    result = mcp_prime.prime_get()
+    assert result == prime.present(prime.assemble_prime(tmp_path))
+    assert result["recorded_rulings"] == [
+        {"name": "c002-e000-scope", "campaign": "c002-rulings", "encounter": None, "summary": "Summary"}
+    ]
+    assert result["recorded_ruling_count"] == 1 and result["ruling_diagnostics"] == []

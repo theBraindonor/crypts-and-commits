@@ -484,7 +484,8 @@ returns canonical names and parallel identities with cursor paging; `status`
 filters by status, and an unknown status fails. CLI get prints metadata,
 summary and body literally. Malformed names, unsafe storage, and live/archive
 name collisions fail before writes. Rulings are searchable under
-`object_type` `ruling` (see Search index) and are not yet included in prime.
+`object_type` `ruling` (see Search index), and recorded rulings appear in
+prime as `recorded_rulings` until they are canonized or noted.
 
 ## Prime
 
@@ -497,7 +498,8 @@ name collisions fail before writes. Rulings are searchable under
 body), `world_lore` (enabled world-assigned lore summaries), `regions` (each
 with summary, path and assigned-lore names), `active_campaign`,
 `campaign_body`, `active_boss_names`, `active_bosses`,
-`active_boss_diagnostics` and `truncations`.
+`active_boss_diagnostics`, `recorded_rulings`, `recorded_ruling_count`,
+`ruling_diagnostics` and `truncations`.
 
 - `active_boss_names` lists every declared member.
 - `active_bosses` holds validated entries with `metadata` (`name`, `status`,
@@ -506,13 +508,25 @@ with summary, path and assigned-lore names), `active_campaign`,
   `message`; group or storage errors may use `boss: null`.
 - With no active campaign, or a bossless one, all three lists are empty. There
   is no singular `active_boss` field and no first-boss alias.
+- `recorded_rulings` lists every live `recorded` ruling from any campaign, in
+  canonical-name order, as `{name, campaign, encounter, summary}` routing
+  entries (`encounter` is null for `e000`); hydrate with `ruling_get(name)`.
+  Canonized, noted and archived rulings are excluded, with or without an
+  active campaign. `recorded_ruling_count` is the exact number found.
+- `ruling_diagnostics` holds `{code: "invalid_ruling", ruling, message}`
+  entries for damaged ruling records, which never fail the bundle; a listing
+  failure is reported once with `ruling: null`.
 
 The serialized bundle shares one response budget. Metadata and routing are
 reserved first, then the remaining space is divided among the bodies in world,
 campaign, boss order. `truncations` is empty when everything fits; each cut
 adds `{field, notice: "TRUNCATED", ref: {tool, name?}}` pointing at `world_get`,
-`campaign_get` or `boss_get`. If metadata alone cannot fit, the call fails;
-routing is never silently dropped. The CLI renders the same facts literally.
+`campaign_get` or `boss_get`. If the bundle still does not fit once bodies are
+empty, trailing `recorded_rulings` entries are dropped and one notice
+`{field: "recorded_rulings", notice: "TRUNCATED", ref: {tool: "ruling_list",
+status: "recorded"}}` is added; the count and diagnostics are never cut. If
+the remaining metadata cannot fit, the call fails; routing is never silently
+dropped. The CLI renders the same facts literally.
 
 `prime_applicable_lore` returns a list of `{name, summary, ref}` entries, where
 `ref` is the lore name to pass to `lore_get`.

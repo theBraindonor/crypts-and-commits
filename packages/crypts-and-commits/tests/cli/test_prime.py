@@ -279,3 +279,30 @@ def test_applicable_lore_rejects_invalid_cursor(
     result = runner.invoke(app, ["prime", "applicable-lore", "goblin-ambush", "--cursor", "not-a-number"])
 
     assert result.exit_code == 1
+
+
+def test_get_shows_recorded_rulings_literally(tmp_path):
+    from cac.core import campaign, ruling, world
+
+    world.initialize_world(tmp_path)
+    result = runner.invoke(app, ["prime", "get"])
+    assert "== Recorded Rulings ==" in result.output and "No recorded rulings." in result.output
+    campaign.create_campaign(tmp_path, "c002-rulings", "Tactics")
+    campaign.open_campaign(tmp_path, "c002-rulings")
+    ruling.create_ruling(tmp_path, "c002-e000-scope", "Body", "[tool.pdm] [bold]literal[/bold]", "GM")
+    result = runner.invoke(app, ["prime", "get"])
+    assert result.exit_code == 0, result.output
+    assert "count: 1" in result.output
+    assert "c002-e000-scope: [tool.pdm] [bold]literal[/bold]" in result.output
+    assert "No recorded rulings." not in result.output
+
+
+def test_get_prints_bracketed_ruling_diagnostics_literally(tmp_path):
+    from cac.core import ruling, world
+
+    world.initialize_world(tmp_path)
+    ruling.ruling_dir(tmp_path).mkdir(parents=True)
+    (ruling.ruling_dir(tmp_path) / "[bad].md").write_text("---\n---\n", encoding="utf-8")
+    result = runner.invoke(app, ["prime", "get"])
+    assert result.exit_code == 0, result.output
+    assert "invalid_ruling" in result.output and "[bad]" in result.output

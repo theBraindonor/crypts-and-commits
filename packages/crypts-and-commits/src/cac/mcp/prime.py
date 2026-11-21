@@ -16,7 +16,9 @@ def prime_get() -> dict[str, Any]:
     """Assemble the global prime bundle: world (full) + world-assigned enabled lore
     (summaries) + region map (summary + path + assigned-lore edge names per region) +
     the active campaign and all linked bosses. Bodies share one budget; truncations contain hydration refs.
-    active_boss_names preserves declared membership; active_boss_diagnostics identifies broken ownership."""
+    active_boss_names preserves declared membership; active_boss_diagnostics identifies broken ownership.
+    recorded_rulings lists every untriaged ruling as {name, campaign, encounter, summary} (hydrate with
+    ruling_get); recorded_ruling_count is exact and ruling_diagnostics reports damaged ruling records."""
     return _prime_bundle_to_dict(prime_core.assemble_prime(resolve_project_root()))
 
 

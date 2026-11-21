@@ -450,7 +450,8 @@ hindsight: **canonize** with a narrative of the world, lore or region updates
 made, or **note** with a narrative of why none is needed. Either narrative
 becomes `resolution`; **reopen** returns it to `recorded`. Rulings name no lore
 records. **Archive** retires a canonized or noted ruling, independently of
-campaign archival. There is no delete. Rulings are searchable under their own type, not yet primed.
+campaign archival. There is no delete. Rulings are searchable under their own
+type, and recorded rulings appear in prime until triaged.
 
 ## Explicit user gates
 
@@ -544,7 +545,8 @@ much context as a task needs:
 
 1. **Orient** with `prime_get`, once per session or before other work. It
    returns the full world, world-lore summaries, the region map, the active
-   campaign body, and the active bosses with diagnostics. Hydrate truncated
+   campaign body, the active bosses with diagnostics, and recorded (untriaged)
+   rulings as summaries. Hydrate truncated
    bodies through the refs it returns. Empty membership is different from a
    named member that is missing or broken.
 2. **Focus** on a region when one is in scope: read the region, then the

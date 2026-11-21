@@ -9,9 +9,9 @@ kind: scripted
 name: e003-ruling-prime-exposure
 regions:
 - crypts-and-commits
-status: reviewed
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-21T02:40:52Z'
+updated_on: '2026-11-21T02:46:39Z'
 ---
 
 ## Requirements
@@ -107,3 +107,28 @@ PASS-WITH-NOTES.
 - workflow-doc-source-of-truth: honored. `tool-reference.md` (fields, shape, diagnostics, budget degradation), `workflow.md` (Rulings section, disclosure-ladder step 1, within the 45k cap), the MCP docstring and the CLI help are all updated in the same change and checked against the diff.
 - Plan feasibility: the named `ruling.list_rulings`/`read_metadata` and `prime.present` structure support the design as written.
 - Flagged but unverified: the demo-api `assemble_prime` caller; `cli/prime.py` must render a truncation ref that has `status` and no `name`; the live smoke test assumes two recorded c002/e001 rulings.
+
+### Opened - 2026-11-21T02:41:29Z - John Hoff
+
+Opened with developer approval. Implementation will fold in the reviewer notes.
+
+### Message - 2026-11-21T02:46:39Z - John Hoff
+
+Implementation complete, pending developer confirmation.
+
+**Reviewer notes:**
+1. Every line in the CLI Recorded Rulings section, including the diagnostic JSON, prints with `markup=False`. A CLI test covers a bracketed diagnostic from an invalid `[bad].md` filename.
+2. The CLI prints truncation notices as generic compact JSON, so the ruling notice's ref (`{tool: "ruling_list", status: "recorded"}`) renders without special handling.
+3. The demo API's `render_context_priming` reads only existing bundle fields, and the new fields have defaults. Its tests pass in the full suite.
+4. The live check found this repo's two recorded c002/e001 rulings, as expected.
+
+**Implementation notes:**
+- The ruling truncation adds its notice before dropping entries, so the notice's own size counts against the budget. `present` works on a copy, so the in-process bundle keeps all entries (tested).
+- `test_prime_world_branch_settings_agree_with_world_tool` asserted the exact bundle keys and was updated, as the plan anticipated.
+
+**Docs:** `tool-reference.md` Prime section covers the fields, entry shape, diagnostics and ruling truncation rule; its Rulings section now points to prime. The `workflow.md` Rulings section and disclosure-ladder step 1 mention recorded rulings. The guide is about 40,837 characters, under the 45,000 cap. The `prime_get` docstring and `cac prime get` help are updated.
+
+**Verification:**
+- pytest: 1690 passed. `ruff format .` applied; `ruff check` and `ruff format --check` clean.
+- Scratch-project smoke test passed every step: two recorded rulings showed count 2; after canonizing one, only the other was listed; after the campaign completed, it was still listed; after it was noted and archived, prime showed "No recorded rulings."
+- The live read-only check used the CLI (`cac prime get`), because the MCP server still runs older code until it reconnects. It listed both c002-e001 rulings with count 2. The MCP `prime_get` check is pending a reconnect.
