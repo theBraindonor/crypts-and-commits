@@ -8,9 +8,9 @@ kind: scripted
 name: e001-ruling-records-core
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-21T02:14:29Z'
+updated_on: '2026-11-21T02:16:00Z'
 ---
 
 ## Requirements
@@ -151,3 +151,7 @@ Implementation complete, pending developer confirmation.
 - `ruff check` and `ruff format --check`: clean.
 - `cac ruling -h` lists the 8 commands, and the 8 `ruling_*` MCP tools are registered.
 - Scratch-project smoke test passed every step: create under e001 and under e000; canonize and note; reopen and re-dispose; archive both; get the archived record; pause the campaign, then create is refused with the rumor hint; and `cac ruling get c001` is refused as not canonical. The scratch world was seeded through core `world.initialize_world`, not `cac bootstrap init`.
+
+### Completed - 2026-11-21T02:16:00Z - John Hoff
+
+Completed with developer confirmation. Verification passed: 1670 tests passed, ruff check and format clean, 8 CLI commands matched by 8 registered MCP tools, and the scratch-project smoke test passed every step. Implementation commit 1e52f9c.
