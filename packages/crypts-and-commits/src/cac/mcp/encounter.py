@@ -141,8 +141,8 @@ def encounter_abandon(name: str, message: str, campaign: str | None = None) -> d
 @mcp.tool()
 @references.inputs("encounter", mutable=True)
 def encounter_assign_region(name: str, region: str, campaign: str | None = None) -> dict[str, Any]:
-    """Assign an encounter to a region. An encounter may be assigned to one or more regions; the
-    link is recorded only on the encounter."""
+    """Assign an encounter to a region while it is 'draft'. An encounter may be assigned to one or
+    more regions; the link is recorded only on the encounter."""
     resolved = _resolve_campaign(campaign, require_mutable=True)
     return encounter_to_dict(encounter_core.assign_region(resolve_project_root(), resolved, name, region))
 
@@ -150,7 +150,7 @@ def encounter_assign_region(name: str, region: str, campaign: str | None = None)
 @mcp.tool()
 @references.inputs("encounter", mutable=True)
 def encounter_unassign_region(name: str, region: str, campaign: str | None = None) -> dict[str, Any]:
-    """Unassign an encounter from a region."""
+    """Unassign an encounter from a region while it is 'draft'."""
     resolved = _resolve_campaign(campaign, require_mutable=True)
     return encounter_to_dict(encounter_core.unassign_region(resolve_project_root(), resolved, name, region))
 

@@ -107,3 +107,11 @@ def test_invalid_inputs_raise_without_writes(tmp_path):
     with pytest.raises(ValueError, match="rumor"):
         api.ruling_create(NAME, "Body", "Summary", "GM")
     assert not ruling_core.ruling_dir(tmp_path).exists()
+
+
+def test_ruling_list_description_names_every_status() -> None:
+    import re
+
+    description = api.ruling_list.__doc__ or ""
+    missing = [s for s in config.RULING_STATUSES if not re.search(rf"\b{re.escape(s)}\b", description)]
+    assert missing == [], f"ruling_list description omits statuses: {missing}"

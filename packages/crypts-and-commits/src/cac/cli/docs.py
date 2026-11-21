@@ -42,7 +42,9 @@ def get_doc(
     name: str = typer.Argument(..., help="Doc name to show."),
     cursor: str | None = typer.Option(None, "--cursor", help=CURSOR_HELP),
 ) -> None:
-    """Show a registered doc's full body; a long body continues with --cursor."""
+    """Show a registered doc's full body; a long body continues with --cursor. Registered docs:
+    workflow, planning-workflow, development-workflow, tool-reference, branching-guide and
+    migration-guide."""
     try:
         body = docs_core.read_doc(name)
     except docs_core.DocNotFoundError as exc:

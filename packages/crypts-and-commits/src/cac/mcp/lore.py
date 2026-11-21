@@ -42,7 +42,8 @@ def lore_create(name: str, body: str, summary: str) -> dict[str, Any]:
 
 @mcp.tool()
 def lore_update(name: str, body: str, summary: str) -> dict[str, Any]:
-    """Replace an existing lore file's body, regenerating its summary in the same write."""
+    """Replace an existing lore file's body and summary together; summary (max 500 characters) is
+    required so the body never changes without a current summary."""
     root = resolve_project_root()
     lore_core.update_lore(root, name, body, summary)
     return lore_to_dict(lore_core.read_lore(root, name))

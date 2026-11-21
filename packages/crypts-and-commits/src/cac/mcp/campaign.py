@@ -73,7 +73,8 @@ def campaign_update(name: str, body: str) -> dict[str, Any]:
 @mcp.tool()
 @references.inputs("campaign")
 def campaign_delete(name: str) -> dict[str, str]:
-    """Delete a bossless campaign only; origin history and reverse boss claims protect deletion."""
+    """Delete a bossless campaign only: refused while it has any current or historical bosses
+    membership or a boss still claims it."""
     path = campaign_core.delete_campaign(resolve_project_root(), name)
     return {"deleted": str(path)}
 

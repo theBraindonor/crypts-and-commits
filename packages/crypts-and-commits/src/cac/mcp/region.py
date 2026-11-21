@@ -38,7 +38,8 @@ def region_create(name: str, body: str, summary: str, path: str = "") -> dict[st
 
 @mcp.tool()
 def region_update(name: str, body: str, summary: str) -> dict[str, Any]:
-    """Replace an existing region's body, regenerating its summary in the same write."""
+    """Replace an existing region's body and summary together; summary (max 500 characters) is
+    required so the body never changes without a current summary."""
     root = resolve_project_root()
     region_core.update_region(root, name, body, summary)
     return region_to_dict(region_core.read_region(root, name))

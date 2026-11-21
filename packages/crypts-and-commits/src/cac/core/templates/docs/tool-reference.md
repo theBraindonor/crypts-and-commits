@@ -255,6 +255,12 @@ after alias resolution are rejected. A same-set `set-bosses` request is
 read-only regardless of order. Membership changes log the old names, new names
 and reason once, and later body updates preserve that Log entry.
 
+Lifecycle operations update linked bosses' frontmatter, never their bodies:
+complete vanquishes every linked boss, abandon releases all current links while
+retaining the historical `bosses` list, and archive moves current bosses with
+the campaign. Delete is refused while the campaign has any current or
+historical `bosses` membership or a boss still claims it.
+
 Campaign reads expose the canonical `bosses` list. Legacy singular `boss`
 storage reads as a one-member list and an absent or null field reads as empty;
 storage with both fields, malformed values or duplicates fails. Reads never
@@ -290,7 +296,8 @@ reading an archived record never restores it.
 
 `encounter_open` fails while any direct prerequisite is not completed, listing
 every unsatisfied prerequisite with its status. `encounter_delete` fails while
-another encounter depends on the target. When `--body` and `--body-file` are
+another encounter depends on the target. Region and dependency assignments
+change only while the encounter is `draft`. When `--body` and `--body-file` are
 both absent, `cac encounter create` opens an editor on the template for the
 chosen kind.
 

@@ -20,7 +20,9 @@ def docs_list(cursor: str | None = None) -> dict[str, Any]:
 @mcp.tool()
 def docs_get(name: str, cursor: str | None = None) -> dict[str, Any]:
     """Show a registered doc's full body - planning-workflow for goals/context/triage,
-    development-workflow for campaigns/encounters/gates, or workflow for the short routing index.
+    development-workflow for campaigns/encounters/gates, workflow for the short routing index,
+    tool-reference for exact MCP/CLI contracts, branching-guide for worked Git examples, or
+    migration-guide for upgrades and adoption.
     Body is fitted to a dedicated, larger docs response budget (docs are a small curated
     set meant to be read whole); a truncated result carries notice and next_cursor - call again
     with cursor=next_cursor to continue."""

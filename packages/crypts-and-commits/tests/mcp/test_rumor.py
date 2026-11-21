@@ -107,3 +107,11 @@ def test_invalid_inputs_raise_without_writes(tmp_path):
     with pytest.raises(FileNotFoundError):
         api.rumor_promote("r001", "b404")
     assert api.rumor_get("r001")["metadata"]["status"] == "open"
+
+
+def test_rumor_list_description_names_every_status() -> None:
+    import re
+
+    description = api.rumor_list.__doc__ or ""
+    missing = [s for s in config.RUMOR_STATUSES if not re.search(rf"\b{re.escape(s)}\b", description)]
+    assert missing == [], f"rumor_list description omits statuses: {missing}"

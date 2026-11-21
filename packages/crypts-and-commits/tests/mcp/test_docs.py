@@ -60,3 +60,16 @@ def test_docs_list_pages_all_registered_guides(monkeypatch: pytest.MonkeyPatch) 
             break
 
     assert items == [{"name": name, "summary": summary} for name, summary in docs_core.list_docs()]
+
+
+def test_docs_get_description_names_every_registered_doc() -> None:
+    import re
+
+    description = mcp_docs.docs_get.__doc__ or ""
+    # Hyphen-aware boundaries so "workflow" isn't satisfied by "planning-workflow".
+    missing = [
+        name
+        for name, _summary in docs_core.list_docs()
+        if not re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", description)
+    ]
+    assert missing == [], f"docs_get description omits registered docs: {missing}"
