@@ -1,19 +1,32 @@
 ---
-archived: false
+archived: true
 campaign: c002-rulings
 created_by: John Hoff
 created_on: '2026-11-21T03:43:43Z'
 encounter: e006-ruling-guides-and-public-docs
-history: []
+history:
+- action: canonize
+  by: John Hoff
+  message: 'Verified the existing approved change to region crypts-and-commits through
+    region_get: its Architecture rule includes ruling.py in the core module list,
+    and its routing summary remains unchanged. That region-body update was made during
+    c002/e006 under the developer-approved deviation and is the standing world change
+    that canonizes this ruling; no additional edit or general scope-expansion rule
+    is needed.'
+  'on': '2026-11-21T04:33:52Z'
 name: c002-e006-region-text-in-scope
 origin: Developer (John Hoff), during c002/e006 execution
-resolution: null
-status: recorded
+resolution: 'Verified the existing approved change to region crypts-and-commits through
+  region_get: its Architecture rule includes ruling.py in the core module list, and
+  its routing summary remains unchanged. That region-body update was made during c002/e006
+  under the developer-approved deviation and is the standing world change that canonizes
+  this ruling; no additional edit or general scope-expansion rule is needed.'
+status: canonized
 summary: Fix the crypts-and-commits region body's stale core/ module list (add ruling.py)
   inside e006 with the summary unchanged, rather than deferring it as a rumor. Stale
   priming text is fixed in the docs encounter that finds it.
 updated_by: John Hoff
-updated_on: '2026-11-21T03:43:43Z'
+updated_on: '2026-11-21T04:33:52Z'
 ---
 
 ## Decision

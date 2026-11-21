@@ -1,19 +1,29 @@
 ---
-archived: false
+archived: true
 campaign: c002-rulings
 created_by: John Hoff
 created_on: '2026-11-21T02:20:44Z'
 encounter: e001-ruling-records-core
-history: []
+history:
+- action: note
+  by: John Hoff
+  message: No additional standing world guidance is needed for the temporary 45,000-character
+    test cap. The lasting guide split and reconsideration of per-guide headroom are
+    now captured in proposed b006-split-workflow-guide-by-phase, promoted from r004.
+    The stopgap remains historical context, not a permanent size policy.
+  'on': '2026-11-21T04:33:52Z'
 name: c002-e001-workflow-cap-stopgap
 origin: Developer (GM), during c002/e001-ruling-records-core execution
-resolution: null
-status: recorded
+resolution: No additional standing world guidance is needed for the temporary 45,000-character
+  test cap. The lasting guide split and reconsideration of per-guide headroom are
+  now captured in proposed b006-split-workflow-guide-by-phase, promoted from r004.
+  The stopgap remains historical context, not a permanent size policy.
+status: noted
 summary: Raise the workflow.md size cap from 40,000 to 45,000 characters as a stopgap,
   rather than trimming unrelated prose or moving lifecycle text into tool-reference.
   Splitting the guide by phase (r004) is the real fix.
 updated_by: John Hoff
-updated_on: '2026-11-21T02:20:44Z'
+updated_on: '2026-11-21T04:33:52Z'
 ---
 
 ## Decision

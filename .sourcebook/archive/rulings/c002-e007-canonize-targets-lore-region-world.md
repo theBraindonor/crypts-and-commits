@@ -1,19 +1,33 @@
 ---
-archived: false
+archived: true
 campaign: c002-rulings
 created_by: John Hoff
 created_on: '2026-11-21T03:47:16Z'
 encounter: e007-canonize-targets-lore-region-world
-history: []
+history:
+- action: canonize
+  by: John Hoff
+  message: Verified world_get already describes ruling canonization as a narrative
+    of lore, region or world changes. The standing world summary and the c002/e007
+    guidance alignment embody the developer's decision that any of those three context
+    types may be updated; dispositions remain narrative without formal target links.
+    This supersedes the narrower lore-only wording in b005's frozen summary, which
+    is preserved as historical design text. No additional world edit is needed.
+  'on': '2026-11-21T04:33:52Z'
 name: c002-e007-canonize-targets-lore-region-world
 origin: Developer (John Hoff), reviewing c002 before campaign completion
-resolution: null
-status: recorded
+resolution: Verified world_get already describes ruling canonization as a narrative
+  of lore, region or world changes. The standing world summary and the c002/e007 guidance
+  alignment embody the developer's decision that any of those three context types
+  may be updated; dispositions remain narrative without formal target links. This
+  supersedes the narrower lore-only wording in b005's frozen summary, which is preserved
+  as historical design text. No additional world edit is needed.
+status: canonized
 summary: Canonizing a ruling may target lore, a region or the world (ruling -> lore
   | region | world), not only lore. The narrative names whatever was updated; there
   are still no formal links. Supersedes the lore-only wording in b005's frozen summary.
 updated_by: John Hoff
-updated_on: '2026-11-21T03:47:16Z'
+updated_on: '2026-11-21T04:33:52Z'
 ---
 
 ## Decision

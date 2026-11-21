@@ -5,15 +5,17 @@
 This reference holds the field-level contracts of the Crypts and Commits ("CAC")
 MCP tools and `cac` CLI commands: names, arguments, result shapes, error and
 guard conditions, response budgets, and cursor continuation. It is paired with
-the [Workflow Reference Guide](workflow.md), which owns the domain model, status
-lifecycles, cross-type connections, approval gates, and agent procedure. When a
-statement here and a statement there seem to overlap, the workflow guide is
+the [Planning Workflow](planning-workflow.md) and
+[Development Workflow](development-workflow.md), which own the domain model,
+lifecycles, cross-type connections, approval gates and agent procedure. When a
+statement here and a statement there seem to overlap, the owning phase workflow is
 authoritative for what a rule means and when it applies, and this reference is
 authoritative for how a tool or command expresses it.
 
 Read this reference through `docs_get("tool-reference")` / `cac docs get
-tool-reference`, and the workflow guide through `docs_get("workflow")` / `cac
-docs get workflow`. Tool docstrings and `cac <group> <command> --help` remain
+tool-reference`, and the phase guides through `docs_get("planning-workflow")` or
+`docs_get("development-workflow")` (CLI: `cac docs get planning-workflow` or
+`cac docs get development-workflow`). `workflow` is a short routing index. Tool docstrings and `cac <group> <command> --help` remain
 the quickest route for a single operation; read this reference when you need
 the shared conventions that apply across operations.
 
@@ -595,5 +597,5 @@ sourcebook schema version.
 `docs_list` pages `{name, summary}` pairs. `docs_get` returns `name`,
 `summary` and `body`, using the dedicated docs budget and the shared
 continuation rules. Docs are packaged, read-only and framework-owned. The
-registered docs are `workflow`, `tool-reference`, `branching-guide` and
-`migration-guide`.
+registered docs are `workflow` (routing index), `planning-workflow`,
+`development-workflow`, `tool-reference`, `branching-guide` and `migration-guide`.

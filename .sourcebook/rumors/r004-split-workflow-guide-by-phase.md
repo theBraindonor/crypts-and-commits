@@ -1,18 +1,24 @@
 ---
 archived: false
-boss: null
+boss: b006-split-workflow-guide-by-phase
 created_by: John Hoff
 created_on: '2026-11-21T02:11:14Z'
-history: []
+history:
+- action: promote
+  by: John Hoff
+  message: Developer approved a separate boss for the phase-specific workflow guide
+    split; scope, success criteria and unresolved design choices are captured in b006.
+  'on': '2026-11-21T04:31:57Z'
 name: r004-split-workflow-guide-by-phase
 origin: Developer (GM), during c002/e001-ruling-records-core execution
-resolution: null
-status: open
+resolution: Developer approved a separate boss for the phase-specific workflow guide
+  split; scope, success criteria and unresolved design choices are captured in b006.
+status: promoted
 summary: Split the packaged workflow guide into a development (execution) flavor and
   a planning flavor. The single guide has outgrown its 40,000-character headroom cap,
   and rulings add more procedure.
 updated_by: John Hoff
-updated_on: '2026-11-21T02:11:14Z'
+updated_on: '2026-11-21T04:31:57Z'
 ---
 
 ## Observation

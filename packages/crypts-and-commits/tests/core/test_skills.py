@@ -5,7 +5,7 @@ from pathlib import Path
 import frontmatter
 import pytest
 from cac.cli.app import app
-from cac.core import config, skills, templates
+from cac.core import config, docs, skills, templates
 from cac.mcp import server
 from typer.main import get_command
 
@@ -76,6 +76,26 @@ def test_packaged_skill_metadata_and_callable_examples_match_interfaces(flavor, 
     for group, command in examples:
         assert group in cli.commands, (name, group)
         assert command in cli.commands[group].commands, (name, group, command)
+    doc_targets = set(re.findall(r'docs_get\("([a-z-]+)"\)', normalized))
+    doc_targets.update(re.findall(r"\bcac docs get ([a-z][a-z-]*)", body))
+    assert doc_targets <= {name for name, _ in docs.list_docs()}, (flavor, name, doc_targets)
+    phase = {"world-planner": "planning-workflow", "campaign-manager": "development-workflow"}.get(name)
+    if phase:
+        assert phase in doc_targets
+    else:
+        assert {"planning-workflow", "development-workflow"} <= doc_targets
+
+
+@pytest.mark.parametrize("flavor", ["claude", "codex"])
+def test_campaign_templates_keep_separate_encounter_approval_gates(flavor):
+    body = templates.load(f"skills.{flavor}.campaign_manager", "SKILL.md")
+    assert "Get the user's explicit approval before spawning" in body
+    assert "wait for an explicit yes" in body
+    assert "get the user's explicit approval again" in body
+    opening = body.split("**`reviewed` → `open`**", 1)[1].split("\n\n", 1)[0]
+    assert "get explicit approval from the user" in opening
+    closing = body.split("**`open` → `completed`**", 1)[1].split("\n\n", 1)[0]
+    assert "confirm with the user before marking it complete" in closing
 
 
 _RULING_GUIDANCE = {

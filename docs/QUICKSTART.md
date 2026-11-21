@@ -68,8 +68,9 @@ file - for example:
 From here, your agent drives `.sourcebook/` for you: building out lore,
 regions, future goals with world-planner, and chosen campaigns with campaign-manager.
 If you (or your agent) ever need the
-full domain-model reference, it's one call away - `cac docs get workflow`, or
-ask the agent to look it up. Exact tool and command contracts are in
+procedural detail, use `cac docs get planning-workflow` for goals, context and
+triage, or `cac docs get development-workflow` for campaigns, encounters and gates.
+`cac docs get workflow` returns a short task router. Exact tool and command contracts are in
 `cac docs get tool-reference`.
 
 Read the [Branching Guide](../packages/crypts-and-commits/src/cac/core/templates/docs/branching-guide.md)
@@ -169,7 +170,8 @@ Good to know:
   `prime get` includes every boss selected by the active campaign. Rumors are
   covered in the next section.
 
-State guards and dependency validation are in `cac docs get workflow`; paging
+Boss state guards and dependency validation are in `cac docs get planning-workflow`;
+campaign/encounter guards are in `cac docs get development-workflow`. Paging
 and response contracts are in `cac docs get tool-reference`.
 
 ### Capture ideas as rumors

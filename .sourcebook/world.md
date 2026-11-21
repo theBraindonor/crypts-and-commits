@@ -4,7 +4,7 @@ assigned_lore:
 name: Crypts and Commits
 schema_version: '1'
 updated_by: John Hoff
-updated_on: '2026-11-21T03:52:19Z'
+updated_on: '2026-11-21T05:31:37Z'
 ---
 
 # Crypts and Commits
@@ -28,7 +28,7 @@ Bosses, campaigns, encounters and rumors use numbered names (`b001-...`, `c001-.
 
 ## Skills and workflow
 
-`world-manager` primes static context, `world-planner` owns goal planning and rumor triage, and `campaign-manager` owns tactical selection and encounter execution. The recommended branch workflow - planning on the planning branch, goal registration on an assignment branch, execution on the campaign's own branch, integration into the merge target - is skill guidance; endpoints stay branch-agnostic. The registered `workflow`, `tool-reference`, `branching-guide` and `migration-guide` docs (`docs_get`) are the detailed references.
+`world-manager` primes static context, `world-planner` owns goal planning and rumor triage, and `campaign-manager` owns tactical selection and encounter execution. The recommended branch workflow - planning on the planning branch, goal registration on an assignment branch, execution on the campaign's own branch, integration into the merge target - is skill guidance; endpoints stay branch-agnostic. The registered `planning-workflow` and `development-workflow` docs (`docs_get`) provide phase-specific procedure with synchronized shared rules; `workflow` is a short routing index. `tool-reference` owns exact contracts, `branching-guide` supplies worked Git examples, and `migration-guide` covers upgrades and adoption.
 
 ## Guardrail
 
