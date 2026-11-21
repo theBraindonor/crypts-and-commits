@@ -9,9 +9,9 @@ kind: scripted
 name: e004-ruling-workflow-procedure
 regions:
 - crypts-and-commits
-status: draft
+status: reviewed
 updated_by: John Hoff
-updated_on: '2026-11-21T02:55:47Z'
+updated_on: '2026-11-21T02:58:54Z'
 ---
 
 ## Requirements
@@ -97,3 +97,9 @@ b005's success criteria call for skill guidance on capture and triage. The proce
   - each of the five edits is present;
   - no statement contradicts e001–e003 behavior (capture guard, lifecycle, archival independence, prime and search);
   - `tool-reference.md` needs no change.
+
+## Log
+
+### Review - 2026-11-21T02:58:54Z - John Hoff
+
+PASS-WITH-NOTES: e004 is a docs-only change to packaged `workflow.md`, the owner of skill procedure under workflow-doc-source-of-truth. It gives a specific reason why tool-reference.md needs no change: no tool contract changes, and encounter_review needs only a message and a region. Every override touchpoint it names exists in the current guide: Ownership, Allocate numbers, Explicit user gates and "Not separately gated", Review flow, the Codex "After every review" paragraph, lifecycle step 5 and Planning handoff. The new procedure agrees with the existing Rulings section: open or reactivated campaign, e000, unique slugs, required narratives, archive only after a disposition, no delete, and rumor fallback. skills-authored-only-in-templates is honored: no template or deployed skill is edited, both provider templates are deferred to the next c002 encounter, and redeployment is left to the developer. clean-tests-and-lint is honored through pytest (including the test_docs size cap and leak guard) and ruff checks; cli-mcp-parity and console-best-practices do not apply. Notes: (1) the Encounter table's draft-to-reviewed guard ("Performed by an independent reviewer, never the author") is not listed as a touchpoint; the consistency search should evaluate it for the override path and clarify it if needed; (2) prefer "verbatim" over "faithfully transcribed" for keeping the reviewer's findings in an override message, to stay clear of the never-rewrite-the-reviewer rule; (3) the guide will describe the override in its gates before the campaign_manager templates do, so the follow-up encounter must carry it into both templates' gate wording; (4) the size margin is tight (40,837 of 45,000 characters), so trim prose rather than relax the cap. Unverified: fit to b005's Scope and Success Criteria, and the tool-reference and template text, which are outside the cited reading surface.
