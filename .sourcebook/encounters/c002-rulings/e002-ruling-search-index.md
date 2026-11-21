@@ -9,9 +9,9 @@ kind: scripted
 name: e002-ruling-search-index
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-21T02:30:49Z'
+updated_on: '2026-11-21T02:31:59Z'
 ---
 
 ## Requirements
@@ -124,3 +124,7 @@ Implementation complete, pending developer confirmation.
   - After the outside file edit, `cac index status` reported stale and search exited 1.
 
 **After merge:** this repo's index stays stale until the developer runs `cac index rebuild`.
+
+### Completed - 2026-11-21T02:31:59Z - John Hoff
+
+Completed with developer confirmation. Verification passed: 1680 tests passed, ruff check and format clean, and the scratch-project smoke test passed every step. Implementation commit f91556b. This repo's index needs the developer-run `cac index rebuild`.
