@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-21T15:45:09Z'
 name: c005-clean-tool-descriptions
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-21T15:45:59Z'
+updated_on: '2026-11-21T16:04:33Z'
 ---
 
 # c005 Clean Tool Descriptions
@@ -30,3 +30,9 @@ Vanquish b007-clean-reference-tool-descriptions: every reference-taking MCP tool
 ## Branches
 
 Registered on `c005-clean-tool-descriptions-assignment`; executed on `c005-clean-tool-descriptions`; integrated into `main`.
+
+## Log
+
+### Completed - 2026-11-21T16:04:33Z - John Hoff
+
+Postmortem: b007 vanquished in a single scripted encounter (e001), as its design notes predicted. Measuring before drafting widened the scope usefully: 14 undecorated MCP tools leaked indentation because MCPServer passes docstrings verbatim, so the GM ruled to clean every MCP description centrally (c005-e001-clean-all-mcp-descriptions-centrally) and to tailor the contract footer per domain in this campaign rather than a rumor (c005-e001-tailor-contract-footer-per-domain), relaxing b007's contract-text-unchanged criterion for the encounter-context sentence only. Result: 0/85 MCP descriptions and 0/87 CLI commands with stray indentation (from 38 and 11), guarded by repository-wide tests that failed pre-fix; tool-reference.md documents the domain-specific footer. Independent review PASS-WITH-NOTES; all four notes addressed. pytest 1735 passed, ruff clean. Residual cosmetic: *_get docstrings keep a mid-sentence source line break ("call / again with cursor..."), which passes the guard and was left unchanged. No rumors raised; two rulings recorded for planning triage. origin/main had not moved since registration, so no logical collisions.
