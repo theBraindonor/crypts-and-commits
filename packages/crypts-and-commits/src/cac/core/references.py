@@ -15,7 +15,7 @@ from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
-from inspect import signature
+from inspect import cleandoc, signature
 from pathlib import Path
 from typing import Any
 
@@ -293,17 +293,26 @@ def inputs(
         invoke.reference_contract = {"domain": domain, "create": create, "mutable": mutable, "remove": remove}
         if domain in _CANONICAL_ONLY:
             contract = (
-                f"\nExisting {domain} targets accept full canonical names only (cNNN-eNNN-slug), live or archived; "
+                f"Existing {domain} targets accept full canonical names only (cNNN-eNNN-slug), live or archived; "
                 "there are no short refs. Create names are literal. Identity metadata reports short null with "
                 "reason canonical_only; numbering and Git automation are not performed."
             )
         else:
-            contract = (
-                f"\nExisting {domain} targets accept full canonical names or {_SYNTAX[domain]}; exact canonical names win; refs include archived records and reject ambiguity. "
-                "Create names are literal. Qualified encounter context overrides active fallback and must agree with an explicit campaign. "
-                "Resolved identity metadata retains canonical names; numbering and Git automation are not performed."
+            # Only encounter selection parses qualified cNNN/eNNN context.
+            qualified = (
+                "Qualified encounter context overrides active fallback and must agree with an explicit campaign. "
+                if domain == "encounter"
+                else ""
             )
-        invoke.__doc__ = (function.__doc__ or "") + contract
+            contract = (
+                f"Existing {domain} targets accept full canonical names or {_SYNTAX[domain]}; exact canonical names "
+                "win; refs include archived records and reject ambiguity. Create names are literal. "
+                f"{qualified}Resolved identity metadata retains canonical names; numbering and Git automation are "
+                "not performed."
+            )
+        # Clean first: an unindented footer after indented continuation lines would defeat later cleaning.
+        original = cleandoc(function.__doc__ or "")
+        invoke.__doc__ = f"{original}\n{contract}" if original else contract
         return invoke
 
     return decorate

@@ -1,5 +1,8 @@
+import re
+
 import pytest
 from cac.cli.app import app
+from typer.main import get_command
 from typer.testing import CliRunner
 
 runner = CliRunner()
@@ -35,3 +38,22 @@ def test_root_callback_configures_output_encoding(monkeypatch: pytest.MonkeyPatc
     runner.invoke(app, ["world", "get"])
 
     assert calls == [True]
+
+
+def _leaf_commands(command, path=()):
+    if hasattr(command, "commands"):
+        for name, child in command.commands.items():
+            yield from _leaf_commands(child, (*path, name))
+    else:
+        yield " ".join(path), command
+
+
+def test_every_command_help_is_clean_prose() -> None:
+    """Undecorated help relies on Typer/click docstring cleaning; decorated help on references.inputs.
+    Walking every leaf command verifies both."""
+    commands = list(_leaf_commands(get_command(app)))
+    assert commands
+    for path, command in commands:
+        help_text = command.help or ""
+        assert not re.search(r"\S {2,}", help_text), path
+        assert not re.search(r"\n[ \t]+", help_text), path

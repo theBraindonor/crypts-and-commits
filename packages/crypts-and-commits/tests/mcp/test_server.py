@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from cac.mcp.instance import mcp
 from cac.mcp.server import main  # noqa: F401  -- import triggers world/prime registration
@@ -110,3 +111,13 @@ def test_domain_get_tools_accept_continuation_cursor() -> None:
         "ruling_get",
     ):
         assert "cursor" in tools[name].input_schema["properties"], name
+
+
+def test_every_tool_description_is_clean_prose() -> None:
+    """MCPServer passes docstrings through verbatim, so instance.py cleans them at registration."""
+    tools = asyncio.run(mcp.list_tools())
+    assert tools
+    for tool in tools:
+        description = tool.description or ""
+        assert not re.search(r"\S {2,}", description), tool.name
+        assert not re.search(r"\n[ \t]+", description), tool.name

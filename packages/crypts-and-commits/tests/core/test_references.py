@@ -191,3 +191,32 @@ def test_missing_stored_canonical_edge_is_not_reinterpreted(tmp_path):
     with pytest.raises(boss.BossError, match="missing prerequisite"):
         boss.assign_dependency(tmp_path, "b002-dependent", "b001-real")
     assert boss.read_metadata(tmp_path, "b002-dependent")[0]["depends_on"] == ["b001"]
+
+
+_QUALIFIED = "Qualified encounter context overrides active fallback and must agree with an explicit campaign."
+
+
+def _documented(domain):
+    def sample(name):
+        """Sample tool with a wrapped
+        continuation line."""
+
+    return references.inputs(domain)(sample).__doc__
+
+
+@pytest.mark.parametrize("domain", ["boss", "campaign", "encounter", "rumor", "ruling"])
+def test_contract_footer_is_clean_and_tailored_per_domain(domain):
+    doc = _documented(domain)
+    assert doc.startswith("Sample tool with a wrapped\ncontinuation line.\nExisting ")
+    assert "\n " not in doc and "  " not in doc
+    assert (_QUALIFIED in doc) is (domain == "encounter")
+    if domain == "ruling":
+        assert "full canonical names only (cNNN-eNNN-slug)" in doc
+
+
+def test_contract_footer_tolerates_missing_docstring():
+    def bare(name):
+        pass
+
+    doc = references.inputs("boss")(bare).__doc__
+    assert doc.startswith("Existing boss targets accept full canonical names or bNNN;")
