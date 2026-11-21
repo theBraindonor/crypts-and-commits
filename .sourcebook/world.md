@@ -4,7 +4,7 @@ assigned_lore:
 name: Crypts and Commits
 schema_version: '1'
 updated_by: John Hoff
-updated_on: '2026-10-28T16:56:44Z'
+updated_on: '2026-11-21T03:39:09Z'
 ---
 
 # Crypts and Commits
@@ -21,6 +21,7 @@ This repository is both the framework's implementation and its first user: as `c
 - **Boss** - a project goal captured and refined before any campaign commits to it: `proposed` -> `available` -> `vanquished` (only by completing its campaign), or `withdrawn`; with graph-validated `depends_on` prerequisites, optional roadmap provenance, and archival.
 - **Campaign** - a long-running initiative, analogous to a Jira Epic, expected to span many encounters. Selects zero, one or many bosses while `draft`; `draft` -> `open` <-> `paused` -> `completed` / `abandoned`, at most one open per checkout, and reactivation of a completed campaign for pre-merge review fixes.
 - **Rumor** - a standalone backlog note ("we think X should be done") from anywhere, captured on any branch with a summary and free-text origin: `open` -> `promoted` (linked, on the rumor only, to an unassigned boss) or `dismissed`, with reopen and archival but no delete. Triaged on the planning branch, where number collisions are renumbered.
+- **Ruling** - an ADR-style record of a decision the developer (Game Master) confirmed during an open campaign, named `cNNN-eNNN-slug` for its campaign and encounter (`e000` for campaign-level), with a summary, free-text origin and body: `recorded` -> `canonized` (narrative of the lore/world changes made) or `noted` (narrative of why none are needed), with reopen and archival independent of campaigns but no delete. Prime lists recorded rulings until they are triaged on the planning branch.
 - **Encounter** - a concrete unit of work within a campaign, `scripted` (Requirements, Rationale, Plan, Verification) or `unscripted` (a record of already-done work), carried through `draft` -> `reviewed` (independent lore review) -> `open` -> `completed`, or `abandoned` from any non-completed status.
 
 Bosses, campaigns, encounters and rumors use numbered names (`b001-...`, `c001-...`, `e001-...`, `r001-...`), referenceable by short refs (`bNNN`, `cNNN`, `rNNN`, `cNNN/eNNN`); the skills allocate numbers, core never does.
