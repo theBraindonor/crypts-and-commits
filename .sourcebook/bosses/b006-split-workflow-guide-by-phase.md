@@ -1,5 +1,6 @@
 ---
 archived: false
+campaign: c003-workflow-guide-split
 created_by: John Hoff
 created_on: '2026-11-21T04:31:53Z'
 depends_on: []
@@ -10,7 +11,7 @@ summary: Split workflow into development-workflow and planning-workflow, each ca
   duplication. Complete the campaign after joint review and clean automated checks;
   practical validation comes organically through later usage.
 updated_by: John Hoff
-updated_on: '2026-11-21T04:40:40Z'
+updated_on: '2026-11-21T04:47:41Z'
 ---
 
 ## Goal
