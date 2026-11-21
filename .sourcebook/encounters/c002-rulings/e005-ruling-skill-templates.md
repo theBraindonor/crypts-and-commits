@@ -9,9 +9,9 @@ kind: scripted
 name: e005-ruling-skill-templates
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-21T03:13:28Z'
+updated_on: '2026-11-21T03:27:22Z'
 ---
 
 ## Requirements
@@ -139,3 +139,7 @@ world-manager's frontmatter description was left as is: its ruling role is a poi
 - A scratch deploy with core `skills.deploy_skills` produced all six files with the ruling guidance. Ruling mentions per flavor were equal: campaign-manager 8/8, world-planner 13/13, world-manager 4/4.
 - This repo's `.claude/skills` and `.agents/skills` are untouched (clean `git status`).
 - A side-by-side reading against `workflow.md` (Capture rulings, Review flow, gates, Codex handoffs, Planning handoff, Rulings) found no contradictions.
+
+### Completed - 2026-11-21T03:27:22Z - John Hoff
+
+Completed with developer confirmation. Verification passed: 1696 tests passed, ruff check and format clean, the scratch deploy via core skills.deploy_skills carried the ruling guidance in all six skills with matching flavor counts, this repo's deployed copies are untouched, and the side-by-side reading against workflow.md found no contradictions. Implementation commit cfb0dfa. The developer has been asked to redeploy with cac bootstrap init.
