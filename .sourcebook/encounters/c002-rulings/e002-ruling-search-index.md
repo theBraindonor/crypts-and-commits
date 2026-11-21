@@ -9,9 +9,9 @@ kind: scripted
 name: e002-ruling-search-index
 regions:
 - crypts-and-commits
-status: draft
+status: reviewed
 updated_by: John Hoff
-updated_on: '2026-11-21T02:22:52Z'
+updated_on: '2026-11-21T02:24:39Z'
 ---
 
 ## Requirements
@@ -79,3 +79,19 @@ Keeping the snapshot `VERSION` unchanged avoids forcing a rebuild on sourcebooks
   7. Edit the ruling file outside CAC and confirm `cac index status` reports stale.
 - Docs describe exactly the shipped coverage and hit text, checked against the diff.
 - After merge, this repository's index will be stale because two rulings exist and were never indexed. Recovery is the developer-run `cac index rebuild`. The assistant never runs it.
+
+## Log
+
+### Review - 2026-11-21T02:24:39Z - John Hoff
+
+PASS-WITH-NOTES. The scripted plan is consistent with all 5 applicable lore items.
+- **clean-tests-and-lint:** the Verification gates on pytest and ruff with no skips. Apply `ruff format .` rather than only `--check`.
+- **cli-mcp-parity:** no commands are added. Ruling filtering reuses the shared `object_type` validation. Prefer covering both the CLI `--type ruling` and MCP `object_type="ruling"` search, or confirm they share core validation.
+- **console-best-practices** and **skills-authored-only-in-templates:** not triggered.
+- **workflow-doc-source-of-truth:** satisfied in the same change. The plan updates the `tool-reference.md` Search index and Rulings sections and `workflow.md`'s Rulings statement, keeps the 45,000-character cap, and justifies deferring help-text accuracy to b004.
+
+Unverified notes for implementation:
+- Update any other `tool-reference.md` list of valid object types or the unknown-type error text.
+- Check that the CLI/MCP help does not list types inline without `ruling`.
+- Confirm that `sync_write` moves a ruling's row in place on archive, as it does for rumors.
+- Keep the smoke test's direct file edit and Python `rebuild_index` call strictly inside the temporary scratch project, never this repo's `.sourcebook`. After merge, the developer runs `cac index rebuild` to fix this repo's stale index.
