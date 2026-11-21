@@ -157,3 +157,13 @@ def test_ruling_filter_finds_rulings_by_resolution_narrative(tmp_path):
         ("ruling", "c001-e000-scope", "canonized")
     ]
     assert mcp_index.index_search("pangolinnarrative", object_type="rumor")["hits"] == []
+
+
+def test_index_search_description_names_every_searchable_type() -> None:
+    import re
+
+    from cac.core import config
+
+    description = mcp_index.index_search.__doc__ or ""
+    missing = [t for t in config.SEARCH_INDEX_OBJECT_TYPES if not re.search(rf"\b{re.escape(t)}\b", description)]
+    assert missing == [], f"index_search description omits searchable types: {missing}"

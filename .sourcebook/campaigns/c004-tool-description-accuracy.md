@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-21T05:50:00Z'
 name: c004-tool-description-accuracy
-status: draft
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-21T05:50:00Z'
+updated_on: '2026-11-21T05:54:00Z'
 ---
 
 # c004-tool-description-accuracy

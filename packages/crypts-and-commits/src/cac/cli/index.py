@@ -51,7 +51,13 @@ def search(
     ),
     skip: int = typer.Option(0, "--skip", "-s", help="Number of top results to skip, for paging."),
     object_type: str | None = typer.Option(
-        None, "--type", "-t", help="Restrict to one document type. Defaults to all types."
+        None,
+        "--type",
+        "-t",
+        help=(
+            "Restrict to one document type: world, lore, region, boss, campaign, encounter, rumor or ruling. "
+            "Defaults to all types."
+        ),
     ),
     snippet_tokens: int = typer.Option(
         search_index_core.SEARCH_DEFAULT_SNIPPET_TOKENS,
@@ -59,11 +65,13 @@ def search(
         help="Snippet excerpt length, in tokens (1-64).",
     ),
     include_archived: bool = typer.Option(
-        False, "--include-archived", help="Also include archived campaigns/encounters/bosses, excluded by default."
+        False, "--include-archived", help="Also include archived records (any type), excluded by default."
     ),
 ) -> None:
     """Search the index for a phrase, ranked by relevance, with a matching excerpt per result.
-    Archives are excluded by default. Stale snapshots report an error without hits."""
+    Indexed text: world, lore, region, campaign and encounter bodies; boss summary and body; rumor
+    summary, origin and body; ruling summary, origin, resolution narrative and body. Every status is
+    searchable; archived records are excluded by default. Stale snapshots report an error without hits."""
     try:
         hits = search_index_core.search(
             resolve_project_root(),

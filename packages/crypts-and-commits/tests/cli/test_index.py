@@ -240,3 +240,14 @@ def test_search_finds_matching_ruling(seed_world: Callable[[], None]) -> None:
     result = runner.invoke(app, ["index", "search", "distinctive-ruling-decree", "--type", "ruling"])
     assert result.exit_code == 0, result.output
     assert "[ruling] c001-e000-scope" in result.output
+
+
+def test_search_help_names_every_searchable_type() -> None:
+    import re
+
+    from cac.core import config
+
+    result = runner.invoke(app, ["index", "search", "--help"], env={"COLUMNS": "200"})
+    assert result.exit_code == 0, result.output
+    missing = [t for t in config.SEARCH_INDEX_OBJECT_TYPES if not re.search(rf"\b{re.escape(t)}\b", result.output)]
+    assert missing == [], f"cac index search --help omits searchable types: {missing}"

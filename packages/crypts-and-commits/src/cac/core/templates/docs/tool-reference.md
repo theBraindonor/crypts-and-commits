@@ -543,7 +543,8 @@ dropped. The CLI renders the same facts literally.
 
 Search covers world, lore, region, boss, campaign, encounter, rumor and ruling
 records (`object_type` values `world`, `lore`, `region`, `boss`, `campaign`,
-`encounter`, `rumor`, `ruling`). Boss hits index the summary and body, rumor
+`encounter`, `rumor`, `ruling`). World, lore, region, campaign and encounter
+hits index the record body, boss hits index the summary and body, rumor
 hits index the summary, origin and body, and ruling hits index the summary,
 origin, `resolution` narrative (empty while `recorded`) and body, each with
 name, status, audit and archive metadata. Ruling hits carry an empty
