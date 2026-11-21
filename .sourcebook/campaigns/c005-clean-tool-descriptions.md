@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-21T15:45:09Z'
 name: c005-clean-tool-descriptions
-status: draft
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-21T15:45:09Z'
+updated_on: '2026-11-21T15:45:59Z'
 ---
 
 # c005 Clean Tool Descriptions

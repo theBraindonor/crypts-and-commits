@@ -132,7 +132,10 @@ command says so instead of listing short-reference syntax.
 A qualified encounter reference overrides the active-campaign fallback, and an
 explicit `campaign` argument must resolve to the same campaign. Qualification
 bypasses no closed-campaign, frozen, lifecycle or archive guard. Encounter IDs
-and prerequisite edges stay campaign-local.
+and prerequisite edges stay campaign-local. The appended reference-contract
+text mentions qualified encounter context only on encounter tools and commands
+(including `prime_applicable_lore` and `cac prime applicable-lore`), not on
+boss, campaign or rumor ones.
 
 CLI and MCP share the same selection and input rules. Lower storage routines
 consume exact names and never reinterpret damaged links. Resolution may cache a
