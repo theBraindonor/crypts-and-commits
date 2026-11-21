@@ -4,14 +4,14 @@ created_by: John Hoff
 created_on: '2026-11-21T06:27:06Z'
 depends_on: []
 name: b007-clean-reference-tool-descriptions
-status: proposed
+status: available
 summary: Fix the stray indentation in descriptions of reference-taking tools. core/references.py:306
   appends the identity-contract footer to the raw docstring without dedenting, so
   every wrapped line keeps its 4-space indent in MCP tool descriptions and CLI help
   ("...open encounter.     The required message..."). Dedent before appending, and
   add a guard test across all tools and commands.
 updated_by: John Hoff
-updated_on: '2026-11-21T06:27:06Z'
+updated_on: '2026-11-21T06:28:09Z'
 ---
 
 ## Goal
