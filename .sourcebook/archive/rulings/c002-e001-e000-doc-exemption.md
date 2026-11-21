@@ -1,19 +1,29 @@
 ---
-archived: false
+archived: true
 campaign: c002-rulings
 created_by: John Hoff
 created_on: '2026-11-21T02:20:48Z'
 encounter: e001-ruling-records-core
-history: []
+history:
+- action: note
+  by: John Hoff
+  message: 'No additional lore, region or world change is needed. This is a specific
+    documentation-test decision already implemented in c002/e001: e000 is the reserved
+    no-encounter marker and is intentionally exempt from the repository-name leak
+    guard. Retain the decision as implementation history.'
+  'on': '2026-11-21T04:33:52Z'
 name: c002-e001-e000-doc-exemption
 origin: Developer (GM), during c002/e001-ruling-records-core execution
-resolution: null
-status: recorded
+resolution: 'No additional lore, region or world change is needed. This is a specific
+  documentation-test decision already implemented in c002/e001: e000 is the reserved
+  no-encounter marker and is intentionally exempt from the repository-name leak guard.
+  Retain the decision as implementation history.'
+status: noted
 summary: Exempt the reserved e000 marker from the paired-docs leak guard regex instead
   of writing around it in the shipped guides. e000 is a sentinel agents need to see,
   not a repository encounter name.
 updated_by: John Hoff
-updated_on: '2026-11-21T02:20:48Z'
+updated_on: '2026-11-21T04:33:52Z'
 ---
 
 ## Decision
