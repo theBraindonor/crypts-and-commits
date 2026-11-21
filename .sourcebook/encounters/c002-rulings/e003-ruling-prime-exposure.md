@@ -9,9 +9,9 @@ kind: scripted
 name: e003-ruling-prime-exposure
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-21T02:46:39Z'
+updated_on: '2026-11-21T02:49:44Z'
 ---
 
 ## Requirements
@@ -132,3 +132,11 @@ Implementation complete, pending developer confirmation.
 - pytest: 1690 passed. `ruff format .` applied; `ruff check` and `ruff format --check` clean.
 - Scratch-project smoke test passed every step: two recorded rulings showed count 2; after canonizing one, only the other was listed; after the campaign completed, it was still listed; after it was noted and archived, prime showed "No recorded rulings."
 - The live read-only check used the CLI (`cac prime get`), because the MCP server still runs older code until it reconnects. It listed both c002-e001 rulings with count 2. The MCP `prime_get` check is pending a reconnect.
+
+### Message - 2026-11-21T02:48:06Z - John Hoff
+
+The live MCP check passed after the server reconnected. A read-only `prime_get` in this repo returned both c002-e001 rulings in `recorded_rulings`, with `recorded_ruling_count: 2`, empty `ruling_diagnostics` and no truncations.
+
+### Completed - 2026-11-21T02:49:44Z - John Hoff
+
+Completed with developer confirmation. Verification passed: 1690 tests passed, ruff check and format clean, the scratch-project smoke test passed every step, and the live CLI and MCP prime checks each list both recorded c002-e001 rulings. Implementation commit d75db5a.
