@@ -2,7 +2,8 @@
 archived: false
 created_by: John Hoff
 created_on: '2026-11-20T23:43:29Z'
-depends_on: []
+depends_on:
+- b005-ruling-records
 name: b003-sourcebook-integrity
 status: proposed
 summary: 'Close two sourcebook integrity gaps: let an open or paused campaign adopt
@@ -10,7 +11,7 @@ summary: 'Close two sourcebook integrity gaps: let an open or paused campaign ad
   hand-edit c001 needed), and make lore/region/campaign deletes refuse while referenced,
   listing every referrer, instead of leaving dangling references.'
 updated_by: John Hoff
-updated_on: '2026-11-20T23:43:29Z'
+updated_on: '2026-11-21T00:04:49Z'
 ---
 
 ## Goal
