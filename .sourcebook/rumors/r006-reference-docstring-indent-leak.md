@@ -1,20 +1,26 @@
 ---
 archived: false
-boss: null
+boss: b007-clean-reference-tool-descriptions
 created_by: John Hoff
 created_on: '2026-11-21T06:18:50Z'
-history: []
+history:
+- action: promote
+  by: John Hoff
+  message: Promoted during planning on 2026-11-21 at the developer's request; captured
+    as b007-clean-reference-tool-descriptions.
+  'on': '2026-11-21T06:27:15Z'
 name: r006-reference-docstring-indent-leak
 origin: c004/e002 description drift sweep
-resolution: null
-status: open
+resolution: Promoted during planning on 2026-11-21 at the developer's request; captured
+  as b007-clean-reference-tool-descriptions.
+status: promoted
 summary: 'core/references.py appends the identity-contract footer to a tool''s raw
   docstring without dedenting it first. Every wrapped docstring line on reference-taking
   tools therefore keeps its 4-space indent, in MCP descriptions and in CLI help (e.g.
   "Fails if it has an open encounter.     The required message..."). Likely fix: inspect.cleandoc
   the original docstring before appending.'
 updated_by: John Hoff
-updated_on: '2026-11-21T06:18:50Z'
+updated_on: '2026-11-21T06:27:15Z'
 ---
 
 ## Observation
