@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-21T04:47:41Z'
 name: c003-workflow-guide-split
-status: draft
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-21T04:47:41Z'
+updated_on: '2026-11-21T04:48:05Z'
 ---
 
 # Workflow Guide Split
