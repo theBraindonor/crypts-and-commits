@@ -9,9 +9,9 @@ kind: scripted
 name: e004-ruling-workflow-procedure
 regions:
 - crypts-and-commits
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-21T03:02:59Z'
+updated_on: '2026-11-21T03:03:55Z'
 ---
 
 ## Requirements
@@ -136,3 +136,7 @@ Implementation complete, pending developer confirmation.
 - pytest: 1690 passed, including the `test_docs` cap and leak guard. ruff check and format clean.
 - `cac docs get workflow` returns the updated guide.
 - The consistency search (REJECT, NOT-REVIEWABLE, override, PASS-WITH-NOTES, gate, rumor, ruling) found no contradictions. `tool-reference.md` is unchanged, as justified.
+
+### Completed - 2026-11-21T03:03:55Z - John Hoff
+
+Completed with developer confirmation. Verification passed: 1690 tests passed, ruff check and format clean, `cac docs get workflow` returns the updated guide (about 43,236 characters, under the cap), and the full-guide consistency search found no contradictions. Implementation commit 7701506.
