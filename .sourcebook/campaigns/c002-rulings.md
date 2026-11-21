@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-21T00:32:17Z'
 name: c002-rulings
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-21T03:56:19Z'
+updated_on: '2026-11-21T04:02:24Z'
 ---
 
 Deliver **rulings** (`b005-ruling-records`): ADR-style records of decisions the developer (GM) confirms during active development. Rulings are captured inside an open campaign and named `cNNN-eNNN-slug`. Each one stays `recorded` until planning gives it a narrative disposition: `canonized` into the world (lore, regions or the world summary and settings), or `noted`. After that it is archived. b005's body is the design reference for every encounter in this campaign. Its design is frozen now that it is assigned, so follow-up ideas became rumors or rulings, not boss edits. Its summary still says "lore"; ruling `c002-e007-canonize-targets-lore-region-world` widens canonizing to lore, region or world.
@@ -53,3 +53,28 @@ All are left `recorded` for planning triage after integration.
 The campaign completes when the goals above are implemented and verified, tests and ruff are clean per `clean-tests-and-lint`, skills and docs are consistent, and the campaign is ready for its implementation PR into `main`.
 
 ## Log
+
+### Completed - 2026-11-21T04:02:24Z - John Hoff
+
+**Postmortem: c002-rulings.** Delivered `b005-ruling-records` in seven encounters, all completed:
+- **e001:** core ruling storage, naming and capture guards, and lifecycle, with `ruling_*` MCP and `cac ruling` CLI shipped together.
+- **e002:** the `ruling` search type and index freshness evidence.
+- **e003:** prime exposure (`recorded_rulings`, `recorded_ruling_count`, `ruling_diagnostics`).
+- **e004:** the workflow guide and tool reference.
+- **e005:** the Claude and Codex skill templates, covering capture, triage and GM-override capture.
+- **e006:** the branching and migration guides, `CLAUDE.md`, the public docs, and the world and region priming text.
+- **e007:** after reviewing the delivered work, the developer widened canonizing from lore-only to lore, region or world, and all wording was aligned. There was no behavior change.
+
+Every b005 success criterion is met. The final suite has 1702 tests passing, and ruff is clean.
+
+**What went well:** the campaign dogfooded its own feature. Four rulings were captured during execution, including the scope change behind e007. The independent reviews caught real gaps: the region text, and the create rule that a nonzero encounter must already exist.
+
+**What to watch:**
+- b005's frozen summary still says "lore". Ruling `c002-e007-canonize-targets-lore-region-world` is what widens it to lore, region or world.
+- The `workflow.md` size cap was raised to 45k as a stopgap; rumor r004 (split the guide by phase) is the real fix.
+- Ruling capture is skill guidance only, so its value depends on agents following the redeployed skills.
+
+**Next steps:**
+- Redeploy the skills.
+- Open the implementation PR from `c002-rulings` into `main`.
+- After integration, triage the four rulings on planning and archive the campaign.
