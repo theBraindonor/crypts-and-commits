@@ -1,5 +1,6 @@
 ---
 archived: false
+campaign: c005-clean-tool-descriptions
 created_by: John Hoff
 created_on: '2026-11-21T06:27:06Z'
 depends_on: []
@@ -11,7 +12,7 @@ summary: Fix the stray indentation in descriptions of reference-taking tools. co
   ("...open encounter.     The required message..."). Dedent before appending, and
   add a guard test across all tools and commands.
 updated_by: John Hoff
-updated_on: '2026-11-21T06:28:09Z'
+updated_on: '2026-11-21T15:45:09Z'
 ---
 
 ## Goal
