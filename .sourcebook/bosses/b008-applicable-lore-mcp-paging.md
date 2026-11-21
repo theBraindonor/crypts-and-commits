@@ -7,12 +7,12 @@ name: b008-applicable-lore-mcp-paging
 status: proposed
 summary: 'Give the MCP tool prime_applicable_lore the same cursor paging as cac prime
   applicable-lore (cli-mcp-parity): an optional cursor and a paged {items, next_cursor}
-  result (no identities) via budget_core.paginate, replacing the bare list. Breaking,
-  so bump the package version 0.3.0 -> 0.4.0 (schema stays 1), add a migration-guide
-  note naming 0.4.0, a CHANGELOG entry, and update tool-reference.md, guides, skill
-  templates and tests.'
+  result (no identities) via budget_core.paginate. Breaking, so bump the pyproject
+  versions 0.3.0 -> 0.4.0 (no tag/release; schema stays 1) and give migration-guide
+  a 0.4.0 subsection, separate from prior releases. Update tool-reference.md, guides,
+  skill templates and tests.'
 updated_by: John Hoff
-updated_on: '2026-11-21T16:16:33Z'
+updated_on: '2026-11-21T16:26:12Z'
 ---
 
 ## Goal
@@ -30,10 +30,9 @@ Bring `prime_applicable_lore` over MCP into line with `cac prime applicable-lore
 
 - `prime_applicable_lore(encounter, campaign=None, cursor=None)` returns `{"items": [...], "next_cursor": ...}`, where `items` are the existing `{name, summary, ref}` entries, paged with `budget_core.paginate` using the same budget and ordering as the CLI. There is no `identities` array. An invalid cursor raises a clear error.
 - The encounter reference contract (`references.inputs("encounter")`) and the campaign default are unchanged.
-- **Version bump:** the package version goes from 0.3.0 to 0.4.0, a pre-1.0 minor bump for the breaking MCP result change, as part of this goal's work. The workspace keeps its versions in lockstep, so every field that currently reads 0.3.0 moves together: root `pyproject.toml`, `packages/crypts-and-commits/pyproject.toml`, `packages/demo-api/pyproject.toml`, `packages/demo-ui/package.json` and its `package-lock.json`, and `pdm.lock`, regenerated rather than hand-edited. `SOURCEBOOK_SCHEMA_VERSION` stays at 1: no record format changes, and a schema bump would make `cac bootstrap init` report a migration that isn't needed.
+- **Version bump, pyproject files only:** `version` goes from 0.3.0 to 0.4.0 in the root `pyproject.toml`, `packages/crypts-and-commits/pyproject.toml` and `packages/demo-api/pyproject.toml`. Refresh `pdm.lock` only if PDM reports it stale because of the bump. Out of scope: `packages/demo-ui/package.json` and its lock, `docs/CHANGELOG.md`, cutting a release and tagging `v0.4.0`, which the developer will do later. `SOURCEBOOK_SCHEMA_VERSION` stays at 1: no record format changes, and a schema bump would make `cac bootstrap init` report a migration that isn't needed.
+- **Migration details segregated by release:** `migration-guide.md`'s "Version-specific migrations" section gains a release-labeled subsection for 0.4.0 (e.g. `### Upgrading from 0.3.0 to 0.4.0`), kept separate from the 0.3.0 Boss Edition notes. It holds b008's note: the result changed from a bare list to `{items, next_cursor}` within schema 1, with no record migration, guardrail suspension or bootstrap migration, and redeploying skills (developer-run `cac bootstrap init`) makes agents follow `next_cursor`. Existing post-0.3.0 migration notes, such as c002's "Rulings are additive within schema version 1" paragraph, move into that 0.4.0 subsection, so the section never mixes notes from different releases. Their content is unchanged.
 - `tool-reference.md` documents the new argument and result shape (`workflow-doc-source-of-truth`).
-- `migration-guide.md`'s "Version-specific migrations" section gains a short paragraph naming 0.4.0 as the target release. It says the result changed from a bare list to `{items, next_cursor}` within schema 1, with no record migration, guardrail suspension or bootstrap migration, and that redeploying skills (developer-run `cac bootstrap init`) makes agents follow `next_cursor`.
-- `docs/CHANGELOG.md` records the change as a breaking change.
 - Every packaged doc and skill template that calls `prime_applicable_lore` is updated, in both the Claude and Codex flavors, including the campaign-manager reviewer prompt (`skills-authored-only-in-templates`). Deployed skill copies are redeployed by the developer.
 - MCP and CLI tests cover first page, continuation and invalid cursor. Descriptions stay clean prose and consistent (`cli-mcp-parity` Description accuracy).
 - `pdm run pytest -q` and ruff are clean.
@@ -44,9 +43,10 @@ Bring `prime_applicable_lore` over MCP into line with `cac prime applicable-lore
 - Planning decisions, 2026-11-21 (developer):
   - **Result shape:** plain `{items, next_cursor}`, matching the other unnumbered lists (`lore_list`, `region_list`, `docs_list`). Lore names aren't numbered, so `identity_page` identities would carry nothing useful.
   - **Upgrade documentation:** a migration-guide note, following the precedent there for prime's `active_boss` → `active_boss_names` result change, plus the `tool-reference.md` contract update.
-  - **Versioning:** bump the package to 0.4.0 in this goal because the migration note documents a breaking change and must name its target release; keep the sourcebook schema at 1.
-- Context: `main` was 55 commits past the `v0.3.0` tag when this was planned, with `pyproject.toml` still at 0.3.0 and c002's rulings under CHANGELOG `[Unreleased]`. Changes from c003–c005 aren't in the CHANGELOG yet.
+  - **Versioning:** bump only the pyproject `version` fields to 0.4.0, because the migration note documents a breaking change and must name its target release. Keep the sourcebook schema at 1. The CHANGELOG, release and tag come later, outside this goal.
+  - **Release segregation:** the purpose of the bump is to keep migration details for changes since 0.3.0 clearly apart from prior releases' notes, so the migration guide gets a 0.4.0 subsection and existing post-0.3.0 notes move into it.
+- Context: `main` was 55 commits past the `v0.3.0` tag when this was planned, with `pyproject.toml` still at 0.3.0. Post-0.3.0 migration notes (c002 rulings) currently sit unlabeled alongside the Boss Edition notes.
 
 ## Open Questions
 
-- CHANGELOG: should b008 cut the `[Unreleased]` section as `[0.4.0]` (dated, folding in c002–c005 and b008), or add its entry under `[Unreleased]` and leave cutting the release, and tagging `v0.4.0`, to a separate release step?
+None.
