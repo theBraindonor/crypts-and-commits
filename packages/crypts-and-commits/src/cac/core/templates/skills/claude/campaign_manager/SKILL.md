@@ -19,7 +19,7 @@ disable guardrails, or edit deployed skill copies.
 For worked Git examples, read mcp__crypts-and-commits__docs_get("branching-guide") /
 cac docs get branching-guide. For adoption from older installations and targeted
 local instruction updates, use mcp__crypts-and-commits__docs_get("migration-guide") /
-cac docs get migration-guide; workflow remains the procedural authority.
+cac docs get migration-guide; development-workflow remains the procedural authority.
 
 Start with mcp__crypts-and-commits__prime_get / cac prime get and world-manager's disclosure ladder.
 Use active_boss_names, active_bosses and active_boss_diagnostics for all selected
@@ -33,9 +33,10 @@ encounter graph/discovery API or a complete retained-allocation inventory.
 
 Do not read the workflow guide or tool reference during routine orientation.
 When a procedural question arises (configured planning/merge-target branches,
-numbering, collision checkpoints, reconciliation), read mcp__crypts-and-commits__docs_get("workflow") /
-cac docs get workflow and use its "Agent planning and campaign workflow" section;
-for lifecycle guards use its Campaign, Encounter and Bosses sections. For an exact
+numbering, collision checkpoints, reconciliation), read mcp__crypts-and-commits__docs_get("development-workflow") /
+cac docs get development-workflow and use its "Agent planning and campaign workflow" section;
+for lifecycle guards use its Campaign, Encounter and Promotion and campaign coupling
+sections. Goal design and roadmap details live in planning-workflow. For an exact
 argument, result shape, error or budget, read mcp__crypts-and-commits__docs_get("tool-reference") /
 cac docs get tool-reference. Check Git branch/worktree,
 dirty changes and detached HEAD before mutations. Explain mismatches and reconcile
@@ -156,7 +157,7 @@ For an accepted draft cancelled before execution, abandon with reason on its
 execution branch, integrate cleanup and synchronize planning. For legacy open
 unnumbered work, inspect encounters/local guidance and agree a matching execution
 branch, finishing/abandoning open encounters before pausing/closing; preserve
-history instead of inventing bosses or bulk renaming. Follow workflow's "Reconciliation examples".
+history instead of inventing bosses or bulk renaming. Follow development-workflow's "Reconciliation examples".
 Remote/integration uncertainty and failed recovery need explicit reconciliation.
 
 ## Encounters

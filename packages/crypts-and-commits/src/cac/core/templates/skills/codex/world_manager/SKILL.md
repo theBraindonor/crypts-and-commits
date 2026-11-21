@@ -63,7 +63,7 @@ Both calls return **summaries**, never lore bodies — summaries are a routing s
 Docs are read-only, framework-owned reference guides packaged with `cac` itself — not `.sourcebook` content, and not user-editable. They exist so deep procedural or structural detail can be pulled into context on demand instead of being carried in every project's `CLAUDE.md`/`AGENTS.md`.
 
 - `docs_list(cursor)` — list registered docs by `name` + `summary`, paged under the response budget. CLI fallback: `cac docs list --help`.
-- `docs_get(name)` — show a doc's full body, e.g. `docs_get("workflow")` for the Workflow Reference Guide (the `.sourcebook` domain model's structure, status lifecycles and guards, cross-type connections, approval gates, and workflow procedure) or `docs_get("tool-reference")` for the Tool Reference (MCP tool and CLI command names, arguments, result shapes, errors, budgets, and cursor continuation). CLI fallback: `cac docs get --help`.
+- `docs_get(name)` — show a doc's full body, e.g. `docs_get("planning-workflow")` for static context, goals and triage, `docs_get("development-workflow")` for campaign/encounter procedure, or `docs_get("workflow")` for the short routing index, and `docs_get("tool-reference")` for the Tool Reference (MCP tool and CLI command names, arguments, result shapes, errors, budgets, and cursor continuation). CLI fallback: `cac docs get --help`.
 
 ## Sourcebook schema version
 
@@ -74,7 +74,7 @@ instruction edits, branch adoption and actual record migration. An older install
 guide may require obtaining the target guide from verified source/distribution
 first. Do not stop a workflow-adoption request merely because no schema change is
 needed. For worked branch examples use docs_get("branching-guide") /
-cac docs get branching-guide; workflow stays authoritative.
+cac docs get branching-guide; the phase workflows stay authoritative.
 
 `world.md` carries a `schema_version` frontmatter attribute — present on every sourcebook `cac bootstrap init` creates; a sourcebook bootstrapped before this attribute existed has none, which means version 1. `cac bootstrap init` reports when an existing sourcebook is behind or ahead of what the installed `cac` expects, but never migrates it itself — that's this skill's job, on request.
 
@@ -90,7 +90,7 @@ Never assume a sourcebook is out of date, and never start suspending a guardrail
 
 ## Rulings
 
-When the developer confirms a world, lore or region decision while a campaign is open, capture it as a ruling with `ruling_create(name, body, summary, origin)`, following campaign-manager's capture rules and the workflow guide's "Capture rulings". During planning triage, world-planner canonizes a ruling only after the lore, region or world changes made here are approved. CLI fallback: `cac ruling create --help`.
+When the developer confirms a world, lore or region decision while a campaign is open, capture it as a ruling with `ruling_create(name, body, summary, origin)`, following campaign-manager's capture rules and the development-workflow guide's "Capture rulings". During planning triage, world-planner canonizes a ruling only after the lore, region or world changes made here are approved. CLI fallback: `cac ruling create --help`.
 
 ## Priming context: the disclosure ladder
 
@@ -99,4 +99,4 @@ The **procedure** below for going deeper is authored once, here in the skill —
 1. **Orient** — `prime_get()`, once at the start of a session or before other work (this is also `campaign-manager`'s first step, since the bundle already includes the active campaign body). Gives world full + world-lore summaries + region map + campaign body, plural active-boss context and recorded (untriaged) ruling summaries in one round trip. Empty membership differs from named missing/broken members; hydrate diagnostics and truncation refs, never select a singular first-boss alias. Summarize what you found rather than dumping raw tool output.
 2. **Focus a task** — once a specific region is in scope (e.g. the region(s) an encounter is assigned to), `region_get(region)` for its full body and its `assigned_lore` names, then `lore_get(name)` per assigned name to read that lore's `summary` (not yet its body) — enough to judge which of that region's lore looks relevant before going further.
 3. **Review a plan** — the only step that needs exact, ground-truth text. Run `prime_applicable_lore(encounter)` to resolve the finite applicable set (world-assigned ∪ the encounter's region-assigned enabled lore) as summaries, then hydrate each one with `lore_get(ref)` and check the plan against the full body — never the summary. Summaries route which lore is in scope; only the body is authoritative for a compliance verdict. This is the step the reviewer subagent in `campaign-manager`'s draft → reviewed gate performs.
-4. **Go deeper** — when a task needs full procedural or structural detail beyond what any summary above covers (e.g. the exact status-transition rules or cross-type connections behind this skill), `docs_list()` to see what's registered, then `docs_get(name)` to pull one in whole: `workflow` for a rule, lifecycle, gate or branch procedure; `tool-reference` for an exact argument, result shape, error or budget; `branching-guide` for a worked Git example; `migration-guide` for upgrades and adoption. `campaign-manager` and `world-planner` follow the same rule and do not read these during routine orientation. Most sessions never need this step — reach for it only when the ladder above genuinely isn't enough.
+4. **Go deeper** — when a task needs full procedural or structural detail beyond what any summary above covers (e.g. the exact status-transition rules or cross-type connections behind this skill), `docs_list()` to see what's registered, then `docs_get(name)` to pull one in whole: `planning-workflow` for static context, goal, triage or maintenance rules; `development-workflow` for campaign/encounter rules, gates and execution; `workflow` only for the routing index; `tool-reference` for an exact argument, result shape, error or budget; `branching-guide` for a worked Git example; `migration-guide` for upgrades and adoption. `campaign-manager` and `world-planner` follow the same rule and do not read these during routine orientation. Most sessions never need this step — reach for it only when the ladder above genuinely isn't enough.

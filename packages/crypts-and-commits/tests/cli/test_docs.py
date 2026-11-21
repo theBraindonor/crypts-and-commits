@@ -10,17 +10,15 @@ def test_list_shows_registered_docs() -> None:
     result = runner.invoke(app, ["docs", "list"])
 
     assert result.exit_code == 0
-    assert "workflow" in result.output
-    assert "migration-guide" in result.output
-    assert "branching-guide" in result.output
-    assert "tool-reference" in result.output
+    for name, _ in docs_core.list_docs():
+        assert name in result.output
 
 
 def test_get_shows_full_body() -> None:
     result = runner.invoke(app, ["docs", "get", "workflow"])
 
     assert result.exit_code == 0
-    assert "Crypts and Commits Workflow Reference Guide" in result.output
+    assert "Crypts and Commits Workflow Index" in result.output
 
 
 def test_get_shows_migration_guide_body() -> None:
@@ -30,7 +28,7 @@ def test_get_shows_migration_guide_body() -> None:
     assert "Crypts and Commits Sourcebook Migration Guide" in result.output
 
 
-@pytest.mark.parametrize("name", ["workflow", "tool-reference", "branching-guide", "migration-guide"])
+@pytest.mark.parametrize("name", [name for name, _ in docs_core.list_docs()])
 def test_get_preserves_complete_guide(name: str) -> None:
     result = runner.invoke(app, ["docs", "get", name])
 

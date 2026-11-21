@@ -51,7 +51,8 @@ may know nothing about Boss Edition. Use the target artifact instead:
    repository, https://github.com/theBraindonor/crypts-and-commits. In a separate
    source checkout at that verified revision, read
    `packages/crypts-and-commits/src/cac/core/templates/docs/migration-guide.md`
-   and its siblings branching-guide.md, workflow.md and tool-reference.md. A tag alone is insufficient
+   and its siblings branching-guide.md, workflow.md (the routing index),
+   planning-workflow.md, development-workflow.md and tool-reference.md. A tag alone is insufficient
    if it lacks those files or predates the required feature contracts.
 2. Alternatively obtain the selected wheel through the project's approved
    package source, verify its identity under local policy and inspect
@@ -63,10 +64,13 @@ may know nothing about Boss Edition. Use the target artifact instead:
    missing input before dependent upgrade work.
 
 The [Branching Guide](branching-guide.md) provides worked Git examples and edge
-cases; [workflow.md](workflow.md) is the canonical lifecycle/procedure authority,
+cases; [planning-workflow.md](planning-workflow.md) and
+[development-workflow.md](development-workflow.md) own lifecycle/procedure rules,
 and [tool-reference.md](tool-reference.md) holds exact tool and command contracts.
 After installation the equivalent routes are `docs_get("branching-guide")` /
-`cac docs get branching-guide`, `docs_get("workflow")` / `cac docs get workflow`,
+`cac docs get branching-guide`, `docs_get("planning-workflow")` /
+`cac docs get planning-workflow`, `docs_get("development-workflow")` /
+`cac docs get development-workflow`,
 and `docs_get("tool-reference")` / `cac docs get tool-reference`.
 Ordinary workflow adoption does not require changing the schema version.
 
@@ -135,7 +139,7 @@ A shared guidance replacement might read:
 > goal planning, roadmap capture and integrated rumor and ruling triage; use
 > campaign-manager for explicit tactical selection and encounter execution.
 > Follow the installed Branching Guide via docs_get("branching-guide") or
-> cac docs get branching-guide, with workflow as the procedural authority.
+> cac docs get branching-guide, with the planning and development workflows as procedural authorities.
 > Access managed records through the crypts-and-commits MCP tools first and
 > equivalent cac CLI only as fallback. Bootstrap and index rebuild remain
 > developer-only; existing encounter review/open/completion approvals persist.
@@ -163,7 +167,7 @@ universal Git repair recipe. See the Branching Guide's rejected registration,
 registered cancellation and legacy-work examples. Core remains branch-agnostic.
 
 Before declaring adoption done, verify the installed package and connected MCP
-consumer use the chosen target, all three registered guides are readable without
+consumer use the chosen target, all registered guides, including both phase workflows, are readable without
 normal-budget truncation, and deployed skill owners match local instructions.
 Inspect the effective hook registration/script and developer trust state without
 triggering a destructive managed-file test. Confirm unrelated hooks/settings

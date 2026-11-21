@@ -14,9 +14,11 @@ def test_list_docs_returns_registered_entries() -> None:
     assert "migration-guide" in names
     assert "branching-guide" in names
     assert "tool-reference" in names
+    assert "planning-workflow" in names
+    assert "development-workflow" in names
 
 
-@pytest.mark.parametrize("name", ["branching-guide", "migration-guide", "tool-reference", "workflow"])
+@pytest.mark.parametrize("name", [name for name, _ in docs.list_docs()])
 def test_registered_guide_resource_fits_response_budget(name: str) -> None:
     path = docs.doc_source_path(name)
     body = docs.read_doc(name)
@@ -31,7 +33,7 @@ def test_registered_guide_resource_fits_response_budget(name: str) -> None:
 def test_doc_summary_returns_registered_summary() -> None:
     summary = docs.doc_summary("workflow")
 
-    assert "Workflow Reference Guide" in summary
+    assert "Workflow Index" in summary
 
 
 def test_tool_reference_doc_returns_full_body() -> None:
@@ -39,15 +41,15 @@ def test_tool_reference_doc_returns_full_body() -> None:
     assert "Tool Reference" in docs.doc_summary("tool-reference")
 
 
-def test_workflow_leaves_contracts_to_tool_reference_with_headroom() -> None:
-    body = docs.read_doc("workflow")
+@pytest.mark.parametrize("name", [name for name, _ in docs.list_docs() if "workflow" in name])
+def test_workflows_leave_contracts_to_tool_reference_with_headroom(name: str) -> None:
+    body = docs.read_doc(name)
 
     assert "(tool-reference.md)" in body
-    # Raised from 40,000 as a stopgap while rulings land; splitting the guide restores real headroom.
-    assert len(body) <= 45_000
+    assert len(body) <= 40_000
 
 
-@pytest.mark.parametrize("name", ["workflow", "tool-reference"])
+@pytest.mark.parametrize("name", ["workflow", "planning-workflow", "development-workflow", "tool-reference"])
 def test_paired_docs_ship_no_repository_campaign_or_encounter_names(name: str) -> None:
     body = docs.read_doc(name)
 
@@ -63,7 +65,7 @@ def test_doc_summary_missing_raises() -> None:
 def test_read_doc_returns_full_body() -> None:
     body = docs.read_doc("workflow")
 
-    assert body.startswith("# Crypts and Commits Workflow Reference Guide")
+    assert body.startswith("# Crypts and Commits Workflow Index")
 
 
 def test_read_doc_missing_raises() -> None:
@@ -107,9 +109,34 @@ def test_supporting_guides_describe_rulings(name: str) -> None:
         assert "Rulings are additive within schema version 1." in body
 
 
-@pytest.mark.parametrize("name", ["branching-guide", "migration-guide", "tool-reference", "workflow"])
+@pytest.mark.parametrize("name", [name for name, _ in docs.list_docs()])
 def test_guides_never_narrow_canonize_to_lore(name: str) -> None:
     body = " ".join(docs.read_doc(name).split())  # catch phrases broken across wrapped lines
 
     assert "rulings into lore" not in body
     assert "name no lore records" not in body
+
+
+def test_phase_workflows_preserve_the_shared_authorization_exception() -> None:
+    paragraphs = []
+    for name in ("planning-workflow", "development-workflow"):
+        body = docs.read_doc(name)
+        paragraph = re.search(r"Not separately gated:.*?(?=\n\n)", body, re.DOTALL)
+        assert paragraph is not None, name
+        text = " ".join(paragraph.group().split())
+        for rule in ("draft-to-reviewed", "ruling capture", "campaign transitions", "lore, region and world edits"):
+            assert rule in text, (name, rule)
+        assert "subject to the authorization rules" in text
+        assert "Agent planning and campaign workflow" in text
+        assert "## Agent planning and campaign workflow" in body
+        paragraphs.append(text)
+    assert paragraphs[0] == paragraphs[1]
+
+
+def test_workflow_index_routes_to_self_contained_phase_guides() -> None:
+    body = docs.read_doc("workflow")
+    for name in ("planning-workflow", "development-workflow"):
+        assert f"({name}.md)" in body
+        assert f'docs_get("{name}")' in body
+    assert "## Encounter" not in body
+    assert "## Bosses" not in body

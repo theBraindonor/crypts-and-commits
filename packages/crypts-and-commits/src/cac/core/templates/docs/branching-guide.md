@@ -1,8 +1,10 @@
 # Crypts and Commits Branching Guide
 
-This guide explains how to use Git with Boss Edition. The [Workflow Reference
-Guide](workflow.md) remains authoritative for domain rules, approval gates and
-skill procedure. Read it through `docs_get("workflow")` / `cac docs get workflow`.
+This guide explains how to use Git with Boss Edition. The [Planning Workflow](planning-workflow.md)
+and [Development Workflow](development-workflow.md) own domain rules and procedure.
+Read them on demand through `docs_get("planning-workflow")` /
+`cac docs get planning-workflow` or `docs_get("development-workflow")` /
+`cac docs get development-workflow`. [workflow](workflow.md) is a short router.
 Exact tool and command contracts live in the [Tool Reference](tool-reference.md),
 read through `docs_get("tool-reference")` / `cac docs get tool-reference`.
 Read this guide through `docs_get("branching-guide")` / `cac docs get branching-guide`.
@@ -124,7 +126,7 @@ managed-file writes. Inspect exact command help where argument detail is needed.
    approval to launch a fresh independent review, separate approval to open, and
    developer confirmation to complete after verification. A passing plan review is
    not execution approval. Locked changes become recorded messages. Both scripted
-   and unscripted kinds retain their canonical gates. See workflow for exact rules.
+   and unscripted kinds retain their canonical gates. See development-workflow for exact rules.
 5. Capture discoveries on execution as standalone rumors. Allocate the next number
    from every rumor_list(include_archived=true) page, then use rumor_create /
    `cac rumor create r031-cache-wheels --summary "Cache wheel builds" --origin "c012

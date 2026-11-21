@@ -9,7 +9,7 @@ from cac.core.config import DOCS_RESPONSE_BUDGET
 app = typer.Typer(
     help=(
         "Read the framework's packaged reference docs - guide documents shipped with cac "
-        "(e.g. the Workflow Reference Guide), distinct from .sourcebook content. Read-only."
+        "(e.g. planning-workflow and development-workflow), distinct from .sourcebook content. Read-only."
     )
 )
 console = Console()

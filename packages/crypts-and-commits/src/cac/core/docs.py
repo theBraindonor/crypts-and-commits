@@ -26,7 +26,7 @@ _DOCS: dict[str, DocEntry] = {
         summary=(
             "The Branching Guide: configured planning, assignment and execution branches, "
             "number allocation and collision checks, integration, review fixes and legacy work. "
-            "Read for a worked Git workflow; workflow remains the lifecycle authority."
+            "Read for worked Git examples; the phase workflow guides own lifecycle rules."
         ),
     ),
     "tool-reference": DocEntry(
@@ -35,16 +35,33 @@ _DOCS: dict[str, DocEntry] = {
         summary=(
             "The Tool Reference: MCP tool and CLI command names, arguments, result and identity shapes, "
             "errors, response budgets, cursor continuation and short-reference grammar. "
-            "Read when you need an exact contract; workflow owns the rules and procedure."
+            "Read when you need an exact contract; the phase workflows own rules and procedure."
         ),
     ),
     "workflow": DocEntry(
         name="workflow",
         filename="workflow.md",
         summary=(
-            "The Workflow Reference Guide: the .sourcebook domain model's structure, status "
-            "lifecycles and guards, cross-type connections, approval gates, review flow and "
-            "planning/branch procedure. Read this when a task needs the exact rule, not just a summary of it."
+            "The Workflow Index: routes procedural questions to planning-workflow or development-workflow. "
+            "Use the phase guide directly when the task is known; use prime for routine orientation."
+        ),
+    ),
+    "planning-workflow": DocEntry(
+        name="planning-workflow",
+        filename="planning-workflow.md",
+        summary=(
+            "The Planning Workflow: goals, readiness, roadmap adoption, static context, "
+            "integrated rumor/ruling triage, archival and planning/branch rules. "
+            "Self-contained shared rules; read on demand for planning procedure."
+        ),
+    ),
+    "development-workflow": DocEntry(
+        name="development-workflow",
+        filename="development-workflow.md",
+        summary=(
+            "The Development Workflow: campaign selection/registration, encounters, "
+            "independent review, approval gates, execution, capture and review fixes. "
+            "Self-contained shared rules; read on demand for development procedure."
         ),
     ),
     "migration-guide": DocEntry(

@@ -5,13 +5,13 @@ created_by: John Hoff
 created_on: '2026-11-21T04:31:53Z'
 depends_on: []
 name: b006-split-workflow-guide-by-phase
-status: available
+status: vanquished
 summary: Split workflow into development-workflow and planning-workflow, each capped
   at 40,000 characters. Experiment with common-workflow content versus consistent
   duplication. Complete the campaign after joint review and clean automated checks;
   practical validation comes organically through later usage.
 updated_by: John Hoff
-updated_on: '2026-11-21T04:47:41Z'
+updated_on: '2026-11-21T05:38:16Z'
 ---
 
 ## Goal

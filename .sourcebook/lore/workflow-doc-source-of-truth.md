@@ -6,59 +6,63 @@ created_by: John Hoff
 created_on: '2026-07-28T03:52:44Z'
 enabled: true
 name: workflow-doc-source-of-truth
-summary: workflow.md and tool-reference.md are a paired source of truth. workflow.md
-  owns the domain model, lifecycles/guards, cross-type connections and skill procedure;
-  tool-reference.md owns MCP/CLI names, arguments, result shapes, errors, budgets
-  and continuation. A substantive change updates the owning doc(s) in the same change.
-  Check when a Plan touches mcp/, cli/, core/ or a skill template.
+summary: planning-workflow.md and development-workflow.md own phase procedure; workflow.md
+  is a routing index. tool-reference.md owns MCP/CLI contracts. Each rule has a primary
+  home; shared copies stay synchronized in the same substantive change. Review lifecycles,
+  guards, connections and skill procedure against the owning guide and affected mirrors.
 updated_by: John Hoff
-updated_on: '2026-10-28T03:36:01Z'
+updated_on: '2026-11-21T05:31:37Z'
 ---
 
-# Workflow Guide and Tool Reference Are the Framework's Source of Truth
+# Workflow Guides and Tool Reference Are the Framework's Source of Truth
 
-Two packaged documents under
-`packages/crypts-and-commits/src/cac/core/templates/docs/` form a paired
-source of truth. Each statement has exactly one owner:
+Packaged documents under
+`packages/crypts-and-commits/src/cac/core/templates/docs/` have distinct roles:
 
-- **`workflow.md`** (the Workflow Reference Guide) owns the `.sourcebook`
-  domain model's structure, status lifecycles and their guards and
-  restrictions, cross-type connections, and the workflow procedure that the
-  `world-manager`, `world-planner` and `campaign-manager` skills are authored
-  against: approval gates, the review flow, the disclosure ladder, and the
-  planning, campaign and branch procedure.
-- **`tool-reference.md`** (the Tool Reference) owns MCP tool and CLI command
-  names, arguments and options, result and identity shapes, error and guard
-  conditions as surfaced by a tool, response budgets, and cursor
-  continuation.
+- `planning-workflow.md` owns static context, boss lifecycle/readiness,
+  dependencies and roadmap adoption; rumor/ruling record semantics and triage;
+  priming, synchronization, numbering, collision checks and planning-side archival.
+- `development-workflow.md` owns campaign lifecycle, selection and coupling,
+  reconciliation, encounter lifecycle, approval gates, independent review,
+  Codex handoffs and capture/execution procedure. The rule on actions not
+  separately gated has its primary home here and a full matching copy in planning.
+- `workflow.md` is a short task router, not the full procedural authority.
+- `tool-reference.md` owns MCP/CLI names, arguments/options, result and identity
+  shapes, errors and guards as surfaced by tools, budgets and continuation.
 
-Any substantive change to one of the following must update the document that
-owns the affected statement, in the same change, not as a follow-up. A change
-that touches both kinds of statement updates both documents.
+Shared rules are repeated so ordinary phase work needs one deep-guide retrieval.
+Each rule has one primary home for authoring and reconciliation; every affected
+mirror must change in the same substantive change. An accidentally divergent
+mirror is a documentation defect: reconcile against the primary rule and the
+implementation and correct all affected copies. Primary ownership does not
+require readers to fetch both guides during ordinary work.
 
-- An MCP tool's behavior, name, arguments, or return shape (`mcp/*.py`) -
-  usually tool-reference.md, plus workflow.md if the rule it enforces changes.
-- A CLI command's behavior, name, or arguments (`cli/*.py`), including any
-  new CLI-only command exempted from MCP parity by `cli-mcp-parity` -
-  usually tool-reference.md.
-- A status lifecycle transition, guard, or restriction in `core/*.py`
-  (e.g. what's allowed at each status, what requires a message, what locks
-  content) - workflow.md, plus tool-reference.md where a tool's errors or
-  results change.
-- A cross-type connection (e.g. what's bidirectional vs. one-directional,
-  what carries a status restriction) - workflow.md.
-- The `world-manager`/`world-planner`/`campaign-manager` skill procedure
-  itself - approval gates, the review flow, the disclosure ladder, planning
-  and branch procedure - wherever that procedure is described in prose (see
-  `skills-authored-only-in-templates` for where that prose actually lives) -
-  workflow.md.
+Any substantive change must update its owning document and affected mirrors in
+the same change, not as a follow-up:
 
-A "substantive" change is one that would make an existing statement in
-either document inaccurate - a wording/typo fix or a purely internal refactor
-with no observable behavior change does not require an update.
+- MCP/CLI behavior, names, arguments or results: tool-reference, plus the owning
+  phase workflow when procedural meaning changes. CLI/MCP parity still applies.
+- Core lifecycle transitions, guards, restrictions and cross-type connections:
+  the owning phase workflow and mirrors, plus tool-reference when surfaced
+  errors or result contracts change.
+- Skill procedure, including all approval gates, independent review, disclosure,
+  planning, branching and execution: the owning phase workflow and mirrors.
+  Skill text is authored only in packaged templates; the developer redeploys it.
 
-When reviewing any encounter whose Plan touches `mcp/`, `cli/`, `core/`, or
-any skill's `SKILL.md` template: confirm the Plan or Verification includes
-updating the owning document(s) to match, or explicitly justifies why no
-update is needed. Treat a missing update as a lore violation, the same way
-`cli-mcp-parity` treats a CLI command added without its MCP counterpart.
+For statements spanning phases, planning is primary for context, bosses, triage,
+synchronization/numbering and collision checks; development is primary for
+campaign/coupling/reconciliation, encounters, gates and capture. Planning owns
+maintenance detail, with migration-guide owning upgrade/migration instructions.
+The phase guides retain prohibitions on agent-run bootstrap and index rebuild.
+The three separate encounter approvals remain fully stated in development and
+inline in both campaign-manager templates; shared authorization exceptions never
+waive the developer approvals required for context edits.
+
+A substantive change makes an existing statement inaccurate; a typo correction
+or internal refactor with no observable behavior change does not require a
+procedural update. Both types of statement may change together, requiring both
+procedural and contract updates.
+
+When reviewing a Plan touching mcp/, cli/, core/ or a skill template, confirm
+that the owning guides and affected mirrors are updated, or that the Plan
+explicitly justifies why no update is needed. Missing updates are lore violations.

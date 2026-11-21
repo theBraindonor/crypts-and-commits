@@ -61,12 +61,14 @@ re-explaining yourselves to the other, or to whoever picks this up next.
 
 - **[Quickstart](docs/QUICKSTART.md)** — adopting CAC in your own project:
   install the package, bootstrap `.sourcebook/`, and hand off to your agent.
-- **[Workflow Reference Guide](packages/crypts-and-commits/src/cac/core/templates/docs/workflow.md)**
-  — the source of truth for the `.sourcebook` domain model and workflow: every
-  object's structure, its status lifecycle, how the types connect, and the
-  approval and branch procedure. Also retrievable on demand by an agent via
-  `docs_get("workflow")` (MCP) or `cac docs get workflow` (CLI), once a project
-  is bootstrapped.
+- **[Planning Workflow](packages/crypts-and-commits/src/cac/core/templates/docs/planning-workflow.md)**
+  — goals, readiness, roadmap adoption, static context, triage and archival.
+  Retrieve via `docs_get("planning-workflow")` / `cac docs get planning-workflow`.
+- **[Development Workflow](packages/crypts-and-commits/src/cac/core/templates/docs/development-workflow.md)**
+  — campaign selection, registration, encounters, review gates and execution.
+  Retrieve via `docs_get("development-workflow")` / `cac docs get development-workflow`.
+- **[Workflow Index](packages/crypts-and-commits/src/cac/core/templates/docs/workflow.md)**
+  — a short task router, available via `docs_get("workflow")` / `cac docs get workflow`.
 - **[Tool Reference](packages/crypts-and-commits/src/cac/core/templates/docs/tool-reference.md)**
   — the paired contract reference: MCP tool and CLI command arguments, result
   shapes, errors, response budgets and continuation. Retrieve via
@@ -87,7 +89,7 @@ re-explaining yourselves to the other, or to whoever picks this up next.
 CAC packages three skills for Claude and Codex: **world-manager** for static
 context and lore, **world-planner** for goals, roadmap adoption, and rumor
 and ruling triage, and **campaign-manager** for tactical selection, reviewed
-execution and ruling capture. Their procedures follow the Workflow Reference Guide. After upgrading,
+execution and ruling capture. Their procedures follow the planning and development workflow guides. After upgrading,
 the developer redeploys framework-owned skills with `cac bootstrap init`;
 authoring templates does not update deployed copies or local agent instructions.
 
@@ -189,8 +191,9 @@ skill guidance: the endpoints themselves are branch-agnostic and never create
 or switch branches. See the [Branching Guide](packages/crypts-and-commits/src/cac/core/templates/docs/branching-guide.md)
 for worked examples.
 
-See the [Workflow Reference Guide](packages/crypts-and-commits/src/cac/core/templates/docs/workflow.md)
-for the full structural and procedural detail behind all of the above.
+See the [Planning Workflow](packages/crypts-and-commits/src/cac/core/templates/docs/planning-workflow.md)
+and [Development Workflow](packages/crypts-and-commits/src/cac/core/templates/docs/development-workflow.md)
+for structural and procedural detail.
 
 ## Repository layout
 
@@ -287,7 +290,9 @@ pdm run cac campaign list          # every campaign and its status
 pdm run cac encounter list --campaign c001  # encounters in campaign c001
 pdm run cac rumor list             # backlog rumors awaiting triage
 pdm run cac ruling list --status recorded  # GM decisions awaiting triage
-pdm run cac docs get workflow      # the full domain-model reference
+pdm run cac docs get planning-workflow     # goals, context and triage
+pdm run cac docs get development-workflow  # campaigns, encounters and gates
+pdm run cac docs get workflow              # short task router
 pdm run cac docs get tool-reference  # exact tool and command contracts
 ```
 

@@ -22,7 +22,9 @@ After a library upgrade, the developer reruns bootstrap to redeploy the framewor
 
 For the full walkthrough, see the [Quickstart guide](https://github.com/theBraindonor/crypts-and-commits/blob/main/docs/QUICKSTART.md).
 
-Use `cac docs get workflow` for the domain model, lifecycles and procedure,
+Use `cac docs get planning-workflow` for goals, context and triage,
+`cac docs get development-workflow` for campaigns, encounters and approval gates,
+`cac docs get workflow` for a short task router,
 `cac docs get branching-guide` for planning, assignment and execution branch
 examples, `cac docs get tool-reference` for exact tool and command contracts, and
 `cac docs get migration-guide` before upgrading an existing project.
@@ -32,7 +34,7 @@ local instruction adoption from developer-run redeployment and schema migration.
 
 ## What's inside
 
-Content is organized around **world** (project summary), **lore** (standards), **region** (documented repository path), **boss** (goal, including adopted roadmap context), **campaign** (chosen effort pursuing zero, one or many bosses), **rumors** (numbered backlog notes captured from anywhere, triaged on planning into bosses or dismissed), **ruling** (developer-confirmed decision captured in an open campaign, canonized into lore, region or world updates or noted on planning), and **encounter** (reviewed unit of work). Bosses, campaigns, encounters and rumors use numbered names with short refs (`bNNN`, `cNNN`, `rNNN`, `cNNN/eNNN`); rulings are named `cNNN-eNNN-slug` for the campaign and encounter they came from and take full names only. Agents use the MCP server first and CLI as fallback; managed files are not edited directly. The packaged Workflow Reference Guide supplies branch, numbering, ownership, and approval procedure.
+Content is organized around **world** (project summary), **lore** (standards), **region** (documented repository path), **boss** (goal, including adopted roadmap context), **campaign** (chosen effort pursuing zero, one or many bosses), **rumors** (numbered backlog notes captured from anywhere, triaged on planning into bosses or dismissed), **ruling** (developer-confirmed decision captured in an open campaign, canonized into lore, region or world updates or noted on planning), and **encounter** (reviewed unit of work). Bosses, campaigns, encounters and rumors use numbered names with short refs (`bNNN`, `cNNN`, `rNNN`, `cNNN/eNNN`); rulings are named `cNNN-eNNN-slug` for the campaign and encounter they came from and take full names only. Agents use the MCP server first and CLI as fallback; managed files are not edited directly. The packaged planning and development workflow guides supply branch, numbering, ownership, and approval procedure.
 
 ## Documentation
 

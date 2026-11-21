@@ -9,7 +9,7 @@ from cac.mcp.instance import mcp
 @mcp.tool()
 def docs_list(cursor: str | None = None) -> dict[str, Any]:
     """List registered reference docs as name + summary pairs, paged under the response budget.
-    Docs are framework-owned guide documents (e.g. the Workflow Reference Guide) - read-only,
+    Docs are framework-owned guide documents (e.g. the phase workflows) - read-only,
     distinct from .sourcebook content. summary is a routing signal; hydrate with docs_get(name)
     for the full body."""
     items = [{"name": name, "summary": summary} for name, summary in docs_core.list_docs()]
@@ -19,8 +19,9 @@ def docs_list(cursor: str | None = None) -> dict[str, Any]:
 
 @mcp.tool()
 def docs_get(name: str, cursor: str | None = None) -> dict[str, Any]:
-    """Show a registered doc's full body - e.g. docs_get("workflow") for the Workflow Reference
-    Guide. Body is fitted to a dedicated, larger docs response budget (docs are a small curated
+    """Show a registered doc's full body - planning-workflow for goals/context/triage,
+    development-workflow for campaigns/encounters/gates, or workflow for the short routing index.
+    Body is fitted to a dedicated, larger docs response budget (docs are a small curated
     set meant to be read whole); a truncated result carries notice and next_cursor - call again
     with cursor=next_cursor to continue."""
     payload = {"name": name, "summary": docs_core.doc_summary(name), "body": docs_core.read_doc(name)}
