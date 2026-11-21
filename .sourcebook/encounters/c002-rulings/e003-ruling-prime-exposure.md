@@ -9,9 +9,9 @@ kind: scripted
 name: e003-ruling-prime-exposure
 regions:
 - crypts-and-commits
-status: draft
+status: reviewed
 updated_by: John Hoff
-updated_on: '2026-11-21T02:36:07Z'
+updated_on: '2026-11-21T02:40:52Z'
 ---
 
 ## Requirements
@@ -94,3 +94,16 @@ b005 makes prime visibility of untriaged rulings a success criterion. Showing th
   6. Note and archive it; prime shows "No recorded rulings."
 - After the MCP server reconnects, a live `prime_get` in this repository lists this repo's two recorded c002/e001 rulings. This step is read-only.
 - Docs describe exactly the shipped fields, shape, diagnostics and budget rule, checked against the diff.
+
+## Log
+
+### Review - 2026-11-21T02:40:52Z - John Hoff
+
+PASS-WITH-NOTES.
+- clean-tests-and-lint: honored. Verification requires a clean pytest run, ruff format applied, and ruff check plus format --check clean.
+- cli-mcp-parity: honored. No command is added; `cac prime get` and `prime_get` gain the same three fields through `core.present`, the MCP side changes only its docstring, an MCP shape test is planned, and the ruling truncation ref points at `ruling_list(status="recorded")`, not a file.
+- console-best-practices: mostly honored. Ruling summary lines are `markup=False` and tested with brackets, but the Plan should also print the diagnostic JSON lines with `markup=False`, since they carry stored or filesystem-derived ruling names and error text, and the CLI test should cover a bracketed diagnostic.
+- skills-authored-only-in-templates: honored. Skill text is explicitly deferred to a later c002 encounter, and no deployed skill path is touched.
+- workflow-doc-source-of-truth: honored. `tool-reference.md` (fields, shape, diagnostics, budget degradation), `workflow.md` (Rulings section, disclosure-ladder step 1, within the 45k cap), the MCP docstring and the CLI help are all updated in the same change and checked against the diff.
+- Plan feasibility: the named `ruling.list_rulings`/`read_metadata` and `prime.present` structure support the design as written.
+- Flagged but unverified: the demo-api `assemble_prime` caller; `cli/prime.py` must render a truncation ref that has `status` and no `name`; the live smoke test assumes two recorded c002/e001 rulings.
