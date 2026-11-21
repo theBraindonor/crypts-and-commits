@@ -9,9 +9,9 @@ kind: scripted
 name: e005-ruling-skill-templates
 regions:
 - crypts-and-commits
-status: draft
+status: reviewed
 updated_by: John Hoff
-updated_on: '2026-11-21T03:05:57Z'
+updated_on: '2026-11-21T03:09:11Z'
 ---
 
 ## Requirements
@@ -100,3 +100,9 @@ This repository's deployed copies under `.claude/skills/` and `.agents/skills/` 
   - both campaign-manager flavors state the override path inside the gate procedure and keep every gate's stop-and-ask;
   - the Claude and Codex flavors of each skill are functionally equivalent;
   - nothing contradicts `workflow.md` or the shipped `ruling_*` tools.
+
+## Log
+
+### Review - 2026-11-21T03:09:11Z - John Hoff
+
+PASS-WITH-NOTES. Independent review against clean-tests-and-lint, skills-authored-only-in-templates, workflow-doc-source-of-truth, cli-mcp-parity and console-best-practices. The Plan edits only the six packaged templates under templates/skills/{claude,codex}/ and leaves the deployed .claude/skills and .agents/skills copies untouched. Its deploy check uses core skills.deploy_skills in a scratch directory, never cac bootstrap init. Verification gates on a full pytest pass with no skips or deletions and on clean ruff check and format. workflow.md already owns the ruling procedure (e004), and the Plan checks the templates against it side by side, fixing any inaccuracy in the same change. Leaving tool-reference.md unchanged is justified because no contract changes. Spot checks found the specified guidance consistent with workflow.md and tool-reference.md: the cNNN-eNNN-slug naming with e000, capture in the same exchange, a rumor when no campaign is open, an override on REJECT only that the agent never grants and that is recorded as findings verbatim plus reason and captured as a ruling, no override for NOT-REVIEWABLE, gate 2 preserved, Codex transition-then-report-then-ask, canonize/note/reopen/archive with narratives and no delete, and the prime fields recorded_rulings, recorded_ruling_count and ruling_diagnostics. The tool signatures match the shipped ruling_* contracts, and the Claude allowed-tools already grant the whole server. cli-mcp-parity and console-best-practices do not apply. Notes: (1) at completion, explicitly ask the developer to run cac bootstrap init to redeploy; (2) make sure no other prime description in the templates (for example campaign-manager orientation or world-manager's wider ladder) goes stale; (3) pin the GM-override content assertion to specific wording rather than a loose phrase; (4) confirm the embedded reviewer prompt needs no change. Flagged but unverified: prime mentions outside the named sections, and whether world-manager's frontmatter description should mention rulings.
