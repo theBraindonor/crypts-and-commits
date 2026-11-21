@@ -9,9 +9,9 @@ kind: scripted
 name: e002-ruling-search-index
 regions:
 - crypts-and-commits
-status: reviewed
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-21T02:24:39Z'
+updated_on: '2026-11-21T02:30:49Z'
 ---
 
 ## Requirements
@@ -95,3 +95,32 @@ Unverified notes for implementation:
 - Check that the CLI/MCP help does not list types inline without `ruling`.
 - Confirm that `sync_write` moves a ruling's row in place on archive, as it does for rumors.
 - Keep the smoke test's direct file edit and Python `rebuild_index` call strictly inside the temporary scratch project, never this repo's `.sourcebook`. After merge, the developer runs `cac index rebuild` to fix this repo's stale index.
+
+### Opened - 2026-11-21T02:25:52Z - John Hoff
+
+Opened with developer approval. Implementation will fold in the reviewer notes.
+
+### Message - 2026-11-21T02:30:49Z - John Hoff
+
+Implementation complete, pending developer confirmation.
+
+**Reviewer notes:**
+1. Ran `ruff format .` (it reformatted one test file), then `ruff format --check .` was clean.
+2. Ruling search is tested through both MCP (`object_type="ruling"`, found by the resolution narrative and excluded by a rumor filter) and the CLI (`--type ruling`). Both share `config.SEARCH_INDEX_OBJECT_TYPES` validation.
+3. `tool-reference.md` had one type list, in its Search index section. It now lists every `object_type` value, including `ruling`. The unknown-type error text is generated from config, so it already includes `ruling`.
+4. The CLI and MCP search help list no types by hand, so no change was needed. The CLI `--include-archived` help naming only campaigns/encounters/bosses was already incomplete before e002 and is left for b004.
+5. Archive moves the row in place: the integration test sees a single `ruling` row with `archived: true` after archiving, and the index stays fresh.
+6. The smoke test's direct file edit and Python `rebuild_index` call ran only in a scratch project.
+
+**Docs:** `tool-reference.md` covers ruling hit text (summary, origin, resolution, body), the empty `campaign` column on ruling hits, ruling inventory coverage, and the fact that an index built before this change goes stale once rulings exist. The `workflow.md` Rulings line now says rulings are searchable under their own type and not yet primed. The guide is about 40,755 characters, under the 45,000 cap.
+
+**Verification:**
+- pytest: 1680 passed. ruff check and format clean.
+- Smoke test:
+  - The index was built in the scratch project before the ruling existed. Creating the ruling gave `ruling: 1`.
+  - `--type ruling` found the ruling by a body term, and by its canonize narrative after canonizing.
+  - After archiving, the hit was hidden by default and shown with `--include-archived`.
+  - Every search before the outside edit succeeded, and search refuses to run on a stale index, so the index stayed fresh throughout.
+  - After the outside file edit, `cac index status` reported stale and search exited 1.
+
+**After merge:** this repo's index stays stale until the developer runs `cac index rebuild`.

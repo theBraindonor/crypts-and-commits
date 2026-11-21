@@ -483,8 +483,8 @@ MCP get and mutation results contain `metadata` (including `campaign`,
 returns canonical names and parallel identities with cursor paging; `status`
 filters by status, and an unknown status fails. CLI get prints metadata,
 summary and body literally. Malformed names, unsafe storage, and live/archive
-name collisions fail before writes. Rulings are not yet indexed for search or
-included in prime.
+name collisions fail before writes. Rulings are searchable under
+`object_type` `ruling` (see Search index) and are not yet included in prime.
 
 ## Prime
 
@@ -525,10 +525,14 @@ routing is never silently dropped. The CLI renders the same facts literally.
 | Search | `index_search(phrase, max_results=10, skip=0, object_type=None, snippet_tokens=20, include_archived=False)` | `cac index search PHRASE [-n] [--skip/-s] [--type/-t] [--snippet-tokens] [--include-archived]` |
 | Rebuild (developer-only) | none | `cac index rebuild` |
 
-Search covers world, lore, region, boss, campaign, encounter and rumor
-records. Boss hits index the summary and body, and rumor hits index the
-summary, origin and body, each with name, status, audit and archive
-metadata; every status is searchable, and a hit is not an eligibility
+Search covers world, lore, region, boss, campaign, encounter, rumor and ruling
+records (`object_type` values `world`, `lore`, `region`, `boss`, `campaign`,
+`encounter`, `rumor`, `ruling`). Boss hits index the summary and body, rumor
+hits index the summary, origin and body, and ruling hits index the summary,
+origin, `resolution` narrative (empty while `recorded`) and body, each with
+name, status, audit and archive metadata. Ruling hits carry an empty
+`campaign` because the campaign is part of the canonical ruling name. Every
+status is searchable, and a hit is not an eligibility
 assertion. Archived
 records are excluded unless `include_archived` is set. Each hit has `rank`,
 `score`, `object_type`, `campaign`, `name`, `status`, `updated_on`, `archived`
@@ -552,7 +556,8 @@ describe the indexed snapshot. Counts total live and archived content together.
 Freshness compares each record's identity, relative location and SHA-256 of
 its raw UTF-8 bytes (metadata included) against a versioned manifest. The
 inventory covers world, lore, region, and live and archived boss, campaign,
-encounter and rumor records, including orphaned encounters; it excludes
+encounter, rumor and ruling records, including orphaned encounters. An index
+built before rulings were indexed reports stale once any ruling exists; it excludes
 unrelated files. Git state and modification times are never used. Legacy,
 unsupported, divergent, unreadable or invalid index data requires a developer
 rebuild. Reads never write, migrate or rebuild the index. Returning to the

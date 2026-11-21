@@ -5,7 +5,7 @@ from pathlib import Path
 
 import frontmatter
 import pytest
-from cac.core import campaign, encounter, lore, region, search_index, world
+from cac.core import campaign, config, encounter, lore, region, search_index, world
 from cac.core.paths import search_index_db_path
 
 pytestmark = pytest.mark.integration
@@ -611,3 +611,21 @@ def test_deleting_an_archived_campaign_removes_its_index_row(tmp_path: Path) -> 
 
     assert search_index.index_counts(tmp_path) == {}
     assert search_index.search(tmp_path, "Body", object_type="campaign", include_archived=True) == []
+
+
+@pytest.mark.parametrize(
+    ("relative", "expected"),
+    [
+        ("rulings/c001-e001-x.md", ("ruling", "", "c001-e001-x", False)),
+        ("archive/rulings/c001-e000-y.md", ("ruling", "", "c001-e000-y", True)),
+        ("rulings/nested/c001-e001-x.md", None),
+        ("archive/rulings/nested/c001-e001-x.md", None),
+    ],
+)
+def test_classify_ruling_paths(tmp_path: Path, relative: str, expected: tuple | None) -> None:
+    path = tmp_path / ".sourcebook" / relative
+    assert search_index._classify(tmp_path, path) == expected
+
+
+def test_ruling_is_a_search_object_type() -> None:
+    assert "ruling" in config.SEARCH_INDEX_OBJECT_TYPES

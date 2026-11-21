@@ -307,16 +307,77 @@ def test_ruling_name_pattern_is_disjoint_from_short_refs():
     assert config.RULING_NAME_PATTERN.fullmatch("c002") is None
 
 
-# Index isolation
+# Search index
 
 
-def test_ruling_writes_leave_the_index_fresh_and_unchanged(tmp_path):
+def names(root, phrase, **kwargs):
+    return [hit.name for hit in search_index.search(root, phrase, object_type="ruling", **kwargs)]
+
+
+def assert_fresh(root):
+    assert search_index.status(root)["freshness"] == "fresh"
+
+
+def test_ruling_writes_keep_the_index_fresh_and_searchable(tmp_path):
     search_index.rebuild_index(tmp_path)
-    counts = search_index.index_counts(tmp_path)
-    create(tmp_path, "c002-e001-a", body="zebraphrase")
-    ruling.update_ruling(tmp_path, "c002-e001-a", "zebraphrase two", "Summary", "GM")
-    ruling.canonize(tmp_path, "c002-e001-a", "Lore")
+    create(tmp_path, "c002-e001-a", body="zebrabody", summary="quokkasummary", origin="okapiorigin")
+    assert_fresh(tmp_path)
+    for term in ("zebrabody", "quokkasummary", "okapiorigin"):
+        assert names(tmp_path, term) == ["c002-e001-a"]
+    ruling.update_ruling(tmp_path, "c002-e001-a", "tapirbody", "Summary", "GM")
+    assert_fresh(tmp_path)
+    assert names(tmp_path, "zebrabody") == [] and names(tmp_path, "tapirbody") == ["c002-e001-a"]
+    ruling.canonize(tmp_path, "c002-e001-a", "Added narwhalnarrative lore")
+    assert_fresh(tmp_path)
+    assert names(tmp_path, "narwhalnarrative") == ["c002-e001-a"]
+    ruling.reopen(tmp_path, "c002-e001-a", "Revisit")
+    assert_fresh(tmp_path)
+    assert names(tmp_path, "narwhalnarrative") == []
+    ruling.note(tmp_path, "c002-e001-a", "Local axolotlnarrative")
+    hit = search_index.search(tmp_path, "axolotlnarrative", object_type="ruling")[0]
+    assert (hit.status, hit.campaign, hit.archived) == ("noted", "", False)
     ruling.archive_ruling(tmp_path, "c002-e001-a")
-    assert search_index.status(tmp_path)["freshness"] == "fresh"
-    assert search_index.index_counts(tmp_path) == counts
-    assert search_index.search(tmp_path, "zebraphrase", include_archived=True) == []
+    assert_fresh(tmp_path)
+    assert names(tmp_path, "axolotlnarrative") == []
+    archived = search_index.search(tmp_path, "axolotlnarrative", object_type="ruling", include_archived=True)
+    assert [(hit.name, hit.archived) for hit in archived] == [("c002-e001-a", True)]
+    assert search_index.index_counts(tmp_path)["ruling"] == 1
+
+
+def test_rebuild_matches_incremental_ruling_rows(tmp_path):
+    search_index.rebuild_index(tmp_path)
+    create(tmp_path, "c002-e001-a")
+    create(tmp_path, "c002-e000-b")
+    ruling.canonize(tmp_path, "c002-e000-b", "Lore")
+    ruling.archive_ruling(tmp_path, "c002-e000-b")
+    incremental = search_index.index_counts(tmp_path)
+    excerpts = [hit.excerpt for hit in search_index.search(tmp_path, "Summary", include_archived=True)]
+    assert search_index.rebuild_index(tmp_path) == sum(incremental.values())
+    assert search_index.index_counts(tmp_path) == incremental and incremental["ruling"] == 2
+    assert [hit.excerpt for hit in search_index.search(tmp_path, "Summary", include_archived=True)] == excerpts
+
+
+def test_external_ruling_edit_makes_the_index_stale(tmp_path):
+    path = create(tmp_path)
+    search_index.rebuild_index(tmp_path)
+    assert_fresh(tmp_path)
+    path.write_bytes(path.read_bytes() + b"\nExternal edit")
+    assert search_index.status(tmp_path)["freshness"] == "stale"
+
+
+def test_ruling_missing_from_an_older_index_makes_it_stale(tmp_path, monkeypatch):
+    real_inventory = search_index.index_snapshot.inventory
+    rulings_dir = ruling.ruling_dir(tmp_path)
+
+    def without_rulings(root):
+        # Simulate an index built before rulings were inventoried.
+        return [entry for entry in real_inventory(root) if entry[0] != "ruling"]
+
+    create(tmp_path)
+    monkeypatch.setattr(search_index, "_reindex_rulings", lambda root, conn: 0)
+    monkeypatch.setattr(search_index.index_snapshot, "inventory", without_rulings)
+    search_index.rebuild_index(tmp_path)
+    monkeypatch.undo()
+    assert rulings_dir.exists()
+    status = search_index.status(tmp_path)
+    assert status["freshness"] == "stale" and "ruling" not in status["counts"]

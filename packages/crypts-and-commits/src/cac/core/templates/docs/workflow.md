@@ -450,7 +450,7 @@ hindsight: **canonize** with a narrative of the world, lore or region updates
 made, or **note** with a narrative of why none is needed. Either narrative
 becomes `resolution`; **reopen** returns it to `recorded`. Rulings name no lore
 records. **Archive** retires a canonized or noted ruling, independently of
-campaign archival. There is no delete. Rulings are not yet searchable or primed.
+campaign archival. There is no delete. Rulings are searchable under their own type, not yet primed.
 
 ## Explicit user gates
 
