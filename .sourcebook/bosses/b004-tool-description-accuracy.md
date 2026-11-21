@@ -5,12 +5,12 @@ created_by: John Hoff
 created_on: '2026-11-20T23:43:33Z'
 depends_on: []
 name: b004-tool-description-accuracy
-status: available
+status: vanquished
 summary: Keep MCP tool descriptions and matching CLI help accurate and in parity with
   tool-reference.md, starting with index_search naming every searchable object type
   (including rumor) and what text each indexes.
 updated_by: John Hoff
-updated_on: '2026-11-21T05:50:00Z'
+updated_on: '2026-11-21T06:20:55Z'
 ---
 
 ## Goal
