@@ -10,8 +10,10 @@ summary: planning-workflow.md and development-workflow.md own phase procedure; w
   is a routing index. tool-reference.md owns MCP/CLI contracts. Each rule has a primary
   home; shared copies stay synchronized in the same substantive change. Review lifecycles,
   guards, connections and skill procedure against the owning guide and affected mirrors.
+  Each phase guide stays ≤40,000 characters for MCP-client headroom; prefer complete
+  guidance over deduplication.
 updated_by: John Hoff
-updated_on: '2026-11-21T05:31:37Z'
+updated_on: '2026-11-21T06:24:41Z'
 ---
 
 # Workflow Guides and Tool Reference Are the Framework's Source of Truth
@@ -36,6 +38,14 @@ mirror must change in the same substantive change. An accidentally divergent
 mirror is a documentation defect: reconcile against the primary rule and the
 implementation and correct all affected copies. Primary ownership does not
 require readers to fetch both guides during ordinary work.
+
+Each phase workflow guide stays at or under 40,000 characters, enforced per
+guide by `tests/core/test_docs.py`. The cap exists to leave headroom under MCP
+clients' tool-response character limits, for the broadest client support; it
+does not claim every client shares one limit. When the cap and deduplication
+conflict, prefer complete, logically consistent phase guidance with consistent
+shared duplication; do not extract a common-workflow guide merely to save
+characters.
 
 Any substantive change must update its owning document and affected mirrors in
 the same change, not as a follow-up:

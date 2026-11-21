@@ -5,13 +5,14 @@ assigned_to_world: false
 enabled: true
 name: cli-mcp-parity
 summary: 'Every CLI command must have a matching MCP tool in mcp/ (thin wrapper into
-  core/, no CLI-only console/confirm/editor concerns), with cursor paging and get-body
-  continuation preserved - except bootstrap and index rebuild, both permanently CLI-only
-  since they''re developer-only maintenance operations. Purpose: let an agent fall
-  back to the CLI when the MCP server isn''t available. Check this when any cli/ command
+  core/, no CLI-only console/confirm/editor concerns), preserving cursor paging and
+  get-body continuation - except bootstrap and index rebuild, permanently CLI-only
+  developer maintenance operations. Purpose: CLI fallback when MCP is unavailable.
+  Descriptions must agree across MCP/CLI and never exceed tool-reference.md''s specificity;
+  enumerated sets get config-derived drift-guard tests. Check when any cli/ command
   changes.'
 updated_by: John Hoff
-updated_on: '2026-10-28T02:56:55Z'
+updated_on: '2026-11-21T06:24:50Z'
 ---
 
 # CLI/MCP Command Parity
@@ -59,3 +60,14 @@ If a new CLI command is added and this parity is not extended to cover it in
 the same change, treat that as a lore violation unless the Plan explicitly
 justifies the gap (e.g. a third `bootstrap`/`index rebuild`-like,
 developer-only exception).
+
+## Description accuracy
+
+Parity covers the descriptions agents read, not only command existence. An MCP
+tool description and its CLI help must agree on every fact either states
+(statuses, guards, filter values, defaults), and `tool-reference.md` must be at
+least as specific: a fact stated in a description is stated in the owning
+contract too. Where a description enumerates a set defined in code (object
+types, statuses, registered docs), add a drift-guard test deriving the expected
+values from config or the registry, never hard-coded and never asserting prose
+wording. Drift guards cover names only; prose accuracy relies on review.

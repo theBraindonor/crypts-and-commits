@@ -1,19 +1,37 @@
 ---
-archived: false
+archived: true
 campaign: c003-workflow-guide-split
 created_by: John Hoff
 created_on: '2026-11-21T05:31:55Z'
 encounter: e002-implement-phase-workflows
-history: []
+history:
+- action: canonize
+  by: John Hoff
+  message: 'Canonized during planning triage on 2026-11-21. The approved changes were
+    applied through MCP during c003/e002 and verified as current: lore workflow-doc-source-of-truth''s
+    body and summary were replaced to give planning-workflow and development-workflow
+    phase ownership, with primary homes and synchronized mirrors, workflow.md as a
+    routing index and tool-reference.md as contract owner. The world summary gained
+    the routing sentence for the planning-workflow/development-workflow docs, workflow
+    as index, tool-reference, branching-guide and migration-guide. The crypts-and-commits
+    region needed no text change.'
+  'on': '2026-11-21T06:24:58Z'
 name: c003-e002-workflow-authority-and-world-routing
 origin: Developer (John Hoff), approving exact c003/e002 context-update proposal
-resolution: null
-status: recorded
+resolution: 'Canonized during planning triage on 2026-11-21. The approved changes
+  were applied through MCP during c003/e002 and verified as current: lore workflow-doc-source-of-truth''s
+  body and summary were replaced to give planning-workflow and development-workflow
+  phase ownership, with primary homes and synchronized mirrors, workflow.md as a routing
+  index and tool-reference.md as contract owner. The world summary gained the routing
+  sentence for the planning-workflow/development-workflow docs, workflow as index,
+  tool-reference, branching-guide and migration-guide. The crypts-and-commits region
+  needed no text change.'
+status: canonized
 summary: Approve phase-specific workflow authority with primary owners and synchronized
   shared copies, retaining workflow as an index and tool-reference as contract owner.
   Approve the matching world-summary routing sentence; the region needs no text change.
 updated_by: John Hoff
-updated_on: '2026-11-21T05:31:55Z'
+updated_on: '2026-11-21T06:25:05Z'
 ---
 
 ## Decision

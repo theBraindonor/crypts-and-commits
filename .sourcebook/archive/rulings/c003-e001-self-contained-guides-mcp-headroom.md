@@ -1,20 +1,36 @@
 ---
-archived: false
+archived: true
 campaign: c003-workflow-guide-split
 created_by: John Hoff
 created_on: '2026-11-21T04:59:46Z'
 encounter: e001-workflow-split-design
-history: []
+history:
+- action: canonize
+  by: John Hoff
+  message: 'Canonized during planning triage on 2026-11-21 with developer approval.
+    Lore workflow-doc-source-of-truth gained a paragraph: each phase workflow guide
+    stays at or under 40,000 characters (enforced per guide by tests/core/test_docs.py)
+    for headroom under MCP clients'' tool-response limits, without claiming one universal
+    limit. When the cap and deduplication conflict, prefer complete, consistent phase
+    guidance with shared duplication over extracting a common-workflow guide. Its
+    summary gained the matching sentence.'
+  'on': '2026-11-21T06:24:55Z'
 name: c003-e001-self-contained-guides-mcp-headroom
 origin: Developer (John Hoff), joint review of c003/e001 design comparison
-resolution: null
-status: recorded
+resolution: 'Canonized during planning triage on 2026-11-21 with developer approval.
+  Lore workflow-doc-source-of-truth gained a paragraph: each phase workflow guide
+  stays at or under 40,000 characters (enforced per guide by tests/core/test_docs.py)
+  for headroom under MCP clients'' tool-response limits, without claiming one universal
+  limit. When the cap and deduplication conflict, prefer complete, consistent phase
+  guidance with shared duplication over extracting a common-workflow guide. Its summary
+  gained the matching sentence.'
+status: canonized
 summary: Choose two self-contained phase guides with consistent shared duplication,
   retaining workflow as a short index and no common-workflow guide initially. The
   40,000-character cap primarily supports broad compatibility with MCP call character
   limits; eliminating duplication is secondary.
 updated_by: John Hoff
-updated_on: '2026-11-21T04:59:46Z'
+updated_on: '2026-11-21T06:25:05Z'
 ---
 
 ## Decision

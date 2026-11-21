@@ -1,21 +1,39 @@
 ---
-archived: false
+archived: true
 campaign: c004-tool-description-accuracy
 created_by: John Hoff
 created_on: '2026-11-21T05:57:29Z'
 encounter: e001-index-search-description
-history: []
+history:
+- action: canonize
+  by: John Hoff
+  message: 'Canonized during planning triage on 2026-11-21 with developer approval.
+    Lore cli-mcp-parity gained a "Description accuracy" section: MCP descriptions
+    and CLI help must agree on every stated fact, and tool-reference.md must be at
+    least as specific. Descriptions that enumerate a set defined in code get drift-guard
+    tests that derive expected values from config or the registry, never hard-coded
+    and never asserting prose; guards cover names only and prose relies on review.
+    Its summary gained the matching sentence, and the existing summary wording was
+    tightened to fit the 500-character cap.'
+  'on': '2026-11-21T06:25:00Z'
 name: c004-e001-drift-guard-and-reference-specificity
 origin: Developer (GM), approving c004/e001 review notes before opening
-resolution: null
-status: recorded
+resolution: 'Canonized during planning triage on 2026-11-21 with developer approval.
+  Lore cli-mcp-parity gained a "Description accuracy" section: MCP descriptions and
+  CLI help must agree on every stated fact, and tool-reference.md must be at least
+  as specific. Descriptions that enumerate a set defined in code get drift-guard tests
+  that derive expected values from config or the registry, never hard-coded and never
+  asserting prose; guards cover names only and prose relies on review. Its summary
+  gained the matching sentence, and the existing summary wording was tightened to
+  fit the 500-character cap.'
+status: canonized
 summary: 'Answer b004''s open question with a drift-guard test: it asserts that index_search''s
   MCP description and cac index search help name every SEARCH_INDEX_OBJECT_TYPES value
   (names only, not per-type indexed text). Also add the world/lore/region/campaign/encounter
   "body" clause to tool-reference.md so the owning doc is at least as specific as
   the descriptions it governs.'
 updated_by: John Hoff
-updated_on: '2026-11-21T05:57:29Z'
+updated_on: '2026-11-21T06:25:06Z'
 ---
 
 ## Decision
