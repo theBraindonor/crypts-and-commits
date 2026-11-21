@@ -96,3 +96,12 @@ def test_migration_guide_doc_returns_full_body() -> None:
     assert body.startswith("# Crypts and Commits Sourcebook Migration Guide")
     assert "Current sourcebook schema version: 1" in body
     assert "guardrail" in body
+
+
+@pytest.mark.parametrize("name", ["branching-guide", "migration-guide"])
+def test_supporting_guides_describe_rulings(name: str) -> None:
+    body = docs.read_doc(name)
+
+    assert "ruling_create" in body
+    if name == "migration-guide":
+        assert "Rulings are additive within schema version 1." in body

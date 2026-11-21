@@ -125,13 +125,14 @@ the full workflow into every project.
 | Open campaigns directly on main | Main/planning/assignment have no open campaign under the recommended workflow. Register selected bosses on the campaign's -assignment branch, then open on the exact campaign-name execution branch. Bossless campaigns may skip registration. |
 | Pick the next number from the visible list or reuse an old number | Skills use complete retained/archive-inclusive inventories plus known campaign branch reservations, numeric max plus one and per-campaign encounters. Check collisions at creation, after integration and before completion/recompletion; resolve manually. Rumor numbers may collide across branches and are renumbered on planning. |
 | Edit assigned goal notes when discoveries appear | Capture discoveries from anywhere as standalone rumors (`rumor_create`); triage integrated rumors on planning with world-planner into selected goals or dismissals, without deletion or scope expansion. |
+| Developer decisions live only in encounter logs, override notes or chat | Capture each developer-confirmed answer to an open question or choice, including the reason for a REJECT override, as a ruling (`ruling_create`) while its campaign is open; triage integrated recorded rulings on planning with world-planner by canonizing them into approved lore/world changes or noting them, then archive. |
 | Completion proves merged work, or review fixes overwrite completed history | Verify integration separately. Complete before implementation integration; reactivate completed campaigns for pre-merge fixes, add follow-up encounters, verify and complete again. Retain history and group membership. |
 | Codex hook blocks shell access to managed paths | The packaged hook now denies apply_patch file-operation targets inside managed sourcebook paths. Shell calls are not filtered. MCP/CLI-only access remains binding; narrower enforcement grants no bypass. Developer redeployment and hook review/trust are separate. |
 
 A shared guidance replacement might read:
 
 > Before nontrivial CAC work, orient with world-manager. Use world-planner for
-> goal planning, roadmap capture and integrated rumor triage; use
+> goal planning, roadmap capture and integrated rumor and ruling triage; use
 > campaign-manager for explicit tactical selection and encounter execution.
 > Follow the installed Branching Guide via docs_get("branching-guide") or
 > cac docs get branching-guide, with workflow as the procedural authority.
@@ -257,6 +258,18 @@ on plural records or downgrade without a developer-planned conversion. Campaign
 API results expose bosses; prime replaces active_boss/active_boss_diagnostic with
 active_boss_names/active_bosses/active_boss_diagnostics. Update consumers with the
 library. Preserve abandoned campaign lists as history; they are not current claims.
+
+Rulings are additive within schema version 1. Upgrading the library provides
+`ruling_*` tools and `cac ruling` commands; missing `rulings/` and
+`archive/rulings/` storage is empty and created lazily. Existing worlds,
+campaigns, encounters, bosses and rumors are not rewritten, and no record
+migration, schema bump, guardrail suspension or bootstrap migration is needed.
+Prime gains `recorded_rulings`, `recorded_ruling_count` and `ruling_diagnostics`
+(recorded rulings appear until triaged); update prime consumers with the library.
+Search gains the `ruling` object type, and an index built before rulings were
+indexed reports stale once any ruling exists: tell the developer, who runs
+`cac index rebuild`. Adopting the capture and triage procedure is a skill change,
+so the developer redeploys skills with `cac bootstrap init` as described above.
 
 ### Adopt an existing roadmap
 

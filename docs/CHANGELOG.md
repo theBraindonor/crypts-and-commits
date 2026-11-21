@@ -3,6 +3,41 @@
 All notable changes to Crypts and Commits (CAC) are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+Rulings give the decisions a developer (Game Master) confirms during active
+development an identity and a lifecycle, so planning can review them in
+hindsight and decide which ones become standing lore. Everything below is the
+result of the `c002-rulings` campaign tracked in this repository's own
+`.sourcebook`. The sourcebook schema stays at version 1: ruling storage is
+additive and created lazily, with no record migration or bootstrap rerun
+required.
+
+### Added
+
+- Rulings (`ruling_*` / `cac ruling`): ADR-style records named
+  `cNNN-eNNN-slug` for the campaign and encounter where the decision was
+  made (`e000` for a campaign-level decision), with a required summary,
+  free-text origin and body. Create requires the campaign to be `open`
+  (reactivated qualifies) and a nonzero encounter to exist in it; names are
+  unique across live and archived rulings, with no numbering, short refs or
+  renumber. Lifecycle `recorded` -> `canonized` or `noted` (narrative
+  required, stored as `resolution`), plus `reopen` and `archive`
+  (independent of campaign archival); no delete.
+- Search integration: rulings are a search object type (`ruling`), and an
+  index built before rulings were indexed reports stale once any ruling
+  exists.
+- Prime exposure: `recorded_rulings` lists every recorded ruling from any
+  campaign until it is triaged, with an exact `recorded_ruling_count` and
+  `ruling_diagnostics` for damaged records.
+- Skills: campaign-manager captures developer-confirmed decisions as
+  rulings, including the reason for a GM override of a reviewer REJECT;
+  world-planner triages recorded rulings on planning (canonize into approved
+  lore/world changes, or note, then archive); world-manager's prime and
+  disclosure ladder cover recorded rulings.
+- Docs: rulings in the Workflow Reference Guide, Tool Reference, Branching
+  Guide and Migration Guide.
+
 ## [0.3.0] - 2026-10-28 - Boss Edition
 
 Boss Edition adds project goals ("bosses") that can be captured and refined
