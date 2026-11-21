@@ -1,21 +1,35 @@
 ---
-archived: false
+archived: true
 campaign: c005-clean-tool-descriptions
 created_by: John Hoff
 created_on: '2026-11-21T15:52:04Z'
 encounter: e001-clean-tool-descriptions
-history: []
+history:
+- action: note
+  by: John Hoff
+  message: Noted during planning triage on 2026-11-21 with developer approval. This
+    was a one-time scope decision for c005, not a standing convention. Its result
+    is documented in tool-reference.md's Short references section (the contract owner)
+    and asserted by tests/core/test_references.py. cli-mcp-parity's Description accuracy
+    rule already requires footers to state only accurate facts, so no lore, region
+    or world change is needed.
+  'on': '2026-11-21T16:08:41Z'
 name: c005-e001-tailor-contract-footer-per-domain
 origin: John Hoff (GM), answering b007's open question while drafting c005/e001
-resolution: null
-status: recorded
+resolution: Noted during planning triage on 2026-11-21 with developer approval. This
+  was a one-time scope decision for c005, not a standing convention. Its result is
+  documented in tool-reference.md's Short references section (the contract owner)
+  and asserted by tests/core/test_references.py. cli-mcp-parity's Description accuracy
+  rule already requires footers to state only accurate facts, so no lore, region or
+  world change is needed.
+status: noted
 summary: 'Tailoring the identity-contract footer per domain is in scope for c005:
   the "Qualified encounter context overrides active fallback..." sentence appears
   only on encounter-domain tools and commands, not boss, campaign or rumor ones, with
   tool-reference.md updated to match. This overrides b007''s "contract text unchanged"
   criterion for that one sentence.'
 updated_by: John Hoff
-updated_on: '2026-11-21T15:52:04Z'
+updated_on: '2026-11-21T16:08:47Z'
 ---
 
 ## Decision

@@ -4,15 +4,14 @@ assigned_regions:
 assigned_to_world: false
 enabled: true
 name: cli-mcp-parity
-summary: 'Every CLI command must have a matching MCP tool in mcp/ (thin wrapper into
-  core/, no CLI-only console/confirm/editor concerns), preserving cursor paging and
-  get-body continuation - except bootstrap and index rebuild, permanently CLI-only
-  developer maintenance operations. Purpose: CLI fallback when MCP is unavailable.
-  Descriptions must agree across MCP/CLI and never exceed tool-reference.md''s specificity;
-  enumerated sets get config-derived drift-guard tests. Check when any cli/ command
-  changes.'
+summary: 'Every CLI command needs a matching MCP tool in mcp/ (thin wrapper into core/,
+  no CLI-only console/confirm/editor concerns), keeping cursor paging and get-body
+  continuation - except bootstrap and index rebuild, permanently CLI-only. Purpose:
+  CLI fallback when MCP is unavailable. Descriptions must agree across MCP/CLI, render
+  as clean prose, and never exceed tool-reference.md''s specificity; enumerated sets
+  get config-derived drift-guard tests. Check when any cli/ command changes.'
 updated_by: John Hoff
-updated_on: '2026-11-21T06:24:50Z'
+updated_on: '2026-11-21T16:08:40Z'
 ---
 
 # CLI/MCP Command Parity
@@ -71,3 +70,11 @@ contract too. Where a description enumerates a set defined in code (object
 types, statuses, registered docs), add a drift-guard test deriving the expected
 values from config or the registry, never hard-coded and never asserting prose
 wording. Drift guards cover names only; prose accuracy relies on review.
+
+Descriptions must also render as clean prose, with no indentation or space
+runs. MCP tools register only through the shared `mcp` instance in
+`mcp/instance.py`, which cleans docstrings (the SDK passes them verbatim), and
+any text appended to a docstring (e.g. the `references.inputs` contract footer)
+goes after `inspect.cleandoc`, never before. Whitespace guards in
+`tests/mcp/test_server.py` and `tests/cli/test_app.py` cover every tool and
+command; fix flagged text, never loosen them.
