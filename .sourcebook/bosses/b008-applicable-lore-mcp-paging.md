@@ -7,11 +7,12 @@ name: b008-applicable-lore-mcp-paging
 status: proposed
 summary: 'Give the MCP tool prime_applicable_lore the same cursor paging as cac prime
   applicable-lore, as cli-mcp-parity requires: an optional cursor argument and a paged
-  {items, next_cursor} result built with budget_core.paginate, replacing the bare
-  list. Because the result shape changes, update tool-reference.md, the workflow guides
-  and skill templates that call it (including the reviewer prompt), and the tests.'
+  {items, next_cursor} result (no identities, like lore_list) built with budget_core.paginate,
+  replacing the bare list. Update tool-reference.md, a migration-guide note, the workflow
+  guides and skill templates that call it (including the reviewer prompt), and the
+  tests.'
 updated_by: John Hoff
-updated_on: '2026-11-21T16:11:02Z'
+updated_on: '2026-11-21T16:12:30Z'
 ---
 
 ## Goal
@@ -27,18 +28,21 @@ Bring `prime_applicable_lore` over MCP into line with `cac prime applicable-lore
 
 ## Success Criteria
 
-- `prime_applicable_lore(encounter, campaign=None, cursor=None)` returns a paged result with `items` (the existing `{name, summary, ref}` entries) and `next_cursor`, using `budget_core.paginate` with the same budget and ordering as the CLI. An invalid cursor raises a clear error.
+- `prime_applicable_lore(encounter, campaign=None, cursor=None)` returns `{"items": [...], "next_cursor": ...}`, where `items` are the existing `{name, summary, ref}` entries, paged with `budget_core.paginate` using the same budget and ordering as the CLI. There is no `identities` array. An invalid cursor raises a clear error.
 - The encounter reference contract (`references.inputs("encounter")`) and the campaign default are unchanged.
-- `tool-reference.md` documents the new argument and result shape (`workflow-doc-source-of-truth`). Every packaged doc and skill template that calls `prime_applicable_lore` is updated, in both the Claude and Codex flavors, including the campaign-manager reviewer prompt (`skills-authored-only-in-templates`). Deployed skill copies are redeployed by the developer.
+- `tool-reference.md` documents the new argument and result shape (`workflow-doc-source-of-truth`).
+- `migration-guide.md`'s "Version-specific migrations" section gains a short paragraph: the result changed from a bare list to `{items, next_cursor}` within schema 1, with no record migration, guardrail suspension or bootstrap migration; redeploying skills (developer-run `cac bootstrap init`) makes agents follow `next_cursor`.
+- Every packaged doc and skill template that calls `prime_applicable_lore` is updated, in both the Claude and Codex flavors, including the campaign-manager reviewer prompt (`skills-authored-only-in-templates`). Deployed skill copies are redeployed by the developer.
 - MCP and CLI tests cover first page, continuation and invalid cursor. Descriptions stay clean prose and consistent (`cli-mcp-parity` Description accuracy).
 - `pdm run pytest -q` and ruff are clean.
 
 ## Design Notes
 
-- This is a breaking change to an MCP result shape (list → object). Agents on older deployed skills would read the new shape after upgrading `cac`; the migration-guide may need a note.
 - Expected to fit a single encounter: a small code change plus doc and skill template updates.
+- Planning decisions, 2026-11-21 (developer):
+  - **Result shape:** plain `{items, next_cursor}`, matching the other unnumbered lists (`lore_list`, `region_list`, `docs_list`). Lore names aren't numbered, so `identity_page` identities would carry nothing useful.
+  - **Upgrade documentation:** a migration-guide note, following the precedent there for prime's `active_boss` → `active_boss_names` result change, plus the `tool-reference.md` contract update.
 
 ## Open Questions
 
-- Should the result also carry identities, as other reference-taking lists do via `identity_page`, or stay `{items, next_cursor}`? Lore names are not numbered, so identities may add nothing.
-- Does the migration-guide need an entry for the shape change, or is a CHANGELOG-style note in tool-reference.md enough?
+None.
