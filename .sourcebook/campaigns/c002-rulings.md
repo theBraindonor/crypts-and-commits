@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-21T00:32:17Z'
 name: c002-rulings
-status: draft
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-21T00:32:17Z'
+updated_on: '2026-11-21T00:34:17Z'
 ---
 
 Deliver **rulings** (`b005-ruling-records`): ADR-style records of decisions the developer (GM) confirms during active development. Rulings are captured inside an open campaign and named `cNNN-eNNN-slug`. Each one stays `recorded` until planning gives it a narrative disposition: `canonized` into the world's lore, or `noted`. After that it is archived. b005's body is the design reference for every encounter in this campaign. Its design is frozen now that it is assigned, so any follow-up idea becomes a rumor, not a boss edit.
