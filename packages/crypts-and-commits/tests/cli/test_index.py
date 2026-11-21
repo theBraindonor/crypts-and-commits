@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from pathlib import Path
 
 from cac.cli.app import app
 from typer.testing import CliRunner
@@ -225,3 +226,17 @@ def test_stale_search_exits_without_hits_and_status_explains_recovery(tmp_path):
     result = CliRunner().invoke(app, ["index", "status"])
     assert result.exit_code == 0
     assert "indexed snapshot" in result.output and "stale" in result.output
+
+
+def test_search_finds_matching_ruling(seed_world: Callable[[], None]) -> None:
+    from cac.core import campaign, ruling
+
+    seed_world()
+    root = Path.cwd()
+    campaign.create_campaign(root, "c001-work", "Tactics")
+    campaign.open_campaign(root, "c001-work")
+    runner.invoke(app, ["index", "rebuild"])
+    ruling.create_ruling(root, "c001-e000-scope", "distinctive-ruling-decree", "Summary", "GM")
+    result = runner.invoke(app, ["index", "search", "distinctive-ruling-decree", "--type", "ruling"])
+    assert result.exit_code == 0, result.output
+    assert "[ruling] c001-e000-scope" in result.output

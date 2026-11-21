@@ -1,0 +1,142 @@
+---
+archived: false
+campaign: c002-rulings
+created_by: John Hoff
+created_on: '2026-11-21T02:51:11Z'
+depends_on:
+- e003-ruling-prime-exposure
+kind: scripted
+name: e004-ruling-workflow-procedure
+regions:
+- crypts-and-commits
+status: completed
+updated_by: John Hoff
+updated_on: '2026-11-21T03:03:55Z'
+---
+
+## Requirements
+
+Add the agent procedure for rulings to the packaged Workflow Reference Guide (`templates/docs/workflow.md`), per `b005-ruling-records`: capture during an open campaign, including the reason for a reviewer REJECT override, and planning triage (canonize with lore changes, or note, then archive). e001–e003 already documented the domain model, lifecycle, search and prime exposure. What is missing is the procedure. The guide must stay internally consistent: every existing passage that the new procedure would make inaccurate is updated in the same change.
+
+Edits to `workflow.md`:
+
+1. **Ownership.**
+   - world-planner also triages integrated recorded rulings (canonize or note) and archives them.
+   - Ruling capture is not owned by one skill. It is phrased the way the guide already treats rumors ("any skill captures…"): any skill working in an open campaign captures rulings, including campaign-manager during execution. The Ownership list and the new subsection must not read as conflicting.
+2. **Allocate numbers.** Add a Rulings bullet: rulings are not numbered. Each is named `cNNN-eNNN-slug` for the open campaign and the current encounter (`e000` when none), with a slug unused among live and archived rulings.
+3. **New subsection "Capture rulings"**, after "Execute on the campaign branch":
+   - **When:** the developer confirms an answer to an open question or choice during an open campaign, such as a boss or encounter open question, a plan choice, or the reason for overriding a reviewer REJECT. The ruling is recorded in the same exchange.
+   - **Who:** any skill working in the open campaign.
+   - **What:** only what the developer confirmed (the decision, its context and consequences), with the developer as origin.
+   - **Do not filter:** never ask whether a decision is important enough, because planning decides that in hindsight.
+   - **What it does not replace:** a ruling never replaces the encounter's own record. Plan deviations still go to the encounter log, and follow-up ideas for a frozen boss still become rumors.
+   - **Approval:** capture needs no separate approval gate, but a ruling's meaning is never rewritten without the developer.
+   - **No open campaign:** capture a rumor instead.
+4. **REJECT override, defined once and reflected everywhere it applies.**
+   - **Review flow** gets the definition:
+     - The agent may offer the developer an explicit GM override of a REJECT. It is never assumed or self-granted.
+     - If the developer overrides with a stated reason, that decision is the developer's explicit draft-to-reviewed authorization. The agent records `encounter_review` with a message that keeps the reviewer's findings verbatim or faithfully transcribed, then states the GM override and its reason.
+     - The agent captures the reason as a ruling.
+     - NOT-REVIEWABLE has no override path: the draft is revised.
+     - Without an override, the encounter stays in draft and is revised, as today.
+   - **Explicit user gates:**
+     - Gate 1 is unchanged.
+     - The text explaining how an encounter reaches reviewed adds that a GM override of a REJECT is the other path. Like PASS-WITH-NOTES, it needs no further pause, because the developer's override is the approval.
+     - Gate 2 (separate approval to open) still applies after an override, and the "Not separately gated" paragraph is updated to match.
+   - **Codex encounter handoffs:** the "After every review" paragraph currently says "On REJECT or NOT-REVIEWABLE, keep the draft…". It gains the override path: after a developer override, transition first with the override message, report, and ask separately to open. Otherwise keep the draft as today.
+   - **Example: an encounter's lifecycle**, step 5: "On REJECT or NOT-REVIEWABLE, revise and ask again" gains "or, on REJECT, the developer may override with a reason, which is recorded and captured as a ruling".
+5. **Planning handoff.** world-planner also triages integrated recorded rulings, which prime lists:
+   - Hydrate each ruling and decide with the developer.
+   - **Canonize:** after making the lore, region or world changes the developer approves, through the normal tools, canonize with a narrative of what changed.
+   - **Note:** note with a narrative of why no change is needed.
+   - **Superseded rulings:** a ruling superseded by a later ruling is noted, with a narrative naming its successor.
+   - **Archive:** archive each ruling once it has a disposition. Rulings are never deleted.
+   - **Branches:** rulings reach planning only by integrating their execution branch, and their names never collide, because campaign numbers are settled at assignment.
+
+`tool-reference.md`: no change. This encounter changes no tool name, argument, result, error or budget, and e001–e003 already documented the ruling tools, search type and prime fields. `encounter_review` already requires only a nonblank message and an assigned region, not a verdict, so the override needs no contract change.
+
+## Rationale
+
+`workflow-doc-source-of-truth` makes `workflow.md` the owner of skill procedure: gates, review flow, and planning and campaign procedure. A substantive change must keep every statement in the guide accurate. An earlier draft of this encounter added the REJECT override only to Review flow, which would have left three passages contradicting it. This revision updates every passage the override touches and adds an internal-consistency check to Verification.
+
+b005's success criteria call for skill guidance on capture and triage. The procedure text is authored here first, and the next c002 encounter brings both provider variants of the world-planner and campaign-manager skill templates in line with it. That includes carrying the override path into both campaign-manager templates' gate wording, which "Explicit user gates" requires them to state in their own words. This encounter touches no skill template, and templates are not redeployed into this repository until the developer runs `cac bootstrap init` after the campaign, so nothing drifts in practice.
+
+**Capture is guidance, not enforcement** (b005 scope: "not a rule enforced by core"). It leans on the way agents already ask and resolve open questions with the developer, so the developer's confirmation is the trigger and no new gate is added.
+
+**The REJECT override** formalizes existing practice: the agent offers an explicit GM override, which is logged as such. b005 names the override reason as a ruling trigger. Keeping the reviewer's findings intact in the review message preserves the rule that the agent never replaces or rewrites the reviewer's recorded findings. NOT-REVIEWABLE has no override because there is nothing reviewable to accept.
+
+**Size.** The additions are written to fit the stopgap cap of 45,000 characters (ruling `c002-e001-workflow-cap-stopgap`). The guide is about 40,840 characters, and the additions are budgeted at roughly 3,000.
+
+**Out of scope:**
+- Skill template text (next c002 encounter).
+- The branching guide, migration guide, `CLAUDE.md`/`AGENTS.md` and public docs (final c002 encounter).
+- Splitting the guide (rumor r004).
+
+## Plan
+
+1. Edit `packages/crypts-and-commits/src/cac/core/templates/docs/workflow.md` with the five changes listed in Requirements, including all four override touchpoints: Review flow, Explicit user gates, Codex encounter handoffs, and the lifecycle example. Use the existing concise prose style, and keep unrelated wording intact.
+2. Search the whole guide for every statement about REJECT, NOT-REVIEWABLE, reaching reviewed, the gates, rumor capture ownership and rulings, and confirm each one agrees with the new text.
+3. Check the result against b005's Scope and model and Success Criteria. Every procedure claim must match shipped behavior:
+   - capture only in an `open` campaign, including a reactivated one;
+   - `e000` for no encounter;
+   - narratives required for canonize and note;
+   - archive only after a disposition;
+   - no delete and no formal lore links.
+4. Make no code changes. Run the full suite, including the `test_docs` size cap and repository-name leak guard.
+
+## Verification
+
+- `pdm run pytest -q` passes, including `tests/core/test_docs.py`: the guide is at most 45,000 characters, and no repository campaign or encounter names leak, `e000` excepted. No skips or deletions are added to dodge failures.
+- `pdm run ruff format .` has been applied, and then `pdm run ruff check .` and `pdm run ruff format --check .` are clean.
+- `docs_get("workflow")` (or `cac docs get workflow`) returns the updated guide and fits the docs response budget.
+- **Internal consistency:** a full-guide search for "REJECT", "NOT-REVIEWABLE", "reviewed", "gate", "override", "rumor" and "ruling" finds no statement that contradicts the new procedure. Specifically:
+  - the Codex handoffs paragraph and lifecycle step 5 include the override path;
+  - the gates text says a REJECT override is the developer's draft-to-reviewed approval and that gate 2 still applies;
+  - Ownership and Capture rulings agree on who captures.
+- Reading the diff against b005 and the shipped tools confirms:
+  - each of the five edits is present;
+  - no statement contradicts e001–e003 behavior (capture guard, lifecycle, archival independence, prime and search);
+  - `tool-reference.md` needs no change.
+
+## Log
+
+### Review - 2026-11-21T02:58:54Z - John Hoff
+
+PASS-WITH-NOTES: e004 is a docs-only change to packaged `workflow.md`, the owner of skill procedure under workflow-doc-source-of-truth. It gives a specific reason why tool-reference.md needs no change: no tool contract changes, and encounter_review needs only a message and a region. Every override touchpoint it names exists in the current guide: Ownership, Allocate numbers, Explicit user gates and "Not separately gated", Review flow, the Codex "After every review" paragraph, lifecycle step 5 and Planning handoff. The new procedure agrees with the existing Rulings section: open or reactivated campaign, e000, unique slugs, required narratives, archive only after a disposition, no delete, and rumor fallback. skills-authored-only-in-templates is honored: no template or deployed skill is edited, both provider templates are deferred to the next c002 encounter, and redeployment is left to the developer. clean-tests-and-lint is honored through pytest (including the test_docs size cap and leak guard) and ruff checks; cli-mcp-parity and console-best-practices do not apply. Notes: (1) the Encounter table's draft-to-reviewed guard ("Performed by an independent reviewer, never the author") is not listed as a touchpoint; the consistency search should evaluate it for the override path and clarify it if needed; (2) prefer "verbatim" over "faithfully transcribed" for keeping the reviewer's findings in an override message, to stay clear of the never-rewrite-the-reviewer rule; (3) the guide will describe the override in its gates before the campaign_manager templates do, so the follow-up encounter must carry it into both templates' gate wording; (4) the size margin is tight (40,837 of 45,000 characters), so trim prose rather than relax the cap. Unverified: fit to b005's Scope and Success Criteria, and the tool-reference and template text, which are outside the cited reading surface.
+
+### Opened - 2026-11-21T02:59:37Z - John Hoff
+
+Opened with developer approval. Implementation will fold in the reviewer notes.
+
+### Message - 2026-11-21T03:02:59Z - John Hoff
+
+Implementation complete, pending developer confirmation.
+
+**Edits to `workflow.md`** (now about 43,236 characters, under the 45,000 cap):
+1. **Ownership:** world-planner triages recorded rulings; a new line says any skill captures rumors, and any skill working in an open campaign captures rulings.
+2. **Allocate numbers:** a Rulings bullet (not numbered, `cNNN-eNNN-slug`, `e000`, unique slug).
+3. **New "Capture rulings" subsection**, placed before Collision checks, right after Execute.
+4. **REJECT override** at every touchpoint:
+   - Review flow defines it: offered only on REJECT, never self-granted; the developer's reason authorizes draft→reviewed; the review message keeps the reviewer's findings verbatim, then the override and its reason; the reason is captured as a ruling; NOT-REVIEWABLE has no override.
+   - Gate 2 says an override, like PASS-WITH-NOTES, moves to reviewed without a further pause, but opening still needs its own approval. The "Not separately gated" paragraph lists the override and ruling capture.
+   - The Codex "After every review" paragraph and lifecycle step 5 gain the override path.
+5. **Planning handoff:** a ruling triage paragraph (canonize after the developer-approved lore, region or world changes; note; supersession; archive; no delete; integration-only, no collisions).
+
+**Reviewer notes:**
+1. The Encounter table's draft→reviewed guard now adds: "a REJECT passes only by explicit developer override (see Review flow)."
+2. The override message keeps the reviewer's findings "verbatim".
+3. Carrying the override into both campaign-manager templates is left for the next encounter.
+4. The additions fit without relaxing the cap.
+
+**Deviations:**
+- The branch-settings table's planning description now reads "rumor and ruling triage". That is an internal-consistency touch found by the consistency search, not one of the listed edits.
+- The "An absent Plan or Verification…" sentence was kept in its original paragraph, ahead of the new override paragraph.
+
+**Verification:**
+- pytest: 1690 passed, including the `test_docs` cap and leak guard. ruff check and format clean.
+- `cac docs get workflow` returns the updated guide.
+- The consistency search (REJECT, NOT-REVIEWABLE, override, PASS-WITH-NOTES, gate, rumor, ruling) found no contradictions. `tool-reference.md` is unchanged, as justified.
+
+### Completed - 2026-11-21T03:03:55Z - John Hoff
+
+Completed with developer confirmation. Verification passed: 1690 tests passed, ruff check and format clean, `cac docs get workflow` returns the updated guide (about 43,236 characters, under the cap), and the full-guide consistency search found no contradictions. Implementation commit 7701506.

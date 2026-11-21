@@ -32,7 +32,8 @@ def _resolve_campaign(campaign: str | None) -> str:
 @app.command("get")
 def get_prime() -> None:
     """Show the global prime bundle: world (full) + world-assigned lore (summaries) +
-    region map (summary + path + assigned-lore edges) + active campaign (full body)."""
+    region map (summary + path + assigned-lore edges) + active campaign (full body) +
+    active bosses + untriaged (recorded) rulings as summaries."""
     try:
         bundle = prime_core.assemble_prime(resolve_project_root())
         payload = prime_core.present(bundle)
@@ -86,6 +87,15 @@ def get_prime() -> None:
         console.print(references.encoded(goal["metadata"]), markup=False, soft_wrap=True)
         console.print(goal["summary"], markup=False, soft_wrap=True)
         console.print(goal["body"], markup=False, soft_wrap=True)
+
+    console.print("\n== Recorded Rulings ==", markup=False)
+    console.print(f"count: {payload['recorded_ruling_count']}", markup=False)
+    for entry in payload["recorded_rulings"]:
+        console.print(f"{entry['name']}: {entry['summary']}", markup=False, soft_wrap=True)
+    for diagnostic in payload["ruling_diagnostics"]:
+        console.print(references.encoded(diagnostic), markup=False, soft_wrap=True)
+    if not payload["recorded_ruling_count"] and not payload["ruling_diagnostics"]:
+        console.print("No recorded rulings.", markup=False)
     for notice in payload["truncations"]:
         console.print(references.encoded(notice), markup=False, soft_wrap=True)
 

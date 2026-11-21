@@ -223,6 +223,52 @@ searchable with `cac index search PHRASE --type rumor`, and every command has a
 matching `rumor_*` MCP tool. world-planner does the planning-side triage, and
 any skill can capture.
 
+### Record decisions as rulings
+
+A ruling records a decision you, the Game Master, confirmed while work was
+happening: an answer to an open question, a choice between plans, or your
+reason for overriding a reviewer's rejection. A rumor captures what you might
+do; a ruling captures what you decided. Whether a decision matters beyond its
+moment is often clear only in hindsight, so capture freely and judge later.
+
+1. **Capture** it during an open campaign. Name it for the campaign and the
+   encounter where the decision was made, plus a slug: `c012-e003-cache-keys`.
+   A nonzero encounter number must be an existing encounter in that campaign;
+   use `e000` for a campaign-level decision. The campaign must be `open`
+   (a reactivated campaign counts). With no open campaign, capture a rumor
+   instead. Rulings have no number of their own, so there is nothing to
+   allocate, but the name must not be used by any live or archived ruling.
+
+   ```bash
+   cac ruling create c012-e003-cache-keys --summary "Key caches by lockfile hash" --origin "Developer, encounter review" --body-file "notes/ruling.md"
+   cac ruling list --status recorded
+   cac ruling get c012-e003-cache-keys
+   ```
+
+   A recorded ruling can be edited; update replaces the body, summary and
+   origin together with `cac ruling update`.
+
+2. **Triage on planning.** Every recorded ruling shows up in prime until it is
+   triaged. With hindsight, either canonize it, after making the lore, region or
+   world changes you approve, or note it with the reason no change is needed. Both
+   take a narrative, and a superseded ruling is noted with a narrative naming
+   its successor.
+
+   ```bash
+   cac ruling canonize c012-e003-cache-keys --message "Added lore cache-keys"
+   cac ruling canonize c012-e005-ci-region --message "Documented the ci region's runner path"
+   cac ruling note c012-e000-release-order --message "One-off sequencing choice"
+   ```
+
+3. **Undo or retire.** `cac ruling reopen NAME --message "..."` returns a
+   canonized or noted ruling to recorded. `cac ruling archive NAME` retires a
+   canonized or noted ruling read-only, independently of its campaign. There is
+   no delete.
+
+Rulings are searchable with `cac index search PHRASE --type ruling`, and every
+command has a matching `ruling_*` MCP tool. campaign-manager captures rulings
+as you confirm decisions, and world-planner triages them.
+
 ### Discover the next goal
 
 `cac boss candidates` (MCP: `boss_candidates`) answers "what could we work on

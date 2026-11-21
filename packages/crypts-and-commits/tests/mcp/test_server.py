@@ -18,6 +18,14 @@ def test_all_domain_tools_are_registered() -> None:
         "rumor_reopen",
         "rumor_archive",
         "rumor_renumber",
+        "ruling_list",
+        "ruling_get",
+        "ruling_create",
+        "ruling_update",
+        "ruling_canonize",
+        "ruling_note",
+        "ruling_reopen",
+        "ruling_archive",
         "boss_create",
         "boss_record",
         "boss_candidates",
@@ -91,5 +99,14 @@ def test_all_domain_tools_are_registered() -> None:
 
 def test_domain_get_tools_accept_continuation_cursor() -> None:
     tools = {tool.name: tool for tool in asyncio.run(mcp.list_tools())}
-    for name in ("world_get", "lore_get", "region_get", "campaign_get", "boss_get", "encounter_get", "rumor_get"):
+    for name in (
+        "world_get",
+        "lore_get",
+        "region_get",
+        "campaign_get",
+        "boss_get",
+        "encounter_get",
+        "rumor_get",
+        "ruling_get",
+    ):
         assert "cursor" in tools[name].input_schema["properties"], name

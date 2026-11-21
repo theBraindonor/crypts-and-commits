@@ -21,12 +21,12 @@ registration and implementation integrate into trunk and goals evolve on plans/t
 | Branch | Work that belongs here | Campaign state |
 | --- | --- | --- |
 | main | Accepted integration history and shared registrations | No open campaign |
-| planning | Goal capture/refinement, readiness, prerequisites, rumor triage and planning-side archive | No open campaign |
+| planning | Goal capture/refinement, readiness, prerequisites, rumor and ruling triage and planning-side archive | No open campaign |
 | c012-search-tools-assignment | Register a draft campaign and reciprocal selected-boss links | Draft only |
-| c012-search-tools | Campaign tactics, encounters, captured rumors and lifecycle outcomes | Its own campaign may be open; paused work stays here |
+| c012-search-tools | Campaign tactics, encounters, captured rumors and rulings, and lifecycle outcomes | Its own campaign may be open; paused work stays here |
 
 Create planning from synchronized main. Synchronize accepted merge-target history
-before editing goals, selecting work or triaging rumors. Publish planning goals
+before editing goals, selecting work or triaging rumors and rulings. Publish planning goals
 through the project's normal integration policy before assignment registration.
 The goal definitions must be visible in the history used to register their owner.
 Assigned boss designs stay frozen; registration and campaign lifecycle update their
@@ -35,8 +35,10 @@ archive operation for integrated terminal campaigns and their current bosses.
 It does not execute campaigns or revise their tactics.
 
 world-manager supplies static context; world-planner owns goal planning and rumor
-triage; campaign-manager turns explicit selections into deliberate tactics. Any
+and ruling triage; campaign-manager turns explicit selections into deliberate tactics. Any
 branch may capture rumors; only planning renumbers, promotes, dismisses or archives them.
+Rulings are captured only on an execution branch whose campaign is open, when the
+developer confirms a decision; only planning canonizes, notes or archives them.
 Available means ready for consideration. Eligible also requires an intact graph,
 no assignment and vanquished prerequisites. Neither state proves implementation
 was integrated: inspect accepted history before relying on a prerequisite.
@@ -75,6 +77,13 @@ two branches can allocate the same rumor number. That collision is expected. Aft
 integration, fix it on planning with rumor_renumber / `cac rumor renumber r031
 r032-cache-wheels`, which accepts open or dismissed rumors only. Promotion happens on
 planning, so a promoted rumor's number is already settled and is never renumbered.
+
+Rulings take no number of their own. A ruling is named `cNNN-eNNN-slug` from the
+open campaign and the encounter where the decision was made (`e000` for a
+campaign-level decision), and those numbers are already settled on the execution
+branch, so cross-branch collisions are not expected and there is no ruling
+renumber. Create refuses a name already used by a live or archived ruling. Rulings
+take full names only; `c012` or `c012/e003` never resolves to a ruling.
 
 Check at campaign creation, after branch integrations, and before completion; repeat
 the last check after review fixes. Compare numeric IDs with different slugs, same-campaign
@@ -122,6 +131,15 @@ managed-file writes. Inspect exact command help where argument detail is needed.
    execution" --body-file notes/rumor.md`. A rumor records an idea for later; it is
    not automatic expansion of the chosen goals. Edit an open rumor with rumor_update
    and inspect it with rumor_get / `cac rumor get r031`.
+   When the developer confirms an answer to an open question or choice during
+   execution (a plan choice, an encounter or boss open question, or the reason for
+   overriding a reviewer REJECT), record it in the same exchange with ruling_create /
+   `cac ruling create c012-e003-cache-key-format --summary "Key caches by lockfile
+   hash" --origin "Developer, c012 execution" --body-file notes/ruling.md`. The
+   campaign must be open, and a nonzero encounter number must name an existing
+   encounter in that campaign; use `e000` when no encounter applies. Edit a
+   recorded ruling with ruling_update. A ruling never replaces the encounter log
+   or a rumor, and with no open campaign the right capture is a rumor.
 6. Finish and verify encounters, run collision/ownership checks, and complete the
    campaign with its required postmortem through campaign_complete / `cac campaign complete`.
    Completion moves the selected group to vanquished. Integrate the completed branch
@@ -137,11 +155,20 @@ managed-file writes. Inspect exact command help where argument detail is needed.
    may share a boss, and the boss record is not written. Otherwise rumor_dismiss /
    `cac rumor dismiss r031 --message "Out of scope"`. Archive resolved rumors with
    rumor_archive. Never delete rumors, edit assigned goals or fabricate lineage.
+   Triage integrated recorded rulings the same way: list them with
+   ruling_list(status="recorded") / `cac ruling list --status recorded` (prime also
+   shows them until triaged) and read each with ruling_get. If the developer wants
+   it to stand, make the approved lore, region or world changes through
+   world-manager, then ruling_canonize / `cac ruling canonize
+   c012-e003-cache-key-format --message "Added lore cache-keys"` with a narrative
+   of what changed. Otherwise ruling_note / `cac ruling note ... --message "..."`
+   with a narrative of why no change is needed. Archive each dispositioned ruling
+   with ruling_archive; rulings are never deleted.
    Archive the campaign only when it
    is terminal, integrated and every encounter is terminal. campaign_archive /
    `cac campaign archive c012` archives its encounters and current bosses; released
-   bosses owned by later attempts remain untouched, and rumors are never touched by
-   campaign archiving. Standalone
+   bosses owned by later attempts remain untouched, and rumors and rulings are never
+   touched by campaign archiving. Standalone
    boss archive accepts unassigned withdrawn goals or valid externally completed
    roadmap goals. Archive restoration is deferred, not a deletion workaround.
 

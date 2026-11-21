@@ -140,3 +140,20 @@ def test_index_search_excludes_archived_by_default_and_includes_with_flag(tmp_pa
     hit = included_result["hits"][0]
     assert hit["name"] == "opening-gambit"
     assert hit["archived"] is True
+
+
+def test_ruling_filter_finds_rulings_by_resolution_narrative(tmp_path):
+    from cac.core import ruling, world
+
+    world.initialize_world(tmp_path)
+    campaign.create_campaign(tmp_path, "c001-work", "Tactics")
+    campaign.open_campaign(tmp_path, "c001-work")
+    search_index.rebuild_index(tmp_path)
+    ruling.create_ruling(tmp_path, "c001-e000-scope", "Body", "Summary", "GM")
+    ruling.canonize(tmp_path, "c001-e000-scope", "Added pangolinnarrative lore")
+    result = mcp_index.index_search("pangolinnarrative", object_type="ruling")
+    assert result["stale"] is False
+    assert [(hit["object_type"], hit["name"], hit["status"]) for hit in result["hits"]] == [
+        ("ruling", "c001-e000-scope", "canonized")
+    ]
+    assert mcp_index.index_search("pangolinnarrative", object_type="rumor")["hits"] == []

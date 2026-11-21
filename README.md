@@ -85,9 +85,9 @@ re-explaining yourselves to the other, or to whoever picks this up next.
 ## Agent skills
 
 CAC packages three skills for Claude and Codex: **world-manager** for static
-context and lore, **world-planner** for goals, roadmap adoption and rumor
-triage, and **campaign-manager** for tactical selection and reviewed
-execution. Their procedures follow the Workflow Reference Guide. After upgrading,
+context and lore, **world-planner** for goals, roadmap adoption, and rumor
+and ruling triage, and **campaign-manager** for tactical selection, reviewed
+execution and ruling capture. Their procedures follow the Workflow Reference Guide. After upgrading,
 the developer redeploys framework-owned skills with `cac bootstrap init`;
 authoring templates does not update deployed copies or local agent instructions.
 
@@ -139,6 +139,14 @@ people/agents that drive them:
   done", captured from anywhere, on any branch, with a free-text origin.
   Planning triages them, either promoting a rumor to a boss or dismissing
   it with a reason. Rumors are never deleted.
+- **Rulings** — ADR-style records of decisions the Game Master confirmed
+  during an open campaign, such as an answered open question or the reason
+  for overriding a reviewer's rejection. Named after the campaign and
+  encounter where the decision was made (`cNNN-eNNN-slug`, or `e000` for a
+  campaign-level decision). Planning reviews them in hindsight, either
+  canonizing a ruling into the world's lore, a region or the world summary,
+  or noting why it needs none,
+  then archives it. Rulings are never deleted.
 - **Encounter** — a concrete unit of work within a campaign: either a plan
   the agent is expected to execute (`scripted`, with Requirements,
   Rationale, Plan, and Verification sections) or a record of manual work
@@ -156,7 +164,8 @@ people/agents that drive them:
 
 Bosses, campaigns, encounters and rumors use numbered names (`b001-...`,
 `c001-...`, `e001-...`, `r001-...`), and any existing record can be referred
-to by a short ref: `bNNN`, `cNNN`, `rNNN`, or `cNNN/eNNN`.
+to by a short ref: `bNNN`, `cNNN`, `rNNN`, or `cNNN/eNNN`. Rulings have no
+number of their own and always use their full name.
 
 ### How work flows
 
@@ -168,8 +177,12 @@ to by a short ref: `bNNN`, `cNNN`, `rNNN`, or `cNNN/eNNN`.
    when the campaign opens.
 4. Open the campaign on its own execution branch.
 5. Carry the work out as encounters, each reviewed against lore and approved
-   before it runs and before it's marked complete.
+   before it runs and before it's marked complete. Record each decision the
+   Game Master confirms along the way as a ruling.
 6. Complete the campaign, vanquishing the bosses it selected.
+7. Back on the planning branch, triage the campaign's recorded rulings:
+   canonize the ones that should become lore, region or world context, note
+   the rest, and archive them.
 
 The planning, assignment and execution branch workflow behind these steps is
 skill guidance: the endpoints themselves are branch-agnostic and never create
@@ -205,7 +218,7 @@ non-`cac` application code in the same repository.
 
 Beyond hosting that demo, this repository dogfoods the framework on itself:
 its own `.sourcebook` — a populated world summary, lore, regions, bosses,
-rumors, and campaign/encounter history — is live and is the actual source
+rumors, rulings, and campaign/encounter history — is live and is the actual source
 of truth for this project's context and in-flight work, driven through the
 same `cac` CLI/MCP surface described above rather than treated as a
 placeholder. See
@@ -258,7 +271,7 @@ header's status indicator go online and the chat UI respond.
 ## Exploring this repository's sourcebook
 
 Since this repository drives its own `.sourcebook` through `cac`, its world
-summary, lore, regions, bosses, rumors, and campaign/encounter history are
+summary, lore, regions, bosses, rumors, rulings, and campaign/encounter history are
 all inspectable the same way an agent session would read them. From the
 repository root
 (`cac` is an editable install inside this workspace's `.venv`, not a global
@@ -273,6 +286,7 @@ pdm run cac boss list              # goals (bosses) and their identities
 pdm run cac campaign list          # every campaign and its status
 pdm run cac encounter list --campaign c001  # encounters in campaign c001
 pdm run cac rumor list             # backlog rumors awaiting triage
+pdm run cac ruling list --status recorded  # GM decisions awaiting triage
 pdm run cac docs get workflow      # the full domain-model reference
 pdm run cac docs get tool-reference  # exact tool and command contracts
 ```
@@ -280,7 +294,7 @@ pdm run cac docs get tool-reference  # exact tool and command contracts
 An AI coding assistant working in this repository uses the equivalent
 `crypts-and-commits` MCP tools instead (`world_get`, `lore_list`,
 `region_list`, `boss_list`, `campaign_list`, `encounter_list`, `rumor_list`,
-`docs_get`, and more) —
+`ruling_list`, `docs_get`, and more) —
 the same operations, over the same content, without shelling out.
 
 ### A worked example from this repository

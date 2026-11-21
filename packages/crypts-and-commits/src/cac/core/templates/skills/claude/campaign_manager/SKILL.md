@@ -24,7 +24,10 @@ cac docs get migration-guide; workflow remains the procedural authority.
 Start with mcp__crypts-and-commits__prime_get / cac prime get and world-manager's disclosure ladder.
 Use active_boss_names, active_bosses and active_boss_diagnostics for all selected
 goals. Hydrate missing/truncated bodies and integrity diagnostics; never choose
-a first-boss alias or treat broken membership as bossless. Encounter lists remain
+a first-boss alias or treat broken membership as bossless. Prime's
+recorded_rulings (summaries, with recorded_ruling_count and ruling_diagnostics)
+are untriaged developer decisions: respect them during execution and hydrate
+with mcp__crypts-and-commits__ruling_get(name) when relevant. Encounter lists remain
 on demand. Full-text mcp__crypts-and-commits__index_search can find encounter text; it is not a dedicated
 encounter graph/discovery API or a complete retained-allocation inventory.
 
@@ -131,6 +134,21 @@ origin). Numbers that collide after integration are renumbered on planning.
 Triage (promotion, dismissal, renumbering, archival) belongs to world-planner;
 rumors are never deleted.
 
+Capture rulings. When the developer confirms an answer to an open question or
+choice in the open campaign (a boss or encounter open question, a plan choice,
+or the reason for a REJECT override), record it in the same exchange with
+mcp__crypts-and-commits__ruling_create(name,body,summary,origin) / cac ruling create NAME --summary TEXT
+--origin TEXT --body-file PATH. Name it cNNN-eNNN-slug for the open campaign and
+current encounter (e000 when none), with a slug unused across every
+mcp__crypts-and-commits__ruling_list(include_archived=True) page; rulings are not numbered and take
+full names only. Record only what the developer confirmed (decision, context,
+consequences), with the developer as origin, and never ask whether it matters
+enough: planning judges that in hindsight. Edit only while recorded, with
+mcp__crypts-and-commits__ruling_update(name,body,summary,origin). A ruling never replaces the
+encounter log or rumors. With no open campaign, capture a rumor instead.
+Triage (canonize, note, archive) belongs to world-planner; rulings are never
+deleted.
+
 For rejected registration, establish whether it integrated and inspect visible
 assignment/execution branches; revise or explicitly abandon, retain useful context
 and number reservations. Never publish rejection as acceptance or auto-delete.
@@ -198,6 +216,8 @@ Region and dependency assignment are both only permitted while an encounter is `
 5. **Feedback after the fact is a logged message, not a re-draft.** If the user has feedback or requested changes in response to a PASS-WITH-NOTES review, capture it with `mcp__crypts-and-commits__encounter_record_message(name, message)` — do not attempt to reopen or re-draft the encounter's sections; the content is already locked, and `encounter_update` no longer applies once status has moved past `draft`.
 
 On **REJECT** or **NOT-REVIEWABLE**, the auto-transition does not apply: do not run `mcp__crypts-and-commits__encounter_review`, relay the reviewer's reasons to the user, revise the draft with `mcp__crypts-and-commits__encounter_update` (still allowed while `draft`), and return to step 1 — get the user's explicit approval again — before spawning a fresh reviewer.
+
+**GM override (REJECT only).** You may offer the user an explicit GM override of a **REJECT** instead of revising; never assume or grant one yourself. Only if the user explicitly overrides and states a reason is that the draft → `reviewed` authorization: run `mcp__crypts-and-commits__encounter_review(name, message)` with the reviewer's findings verbatim, followed by the GM override and its reason, then capture that reason as a ruling (see "Capture rulings"). **NOT-REVIEWABLE** has no override; revise it. An override never opens the encounter: the `reviewed` → `open` approval below is still a separate stop-and-ask.
 
 #### Reviewer subagent prompt template
 

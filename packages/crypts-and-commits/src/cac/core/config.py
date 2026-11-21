@@ -7,10 +7,15 @@ CAMPAIGN_DIR_NAME = "campaigns"
 ENCOUNTER_DIR_NAME = "encounters"
 BOSS_DIR_NAME = "bosses"
 RUMOR_DIR_NAME = "rumors"
+RULING_DIR_NAME = "rulings"
 BOSS_STATUSES = ("proposed", "available", "withdrawn", "vanquished")
 DEFAULT_BOSS_STATUS = "proposed"
 RUMOR_STATUSES = ("open", "promoted", "dismissed")
 DEFAULT_RUMOR_STATUS = "open"
+RULING_STATUSES = ("recorded", "canonized", "noted")
+DEFAULT_RULING_STATUS = "recorded"
+# Rulings are canonical-only cNNN-eNNN-slug names; they never take part in numbered short references.
+RULING_NAME_PATTERN = re.compile(r"^c([0-9]{3,})-e([0-9]{3,})-([A-Za-z0-9_.-]+)$")
 BOSS_NUMBER_PATTERN = re.compile(r"^b([0-9]+)-.+$")
 SHORT_REFERENCE_PATTERN = re.compile(r"^([bcer])([0-9]{3,})$")
 NUMBERED_NAME_PATTERN = re.compile(r"^([bcer])([0-9]+)-.+$")
@@ -54,6 +59,7 @@ SEARCH_INDEX_OBJECT_TYPE_REGION = "region"
 SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN = "campaign"
 SEARCH_INDEX_OBJECT_TYPE_BOSS = "boss"
 SEARCH_INDEX_OBJECT_TYPE_RUMOR = "rumor"
+SEARCH_INDEX_OBJECT_TYPE_RULING = "ruling"
 SEARCH_INDEX_OBJECT_TYPES = (
     SEARCH_INDEX_OBJECT_TYPE_BOSS,
     SEARCH_INDEX_OBJECT_TYPE_ENCOUNTER,
@@ -62,6 +68,7 @@ SEARCH_INDEX_OBJECT_TYPES = (
     SEARCH_INDEX_OBJECT_TYPE_REGION,
     SEARCH_INDEX_OBJECT_TYPE_CAMPAIGN,
     SEARCH_INDEX_OBJECT_TYPE_RUMOR,
+    SEARCH_INDEX_OBJECT_TYPE_RULING,
 )
 SEARCH_DEFAULT_MAX_RESULTS = 10
 SEARCH_DEFAULT_SNIPPET_TOKENS = 20

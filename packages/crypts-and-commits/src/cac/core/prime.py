@@ -40,6 +40,19 @@ class PrimeBundle:
     active_bosses: list[dict] = field(default_factory=list)
     active_boss_diagnostics: list[dict] = field(default_factory=list)
     active_boss_names: list[str] = field(default_factory=list)
+    recorded_rulings: list["RulingSummary"] = field(default_factory=list)
+    recorded_ruling_count: int = 0
+    ruling_diagnostics: list[dict] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class RulingSummary:
+    """Routing entry for an untriaged ruling; hydrate it with ruling_get(name)."""
+
+    name: str
+    campaign: str
+    encounter: str | None
+    summary: str
 
 
 @dataclass(frozen=True)
@@ -52,7 +65,8 @@ class ApplicableLoreEntry:
 def assemble_prime(root: Path) -> PrimeBundle:
     """Assemble the global prime bundle: world (full) + world-assigned enabled lore
     (summaries) + region map (summary + path + assigned-lore edge names per region) +
-    active campaign and linked boss (full bodies, not recursive collections)."""
+    active campaign and linked bosses (full bodies, not recursive collections) + every
+    untriaged (recorded) ruling as a summary-only routing entry."""
     world = world_core.read_world(root)
     world_lore = _enabled_lore_summaries(root, world.metadata.get(world_core.ASSIGNED_LORE_KEY, []) or [])
     regions = [_region_entry(root, name) for name in region_core.list_regions(root)]
@@ -61,6 +75,7 @@ def assemble_prime(root: Path) -> PrimeBundle:
         frontmatter.load(campaign_core.campaign_path(root, active_campaign)).content if active_campaign else None
     )
     names, goals, diagnostics = _active_bosses(root, active_campaign)
+    rulings, ruling_diagnostics = _recorded_rulings(root)
     return PrimeBundle(
         world=world,
         world_lore=world_lore,
@@ -70,7 +85,44 @@ def assemble_prime(root: Path) -> PrimeBundle:
         active_bosses=goals,
         active_boss_diagnostics=diagnostics,
         active_boss_names=names,
+        recorded_rulings=rulings,
+        recorded_ruling_count=len(rulings),
+        ruling_diagnostics=ruling_diagnostics,
     )
+
+
+_RECORD_ERRORS = (ValueError, OSError, TypeError, KeyError, yaml.YAMLError)
+
+
+def _recorded_rulings(root: Path) -> tuple[list[RulingSummary], list[dict]]:
+    """Live recorded rulings from every campaign. Damaged records become diagnostics, never failures."""
+    from cac.core import ruling
+
+    def diagnostic(name, error):
+        return {"code": "invalid_ruling", "ruling": name, "message": str(error)[:300]}
+
+    try:
+        # Unfiltered listing validates names only, so one bad record cannot abort it.
+        names = ruling.list_rulings(root)
+    except _RECORD_ERRORS as error:
+        return [], [diagnostic(None, error)]
+    entries, diagnostics = [], []
+    for name in names:
+        try:
+            metadata, _ = ruling.read_metadata(root, name)
+        except _RECORD_ERRORS as error:
+            diagnostics.append(diagnostic(name, error))
+            continue
+        if metadata["status"] == "recorded":
+            entries.append(
+                RulingSummary(
+                    name=name,
+                    campaign=metadata["campaign"],
+                    encounter=metadata.get("encounter"),
+                    summary=metadata.get("summary", ""),
+                )
+            )
+    return entries, diagnostics
 
 
 def _active_bosses(root: Path, campaign: str | None) -> tuple[list[str], list[dict], list[dict]]:
@@ -139,6 +191,14 @@ def present(bundle: PrimeBundle) -> dict:
             result["truncations"].append(notice)
             originals.append((owner, key, text, notice))
             owner[key] = ""
+    rulings = result["recorded_rulings"]
+    if size() > config.RESPONSE_BUDGET and rulings:
+        # The open-ended ruling list degrades explicitly; the exact count is never cut.
+        result["truncations"].append(
+            {"field": "recorded_rulings", "notice": "TRUNCATED", "ref": {"tool": "ruling_list", "status": "recorded"}}
+        )
+        while rulings and size() > config.RESPONSE_BUDGET:
+            rulings.pop()
     if size() > config.RESPONSE_BUDGET:
         raise ValueError("Prime routing metadata/state exceeds the response budget; increase it.")
     for index, (owner, key, text, notice) in enumerate(originals):

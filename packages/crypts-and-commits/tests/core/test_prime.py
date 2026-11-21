@@ -278,3 +278,106 @@ def test_applicable_lore_deduplicates_lore_assigned_to_both_world_and_region(tmp
     entries = prime.applicable_lore(tmp_path, "opening-gambit", "goblin-ambush")
 
     assert [entry.name for entry in entries] == ["shared-lore"]
+
+
+def ruling_campaign(root, name="c002-rulings"):
+    from cac.core import ruling
+
+    world.initialize_world(root)
+    campaign.create_campaign(root, name, "Tactics")
+    encounter.create_encounter(root, name, "e001-core", "Plan")
+    campaign.open_campaign(root, name)
+    return ruling
+
+
+def test_prime_lists_recorded_rulings_as_routing_entries(tmp_path):
+    ruling = ruling_campaign(tmp_path)
+    ruling.create_ruling(tmp_path, "c002-e001-b", "Body", "Second", "GM")
+    ruling.create_ruling(tmp_path, "c002-e000-a", "Body", "First", "GM")
+    payload = prime.present(prime.assemble_prime(tmp_path))
+    assert payload["recorded_rulings"] == [
+        {"name": "c002-e000-a", "campaign": "c002-rulings", "encounter": None, "summary": "First"},
+        {"name": "c002-e001-b", "campaign": "c002-rulings", "encounter": "e001-core", "summary": "Second"},
+    ]
+    assert payload["recorded_ruling_count"] == 2 and payload["ruling_diagnostics"] == []
+
+
+def test_prime_excludes_triaged_rulings_and_keeps_completed_campaigns(tmp_path):
+    ruling = ruling_campaign(tmp_path)
+    for name in ("c002-e001-kept", "c002-e001-canon", "c002-e001-noted", "c002-e000-gone"):
+        ruling.create_ruling(tmp_path, name, "Body", "Summary", "GM")
+    ruling.canonize(tmp_path, "c002-e001-canon", "Lore")
+    ruling.note(tmp_path, "c002-e001-noted", "Local")
+    ruling.note(tmp_path, "c002-e000-gone", "Local")
+    ruling.archive_ruling(tmp_path, "c002-e000-gone")
+    campaign.complete_campaign(tmp_path, "c002-rulings", "Done")
+    bundle = prime.assemble_prime(tmp_path)
+    assert bundle.active_campaign is None
+    assert [entry.name for entry in bundle.recorded_rulings] == ["c002-e001-kept"]
+    assert bundle.recorded_ruling_count == 1
+
+
+def test_prime_without_rulings_has_empty_fields(tmp_path):
+    world.initialize_world(tmp_path)
+    payload = prime.present(prime.assemble_prime(tmp_path))
+    assert (payload["recorded_rulings"], payload["recorded_ruling_count"], payload["ruling_diagnostics"]) == (
+        [],
+        0,
+        [],
+    )
+
+
+def test_damaged_ruling_becomes_a_diagnostic(tmp_path):
+    import frontmatter
+
+    ruling = ruling_campaign(tmp_path)
+    ruling.create_ruling(tmp_path, "c002-e001-good", "Body", "Summary", "GM")
+    path = ruling.create_ruling(tmp_path, "c002-e001-bad", "Body", "Summary", "GM")
+    post = frontmatter.load(path)
+    post["campaign"] = "c009-elsewhere"
+    path.write_text(frontmatter.dumps(post), encoding="utf-8")
+    bundle = prime.assemble_prime(tmp_path)
+    assert [entry.name for entry in bundle.recorded_rulings] == ["c002-e001-good"]
+    assert [(d["code"], d["ruling"]) for d in bundle.ruling_diagnostics] == [("invalid_ruling", "c002-e001-bad")]
+
+
+def test_invalid_ruling_filename_is_one_listing_diagnostic(tmp_path):
+    ruling = ruling_campaign(tmp_path)
+    ruling.create_ruling(tmp_path, "c002-e001-good", "Body", "Summary", "GM")
+    (ruling.ruling_dir(tmp_path) / "not-a-ruling.md").write_text("---\n---\n", encoding="utf-8")
+    bundle = prime.assemble_prime(tmp_path)
+    assert bundle.recorded_rulings == [] and bundle.recorded_ruling_count == 0
+    assert len(bundle.ruling_diagnostics) == 1 and bundle.ruling_diagnostics[0]["ruling"] is None
+    assert len(bundle.ruling_diagnostics[0]["message"]) <= 300
+
+
+def test_prime_drops_trailing_rulings_explicitly_under_budget(tmp_path, monkeypatch):
+    ruling = ruling_campaign(tmp_path)
+    for number in range(30):
+        ruling.create_ruling(tmp_path, f"c002-e000-r{number:02d}", "Body", "summary " * 20, "GM")
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 3000)
+    bundle = prime.assemble_prime(tmp_path)
+    payload = prime.present(bundle)
+    assert len(references.encoded(payload)) <= 3000
+    assert payload["recorded_ruling_count"] == 30
+    kept = [entry["name"] for entry in payload["recorded_rulings"]]
+    assert 0 < len(kept) < 30 and kept == [f"c002-e000-r{n:02d}" for n in range(len(kept))]
+    assert {
+        "field": "recorded_rulings",
+        "notice": "TRUNCATED",
+        "ref": {"tool": "ruling_list", "status": "recorded"},
+    } in payload["truncations"]
+    assert len(bundle.recorded_rulings) == 30  # Presentation does not mutate in-process context.
+    monkeypatch.setattr(config, "RESPONSE_BUDGET", 50)
+    with pytest.raises(ValueError, match="metadata/state"):
+        prime.present(bundle)
+
+
+def test_prime_with_rulings_writes_nothing(tmp_path):
+    ruling = ruling_campaign(tmp_path)
+    ruling.create_ruling(tmp_path, "c002-e001-a", "Body", "Summary", "GM")
+    files = [p for p in (tmp_path / ".sourcebook").rglob("*") if p.is_file()]
+    before = {p: p.read_bytes() for p in files}
+    prime.present(prime.assemble_prime(tmp_path))
+    assert {p: p.read_bytes() for p in files} == before
+    assert sorted(p for p in (tmp_path / ".sourcebook").rglob("*") if p.is_file()) == sorted(files)

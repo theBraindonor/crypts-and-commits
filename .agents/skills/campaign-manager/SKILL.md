@@ -23,7 +23,10 @@ cac docs get migration-guide; workflow remains the procedural authority.
 Start with prime_get / cac prime get and world-manager's disclosure ladder.
 Use active_boss_names, active_bosses and active_boss_diagnostics for all selected
 goals. Hydrate missing/truncated bodies and integrity diagnostics; never choose
-a first-boss alias or treat broken membership as bossless. Encounter lists remain
+a first-boss alias or treat broken membership as bossless. Prime's
+recorded_rulings (summaries, with recorded_ruling_count and ruling_diagnostics)
+are untriaged developer decisions: respect them during execution and hydrate
+with ruling_get(name) when relevant. Encounter lists remain
 on demand. Full-text index_search can find encounter text; it is not a dedicated
 encounter graph/discovery API or a complete retained-allocation inventory.
 
@@ -129,6 +132,21 @@ origin). Numbers that collide after integration are renumbered on planning.
 Triage (promotion, dismissal, renumbering, archival) belongs to world-planner;
 rumors are never deleted.
 
+Capture rulings. When the developer confirms an answer to an open question or
+choice in the open campaign (a boss or encounter open question, a plan choice,
+or the reason for a REJECT override), record it in the same exchange with
+ruling_create(name,body,summary,origin) / cac ruling create NAME --summary TEXT
+--origin TEXT --body-file PATH. Name it cNNN-eNNN-slug for the open campaign and
+current encounter (e000 when none), with a slug unused across every
+ruling_list(include_archived=True) page; rulings are not numbered and take
+full names only. Record only what the developer confirmed (decision, context,
+consequences), with the developer as origin, and never ask whether it matters
+enough: planning judges that in hindsight. Edit only while recorded, with
+ruling_update(name,body,summary,origin). A ruling never replaces the
+encounter log or rumors. With no open campaign, capture a rumor instead.
+Triage (canonize, note, archive) belongs to world-planner; rulings are never
+deleted.
+
 For rejected registration, establish whether it integrated and inspect visible
 assignment/execution branches; revise or explicitly abandon, retain useful context
 and number reservations. Never publish rejection as acceptance or auto-delete.
@@ -210,6 +228,8 @@ Use several developed paragraphs or grouped bullets, scaling depth to the work's
 
 On **REJECT** or **NOT-REVIEWABLE**, the auto-transition does not apply: do not run `encounter_review`, relay the reviewer's reasons to the user, revise the draft with `encounter_update` (still allowed while `draft`), and return to step 1 — get the user's explicit approval again — before spawning a fresh reviewer.
 
+**GM override (REJECT only).** You may offer the user an explicit GM override of a **REJECT** instead of revising; never assume or grant one yourself. Only if the user explicitly overrides and states a reason is that the draft → `reviewed` authorization: run `encounter_review(name, message)` with the reviewer's findings verbatim, followed by the GM override and its reason, then capture that reason as a ruling (see "Capture rulings"). **NOT-REVIEWABLE** has no override; revise it. An override never opens the encounter: the `reviewed` → `open` approval below is still a separate stop-and-ask.
+
 ### Review handoff
 
 After every independent review, give the developer a substantive report of the review and its practical impact, with the encounter's identity and a link or reference to its full record. Make the reasoning and next decision understandable without requiring the developer to read the encounter or raw reviewer output. Include:
@@ -221,7 +241,7 @@ After every independent review, give the developer a substantive report of the r
 
 For **PASS-WITH-NOTES**, first perform the automatic `encounter_review` transition using the reviewer's proposed message as required above, then summarize the findings and impact. State that the encounter is `reviewed` and its sections are locked. Recommend proceeding when the notes can be handled under the approved plan; if they instead call for changes, explain the needed follow-up and record it with `encounter_record_message`, without attempting to replace locked sections. Ask for separate approval before opening; a recommendation is not approval.
 
-For **REJECT** or **NOT-REVIEWABLE**, keep the encounter `draft`, summarize the review's reasons and impact, and recommend revision or clarification before a fresh review. After updating the draft, state which changes were actually made and which concerns remain, provide the revised draft summary, and ask for renewed review approval. Never imply that revisions alone have passed review. For `unscripted` encounters, explain the impact on the accuracy of the recorded work and any follow-up needed rather than implying that the recorded work awaits execution.
+For **REJECT** or **NOT-REVIEWABLE**, keep the encounter `draft`, summarize the review's reasons and impact, and recommend revision or clarification before a fresh review. After updating the draft, state which changes were actually made and which concerns remain, provide the revised draft summary, and ask for renewed review approval. Never imply that revisions alone have passed review. If the user instead gives an explicit GM override of a **REJECT** with a reason, perform the override transition described above first, then report the reviewer's findings alongside the override and its reason, and ask separately for approval to open. For `unscripted` encounters, explain the impact on the accuracy of the recorded work and any follow-up needed rather than implying that the recorded work awaits execution.
 
 This conversational report supplements the independent reviewer's recorded message; do not replace or rewrite that message with your own report. Expand the explanation of material findings and their consequences as needed for the developer's decision, while preserving the reviewer's meaning and clearly identifying your own recommendations.
 

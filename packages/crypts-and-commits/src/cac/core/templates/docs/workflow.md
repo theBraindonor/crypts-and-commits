@@ -29,7 +29,7 @@ them in.
 
 ## Domain model at a glance
 
-Seven record types, each Markdown with YAML frontmatter, live in the sourcebook:
+Eight record types, each Markdown with YAML frontmatter, live in the sourcebook:
 
 | Type | Scope | Lifecycle |
 | --- | --- | --- |
@@ -40,6 +40,7 @@ Seven record types, each Markdown with YAML frontmatter, live in the sourcebook:
 | Campaign | Initiatives; at most one open per checkout | draft, open, paused, completed, abandoned |
 | Encounter | Units of work within a campaign | draft, reviewed, open, completed, abandoned |
 | Rumor | Backlog notes from anywhere | open, promoted, dismissed |
+| Ruling | Developer decisions made during an open campaign | recorded, canonized, noted |
 
 Every record carries common audit stamps (`created_by`, `created_on`,
 `updated_by`, `updated_on`).
@@ -64,6 +65,8 @@ Every record carries common audit stamps (`created_by`, `created_on`,
   prerequisite bosses.
 - A promoted rumor's `boss` names the boss it was linked to, stored only on
   the rumor. Bosses keep no back-reference, and many rumors may share one.
+- A ruling's `campaign` and `encounter` are stored only on the ruling;
+  campaigns and encounters are never written and keep no back-reference.
 
 No relationship grants permission to bypass a lifecycle guard.
 
@@ -78,7 +81,7 @@ Markdown and it has no status. Its frontmatter holds `name`, `assigned_lore`,
 | Attribute | Effective default | Purpose |
 | --- | --- | --- |
 | `merge_target_branch` | `main` | Where accepted work is integrated |
-| `planning_branch` | `planning` | Where goals, rumor triage and archival happen |
+| `planning_branch` | `planning` | Where goals, rumor and ruling triage and archival happen |
 
 New worlds store these defaults. An older world without them reports the
 defaults in returned data only: reads and unrelated writes never backfill the
@@ -212,7 +215,7 @@ An encounter is a concrete unit of work within a campaign.
 
 | From | To | Trigger | Guard and effect |
 | --- | --- | --- | --- |
-| draft | reviewed | review | Message required; at least one region assigned. Performed by an independent reviewer, never the author. Locks the fixed sections. |
+| draft | reviewed | review | Message required; at least one region assigned. Performed by an independent reviewer, never the author; a REJECT passes only by explicit developer override (see Review flow). Locks the fixed sections. |
 | draft | abandoned | abandon | Message required. |
 | reviewed | open | open | Optional message. Fails until every direct prerequisite is completed. |
 | reviewed | abandoned | abandon | Message required. |
@@ -433,6 +436,23 @@ on planning, where numbering is settled. Similar rumors are never merged:
 repetition is a signal. Rumors never affect bosses, candidates or campaign
 lifecycle, are searchable under their own type, and are not part of prime.
 
+## Rulings
+
+A ruling (`cNNN-eNNN-slug`, canonical names only) records a developer decision
+made during active development, such as an answered open question or an
+overridden reviewer REJECT. Create requires the `cNNN` campaign to be `open`
+(reactivated qualifies) and a nonzero `eNNN` to be one of its encounters; `e000`
+marks a campaign-level decision. With no open campaign,
+capture a rumor instead. Slugs are unique, live or archived.
+
+A new ruling is `recorded` and stays editable until planning disposes of it in
+hindsight: **canonize** with a narrative of the world, lore or region updates
+made, or **note** with a narrative of why none is needed. Either narrative
+becomes `resolution`; **reopen** returns it to `recorded`. Rulings name no lore,
+region or world records. **Archive** retires a canonized or noted ruling, independently of
+campaign archival. There is no delete. Rulings are searchable under their own
+type, and recorded rulings appear in prime until triaged.
+
 ## Explicit user gates
 
 Three points in the encounter lifecycle need the developer's explicit,
@@ -445,9 +465,10 @@ it: the agent stops, asks, and waits for an explicit answer every time.
    revised draft. Only on an explicit yes does the agent spawn a fresh reviewer
    subagent: never itself, and never a fork that shares the author's context.
 2. **Before opening the encounter** (reviewed to open). This is separate from
-   gate 1. A PASS-WITH-NOTES verdict moves the encounter to reviewed without a
-   pause of its own, because gate 1 already covered it, but starting execution
-   is its own request.
+   gate 1. A PASS-WITH-NOTES verdict, or the developer's explicit override of
+   a REJECT, moves the encounter to reviewed without a further pause, because
+   gate 1 or the override already covered it, but starting execution is its own
+   request, including after an override.
 3. **Before marking the encounter complete** (open to completed). After
    Verification passes, the agent confirms with the developer before closing
    it, even when every check is green.
@@ -463,7 +484,8 @@ or fails to carry forward any gate is a defect, caught by checking the
 template's current text against this section.
 
 Not separately gated: the draft-to-reviewed transition itself once a
-PASS-WITH-NOTES verdict is in hand, campaign transitions, and lore, region and
+PASS-WITH-NOTES verdict or a developer override of a REJECT is in hand, ruling
+capture, campaign transitions, and lore, region and
 world edits. Those take effect when the tool is called, subject to the
 authorization rules in "Agent planning and campaign workflow".
 
@@ -484,6 +506,12 @@ reports. Later feedback is recorded as a message, never as a re-draft. On
 REJECT or NOT-REVIEWABLE, the encounter stays in draft; the agent revises it
 and returns to gate 1. An absent Plan or Verification is never by itself
 grounds for NOT-REVIEWABLE on an unscripted encounter.
+
+On REJECT only, the agent may offer the developer an explicit GM override; it is
+never assumed or self-granted. If the developer overrides with a stated reason,
+that is the draft-to-reviewed authorization: the agent records `encounter_review`
+with the reviewer's findings verbatim followed by the override and its reason,
+and captures the reason as a ruling. NOT-REVIEWABLE has no override.
 
 ## Codex encounter handoffs
 
@@ -513,7 +541,9 @@ readiness, the resulting status and locking, and a reasoned recommendation with
 the next approval needed. On PASS-WITH-NOTES, transition first, then report and
 ask separately to open. On REJECT or NOT-REVIEWABLE, keep the draft, explain
 the blockers, and after revising ask again before launching a fresh reviewer;
-revision alone is not a passing review. Never replace or rewrite the
+revision alone is not a passing review. After a developer override of a
+REJECT, transition first with the override message, then report and ask
+separately to open. Never replace or rewrite the
 reviewer's recorded message, and keep your own recommendations distinct from
 its findings. A recommendation never authorizes a review, an opening or a
 completion.
@@ -525,7 +555,8 @@ much context as a task needs:
 
 1. **Orient** with `prime_get`, once per session or before other work. It
    returns the full world, world-lore summaries, the region map, the active
-   campaign body, and the active bosses with diagnostics. Hydrate truncated
+   campaign body, the active bosses with diagnostics, and recorded (untriaged)
+   rulings as summaries. Hydrate truncated
    bodies through the refs it returns. Empty membership is different from a
    named member that is missing or broken.
 2. **Focus** on a region when one is in scope: read the region, then the
@@ -555,9 +586,11 @@ developer rebuild.
   disclosure ladder and migration routing.
 - **world-planner** owns goals: planning, roadmap adoption, readiness,
   dependencies and splitting, triaging integrated rumors (renumbering,
-  promotion and dismissal), and planning-side archival.
+  promotion and dismissal) and recorded rulings (canonizing or noting), and
+  planning-side archival.
 - **campaign-manager** owns tactical work: selection and registration, draft
-  membership, encounters and execution.
+  membership, encounters and execution. Any skill captures rumors, and any
+  skill working in an open campaign captures rulings.
 
 Both provider variants of each skill implement this procedure. Invoking a
 skill is not blanket permission to publish, push, merge, delete, or message
@@ -597,6 +630,9 @@ maximum from lexical, time or search order.
 - **Rumors:** every page of the rumor list including archives, on the current
   branch. Rumors may be numbered on any branch; collisions found after
   integration are renumbered on planning.
+- **Rulings:** not numbered. Name each `cNNN-eNNN-slug` for the open campaign
+  and current encounter (`e000` when none), with a slug unused among live and
+  archived rulings.
 
 Unnumbered legacy names remain valid. Ambiguous shorthand requires the
 canonical name.
@@ -634,6 +670,18 @@ and paused work stays on its execution branch. These are skill guidance, not
 endpoint gates or mandatory CI or hosting rules. Honor custom branch settings.
 Draft membership changes need a reason; opening or reopening locks membership.
 Boss designs stay frozen.
+
+### Capture rulings
+
+When the developer confirms an answer to an open question or choice in an open
+campaign (a boss or encounter open question, a plan choice, or the reason for
+overriding a REJECT), record it as a ruling in the same exchange. Record only
+what the developer confirmed (decision, context, consequences), with the
+developer as origin. Never ask whether it matters enough; planning judges that
+in hindsight. A ruling never replaces the encounter's own record: deviations
+still go to its log, and follow-up ideas for frozen bosses still become
+rumors. Capture needs no separate approval, but never change a ruling's
+meaning without the developer. With no open campaign, capture a rumor.
 
 ### Collision checks
 
@@ -690,6 +738,14 @@ history and rumors stay where they are. Standalone boss archiving follows its
 withdrawn or externally completed guards. There is no restore, and assistants
 never repair records by editing files.
 
+world-planner also triages integrated recorded rulings, which prime lists.
+Hydrate each and decide with the developer: make the lore, region or world
+changes the developer approves through the normal tools, then canonize with a
+narrative of what changed; or note it with a narrative of why no change is
+needed. Note a superseded ruling with a narrative naming its successor. Archive
+each once dispositioned; rulings are never deleted. Rulings reach planning only
+by integrating their execution branch, and their names never collide.
+
 ## Example: an encounter's lifecycle
 
 1. Orient with prime. If no campaign fits the task, world-planner helps capture
@@ -703,7 +759,9 @@ never repair records by editing files.
 4. Ask for approval to review, then spawn a fresh reviewer with only the two
    names. It reads the applicable lore bodies itself.
 5. On PASS-WITH-NOTES, record the reviewer's message, which locks the
-   sections, and report. On REJECT or NOT-REVIEWABLE, revise and ask again.
+   sections, and report. On REJECT or NOT-REVIEWABLE, revise and ask again,
+   or, on REJECT, the developer may override with a reason, which is recorded
+   and captured as a ruling.
 6. Ask separately for approval to open. Opening requires every prerequisite to
    be completed.
 7. Execute the Plan, logging deviations as messages rather than editing locked
