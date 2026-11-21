@@ -6,12 +6,12 @@ depends_on: []
 name: b005-ruling-records
 status: proposed
 summary: 'Add rulings: ADR-style records of developer (GM)-confirmed decisions made
-  during active development, named cNNN-eNNN-slug after the campaign/encounter where
-  they were made (e000 for campaign-level). Recorded rulings appear in prime; planning
-  gives every ruling a disposition with hindsight: canonized into lore (link kept
-  on the ruling) or noted and archived.'
+  in an open campaign, named cNNN-eNNN-slug (e000 for campaign-level). Archived independently
+  of campaigns, like rumors. Prime shows every recorded ruling. Planning gives each
+  one a narrative disposition with hindsight: canonized (how the lore was updated)
+  or noted (why it needs no lore), then archives it.'
 updated_by: John Hoff
-updated_on: '2026-11-21T00:04:48Z'
+updated_on: '2026-11-21T00:12:47Z'
 ---
 
 ## Goal
@@ -24,29 +24,37 @@ Coding assistants working on CAC-driven projects keep recommending architecture 
 
 ## Scope and model
 
-- **Rulings belong to active development.** A ruling is always captured within a campaign, and is named for the campaign and encounter in which it was made: `cNNN-eNNN-slug`, using `e000` when the decision was made at campaign level with no open encounter. Outside an active campaign there is no ruling; the appropriate capture is a rumor.
-- **Capture trigger.** A ruling records an answer to an open question or choice (a boss's open question, an encounter's open question, a plan choice, or the rationale for overriding a reviewer REJECT) that the developer confirmed. Capture is skill guidance that leans on the way agents already ask and resolve open questions with the developer; it is not a core-enforced rule.
-- **Content.** A required summary, free-text origin, and a body recording the decision, its context and its consequences.
-- **Lifecycle.** `recorded` (untriaged; the state of every new ruling) → `canonized` (reflected in one or more lore entries, link stored on the ruling) or `noted` (reason required; historical only, safe to ignore). Both dispositions are archivable. There is a reopen operation and a transition history, and no delete.
-- **Prime.** Prime includes `recorded` rulings only. Canonized rulings live on through lore, and noted rulings can be ignored, so the recorded set is the decision record of the current branch's in-flight work.
-- **Planning.** A well-run planning session gives every integrated recorded ruling a disposition: either it is canonized (creating or updating lore with developer approval) or it is noted and archived, in the same way rumors are promoted or dismissed.
+- **Rulings belong to active development.** A ruling can only be captured within an `open` campaign. Reactivating a completed campaign for review fixes returns it to `open`, so reactivated campaigns can record rulings. `draft`, `paused` and terminal campaigns cannot, because no work is happening in them. Outside an open campaign there is no ruling; the right capture is a rumor.
+- **Naming.** `cNNN-eNNN-slug`, named for the campaign and encounter in which the decision was made, using `e000` for a campaign-level decision with no encounter. Encounters are expected to produce several rulings, so the slug distinguishes them. The name must be unique across all live and archived rulings, and there is no per-encounter sequence number. Campaign numbers are already settled at assignment, so cross-branch collisions are not expected and no renumber operation is needed.
+- **Capture trigger.** A ruling records an answer to an open question or choice (a boss's open question, an encounter's open question, a plan choice, or the reason for overriding a reviewer REJECT) that the developer confirmed. Capture is skill guidance that relies on the way agents already ask and resolve open questions with the developer; it is not a rule enforced by core.
+- **Content.** A required summary, a free-text origin, and a body recording the decision, its context and its consequences. A later ruling may supersede an earlier one, and says so in its own narrative; no formal supersession link is needed.
+- **Lifecycle.** New rulings are `recorded` (untriaged). Planning then marks each one:
+  - `canonized`, with a required narrative describing how the world (lore, regions, world summary) was updated to reflect it.
+  - `noted`, with a required narrative explaining why it needs no lore.
+  
+  One ruling may be canonized into any number of lore changes. There are no formal ruling-to-lore links; the narrative is the record. Rulings can be reopened, keep a transition history, and cannot be deleted.
+- **Archival.** Rulings are archived independently of campaigns, like rumors. Planning handles them, and archiving a campaign neither moves nor blocks them.
+- **Prime.** Prime includes every `recorded` ruling, including rulings from completed campaigns that are still untriaged. That is deliberate: an untriaged decision is worth knowing about, and proper planning clears them. Canonized rulings live on through lore, and noted rulings can be ignored.
+- **Planning.** A well-run planning session gives every integrated recorded ruling a disposition, in the same way rumors are promoted or dismissed. If the ruling is canonized, the lore and world changes are made with developer approval and the ruling records how. Every ruling, canonized or noted, is then archived.
 
 ## Success Criteria
 
-- Ruling records with the naming, content and lifecycle above, created only within an existing campaign (and an existing encounter, unless `e000`).
-- Full `ruling_*` MCP tools and matching `cac ruling` commands (`cli-mcp-parity`), a `ruling` search type, and prime exposure of recorded rulings.
-- world-planner triages rulings alongside rumors, including the canonize-into-lore procedure. campaign-manager (and any skill working in an active campaign) captures rulings when the developer confirms an answer to an open question or choice, including REJECT-override rationale.
+- Ruling records with the naming, content and lifecycle above. They are created only within an `open` campaign, and only within an existing encounter of that campaign unless `e000` is used. Names are unique across live and archived rulings.
+- Full `ruling_*` MCP tools and matching `cac ruling` commands (`cli-mcp-parity`), a `ruling` search type, and prime exposure of all recorded rulings.
+- world-planner triages rulings alongside rumors, including the procedure for canonizing a ruling into lore. campaign-manager, and any skill working in an open campaign, captures a ruling when the developer confirms an answer to an open question or choice, including the reason for a REJECT override.
 - `templates/docs/workflow.md`, `templates/docs/tool-reference.md`, the branching and migration guides, and the packaged skill templates describe the model.
 - Tests and ruff are clean.
 
 ## Design Notes
 
-Captured during planning on 2026-11-20 from developer direction. The developer chose the `canonized`/`noted` naming and campaign/encounter-scoped names over a standalone prefix.
+Captured and refined during planning on 2026-11-20 from developer direction. The developer chose:
+- `canonized`/`noted` naming;
+- campaign/encounter-scoped names with unique slugs, rather than a standalone prefix or sequence numbers;
+- open-only capture;
+- archival independent of campaigns;
+- prime visibility of every recorded ruling;
+- narrative dispositions instead of formal lore links.
 
 ## Open Questions
 
-- Short references and uniqueness: does `cNNN-eNNN-slug` need a per-encounter sequence (for example `cNNN-eNNN-NN-slug`) or a short-ref form, or are slugs enough?
-- Storage and archival: should rulings be stored per campaign like encounters, and how do they move when a campaign is archived while rulings are still `recorded`?
-- Which campaign statuses accept capture (open only, or paused too)? Can a `completed` campaign being reactivated for review fixes record rulings?
-- Prime scope: after a merge, recorded rulings from completed campaigns stay visible on main and new campaign branches until planning triages them. Is that intended pressure, or should prime scope to the active campaign?
-- Can one ruling canonize into several lore entries? Should a later ruling be able to supersede an earlier one?
+None at this time.
