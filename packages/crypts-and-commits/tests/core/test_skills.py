@@ -65,7 +65,9 @@ def test_packaged_skill_metadata_and_callable_examples_match_interfaces(flavor, 
     assert prefixed <= tool_names
     normalized = body.replace("mcp__crypts-and-commits__", "")
     calls = set(
-        re.findall(r"\b((?:boss|campaign|encounter|world|lore|region|prime|rumor|docs|index)_[a-z_]+)\(", normalized)
+        re.findall(
+            r"\b((?:boss|campaign|encounter|world|lore|region|prime|rumor|ruling|docs|index)_[a-z_]+)\(", normalized
+        )
     )
     assert calls and calls <= tool_names
     cli = get_command(app)
@@ -74,6 +76,26 @@ def test_packaged_skill_metadata_and_callable_examples_match_interfaces(flavor, 
     for group, command in examples:
         assert group in cli.commands, (name, group)
         assert command in cli.commands[group].commands, (name, group, command)
+
+
+_RULING_GUIDANCE = {
+    "campaign-manager": (
+        "ruling_create(",
+        "Capture rulings",
+        "GM override (REJECT only)",
+        "NOT-REVIEWABLE** has no override",
+    ),
+    "world-planner": ("ruling_canonize(", "ruling_note(", "ruling_archive(", 'ruling_list(status="recorded")'),
+    "world-manager": ("recorded_rulings", "ruling_create("),
+}
+
+
+@pytest.mark.parametrize("flavor", ["claude", "codex"])
+@pytest.mark.parametrize("name", sorted(_RULING_GUIDANCE))
+def test_packaged_skills_carry_ruling_guidance(flavor, name):
+    body = templates.load(f"skills.{flavor}.{name.replace('-', '_')}", "SKILL.md")
+    for phrase in _RULING_GUIDANCE[name]:
+        assert phrase in body, (flavor, name, phrase)
 
 
 def test_every_skill_redeployment_preserves_unrelated_files(tmp_path):

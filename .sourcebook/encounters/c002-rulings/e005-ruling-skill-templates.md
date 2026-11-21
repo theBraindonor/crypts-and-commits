@@ -9,9 +9,9 @@ kind: scripted
 name: e005-ruling-skill-templates
 regions:
 - crypts-and-commits
-status: reviewed
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-21T03:09:11Z'
+updated_on: '2026-11-21T03:13:28Z'
 ---
 
 ## Requirements
@@ -106,3 +106,36 @@ This repository's deployed copies under `.claude/skills/` and `.agents/skills/` 
 ### Review - 2026-11-21T03:09:11Z - John Hoff
 
 PASS-WITH-NOTES. Independent review against clean-tests-and-lint, skills-authored-only-in-templates, workflow-doc-source-of-truth, cli-mcp-parity and console-best-practices. The Plan edits only the six packaged templates under templates/skills/{claude,codex}/ and leaves the deployed .claude/skills and .agents/skills copies untouched. Its deploy check uses core skills.deploy_skills in a scratch directory, never cac bootstrap init. Verification gates on a full pytest pass with no skips or deletions and on clean ruff check and format. workflow.md already owns the ruling procedure (e004), and the Plan checks the templates against it side by side, fixing any inaccuracy in the same change. Leaving tool-reference.md unchanged is justified because no contract changes. Spot checks found the specified guidance consistent with workflow.md and tool-reference.md: the cNNN-eNNN-slug naming with e000, capture in the same exchange, a rumor when no campaign is open, an override on REJECT only that the agent never grants and that is recorded as findings verbatim plus reason and captured as a ruling, no override for NOT-REVIEWABLE, gate 2 preserved, Codex transition-then-report-then-ask, canonize/note/reopen/archive with narratives and no delete, and the prime fields recorded_rulings, recorded_ruling_count and ruling_diagnostics. The tool signatures match the shipped ruling_* contracts, and the Claude allowed-tools already grant the whole server. cli-mcp-parity and console-best-practices do not apply. Notes: (1) at completion, explicitly ask the developer to run cac bootstrap init to redeploy; (2) make sure no other prime description in the templates (for example campaign-manager orientation or world-manager's wider ladder) goes stale; (3) pin the GM-override content assertion to specific wording rather than a loose phrase; (4) confirm the embedded reviewer prompt needs no change. Flagged but unverified: prime mentions outside the named sections, and whether world-manager's frontmatter description should mention rulings.
+
+### Opened - 2026-11-21T03:09:40Z - John Hoff
+
+Opened with developer approval. Implementation will fold in the reviewer notes.
+
+### Message - 2026-11-21T03:13:28Z - John Hoff
+
+Implementation complete, pending developer confirmation.
+
+**Templates** (both flavors of each, same text apart from the tool-name prefix):
+- **campaign-manager:**
+  - Orientation notes prime's `recorded_rulings`, to respect during execution and hydrate with `ruling_get`.
+  - A "Capture rulings" paragraph follows rumor capture (when; `ruling_create` / `cac ruling create`; naming with `e000` and a unique slug; developer as origin; never ask whether it matters; edit while recorded; not a replacement for the encounter log or rumors; rumor when no campaign is open; triage belongs to world-planner; no delete).
+  - A "GM override (REJECT only)" paragraph sits right after the REJECT/NOT-REVIEWABLE step: offered, never self-granted; the user's explicit override with a reason authorizes draft→reviewed; findings verbatim, then the override and reason; captured as a ruling; NOT-REVIEWABLE has no override; the reviewed→open approval remains a separate stop-and-ask.
+  - Codex also adds the override to its post-review report guidance (transition first, report, ask separately to open).
+- **world-planner:** prime line extended; a ruling triage paragraph (list `status="recorded"`, get, `index_search` with `object_type="ruling"`; canonize after the developer-approved lore, region or world changes with world-manager's summary-approval rule; note; supersession; reopen; archive; no delete, renumber or lore link; planning-time decisions are not rulings); the description now includes ruling triage.
+- **world-manager:** the `prime_get` bullet and disclosure-ladder step 1 include recorded rulings; a short "Rulings" section adds the capture pointer and the canonize ordering.
+
+**Reviewer notes:**
+1. At completion, the developer is asked to run `cac bootstrap init` to redeploy.
+2. A full search of all six templates for prime descriptions found no other stale passages. The remaining mentions are tool pointers, summary-routing notes, or the reviewer prompt.
+3. The content test pins exact phrases: "GM override (REJECT only)", "NOT-REVIEWABLE** has no override", "Capture rulings", the `ruling_*(` calls, `ruling_list(status="recorded")`, and `recorded_rulings`.
+4. The embedded reviewer prompt is unchanged. The override is a main-thread action after the verdict, and the reviewer's verdicts and no-mutation rule are unaffected.
+
+world-manager's frontmatter description was left as is: its ruling role is a pointer, and the description drives triggering.
+
+**Tests:** `test_skills.py` adds `ruling` to the call regex (every `ruling_*(` call must name a registered tool) and adds a parametrized content test over three skills and two flavors.
+
+**Verification:**
+- pytest: 1696 passed. ruff check and format clean.
+- A scratch deploy with core `skills.deploy_skills` produced all six files with the ruling guidance. Ruling mentions per flavor were equal: campaign-manager 8/8, world-planner 13/13, world-manager 4/4.
+- This repo's `.claude/skills` and `.agents/skills` are untouched (clean `git status`).
+- A side-by-side reading against `workflow.md` (Capture rulings, Review flow, gates, Codex handoffs, Planning handoff, Rulings) found no contradictions.
