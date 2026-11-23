@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-23T21:55:46Z'
 name: c008-sourcebook-integrity
-status: draft
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-23T21:55:46Z'
+updated_on: '2026-11-23T21:57:37Z'
 ---
 
 # c008: Sourcebook integrity

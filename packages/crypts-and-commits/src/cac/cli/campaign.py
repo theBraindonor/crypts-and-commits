@@ -144,6 +144,20 @@ def set_bosses(
     console.print(f"Updated boss membership: {path}", markup=False)
 
 
+@app.command("adopt-bosses")
+@reference_inputs("campaign")
+def adopt_bosses(
+    name: str = typer.Argument(...),
+    message: str = typer.Option(..., "--message", "-m", help="Nonblank reason for adopting the bosses; logged."),
+    bosses: Annotated[list[str], typer.Option("--boss", help="Boss to adopt; repeat for more than one.")] = ...,
+) -> None:
+    """Add eligible available, unassigned bosses to an open or paused campaign that was never
+    reactivated; existing members are kept, the message is logged, and an all-member request is
+    read-only. Draft campaigns use set-bosses; closed, archived or reactivated campaigns are locked."""
+    path = campaign_core.adopt_bosses(resolve_project_root(), name, bosses, message)
+    console.print(f"Updated boss membership: {path}", markup=False)
+
+
 @app.command("update")
 @reference_inputs("campaign")
 def update_campaign(

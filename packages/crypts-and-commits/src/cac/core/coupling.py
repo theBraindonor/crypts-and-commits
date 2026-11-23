@@ -372,6 +372,66 @@ def set_bosses(root: Path, name: str, names: list[str], message: str) -> Path:
     return path
 
 
+def adopt_bosses(root: Path, name: str, names: list[str], message: str) -> Path:
+    """Add eligible bosses to an open or paused, unarchived, never-reactivated campaign.
+
+    Adoption only adds: existing members are kept and the same eligibility as draft selection
+    applies. A request whose bosses are all already members is read-only."""
+    from cac.core import campaign
+
+    names = campaign_bosses.resolve(root, names)
+    if not names:
+        raise campaign_bosses.MembershipError("Adopt at least one boss; pass one or more boss references.")
+    path, post = _campaign(root, name)
+    status = post.get("status", "draft")
+    if post.get("archived", False):
+        raise campaign.CampaignNotMutableError(f"Campaign {name!r} is archived; its boss membership is locked.")
+    if status == "draft":
+        raise campaign.CampaignNotMutableError(
+            f"Campaign {name!r} is a draft; replace its membership with campaign_set_bosses (CLI: cac campaign set-bosses) instead."
+        )
+    if status not in ("open", "paused"):
+        raise campaign.CampaignNotMutableError(
+            f"Campaign {name!r} is {status!r}; bosses can be adopted only by open or paused campaigns."
+        )
+    if post.get(config.REACTIVATED_KEY, False):
+        raise campaign.CampaignNotMutableError(
+            f"Campaign {name!r} was reactivated for review fixes; its boss membership is locked."
+        )
+    if not message or not message.strip():
+        raise campaign.CampaignMessageRequiredError("A nonblank message is required to adopt bosses.")
+    links = Links(root, campaigns=[name], bosses=names)
+    previous = links.current(name)
+    added = [member for member in names if member not in previous]
+    if not added:
+        return path
+    _eligible(root, added, links)
+    changes = []
+    for member in added:
+        target, goal = links.bosses[member]
+        original = target.read_bytes()
+        _body_suffix(original)
+        goal["campaign"] = name
+        frontmatter_utils.stamp_updated(goal, root)
+        changes.append((target, goal, original))
+    members = sorted(set(previous) | set(added), key=campaign_bosses.order)
+    campaign_bosses.store(post.metadata, members)
+    user = frontmatter_utils.stamp_updated(post, root)
+    frontmatter_utils.append_log_entry(
+        post,
+        section="Log",
+        heading="Bosses adopted",
+        message=f"{message.strip()}\n\nPrevious bosses: {previous}\nAdopted: {added}\nNew bosses: {members}",
+        user=user,
+    )
+    _minimum_output(root, name, post)
+    with Recovery(root, [path] + [target for target, _, _ in changes]):
+        frontmatter_utils.write_post(root, path, post)
+        for target, goal, original in changes:
+            _write_boss(root, target, goal, original)
+    return path
+
+
 def _archive_paths(root: Path, name: str, path: Path, post: frontmatter.Post, goal_paths: list[Path]) -> list[Path]:
     from cac.core import campaign, encounter
 

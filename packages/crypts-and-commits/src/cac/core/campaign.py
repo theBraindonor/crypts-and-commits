@@ -13,6 +13,7 @@ from cac.core.config import (
     DEFAULT_ENCOUNTER_STATUS,
     ENCOUNTER_DIR_NAME,
     NAME_PATTERN,
+    REACTIVATED_KEY,
     RESERVED_NAMES,
 )
 from cac.core.frontmatter_utils import write_post
@@ -232,6 +233,10 @@ def set_bosses(root: Path, name: str, bosses: list[str], message: str) -> Path:
     return coupling.set_bosses(root, name, bosses, message)
 
 
+def adopt_bosses(root: Path, name: str, bosses: list[str], message: str) -> Path:
+    return coupling.adopt_bosses(root, name, bosses, message)
+
+
 @coupling.campaign_operation("update")
 def update_campaign(root: Path, name: str, body: str) -> Path:
     path = _existing_campaign_path(root, name)
@@ -324,6 +329,8 @@ def reactivate_campaign(root: Path, name: str, message: str) -> Campaign:
         raise AnotherCampaignOpenError(f"Cannot reactivate campaign {name!r}: campaign {other!r} is already open.")
     if _open_encounter_names(root, name):
         raise CampaignHasOpenEncountersError(f"Completed campaign {name!r} unexpectedly contains open encounters.")
+    # Persistent marker: a reactivated campaign's boss membership stays locked, even after it reopens.
+    post[REACTIVATED_KEY] = True
     return _apply_status(post, path, name, "open", root, log_heading="Reactivated", message=message)
 
 

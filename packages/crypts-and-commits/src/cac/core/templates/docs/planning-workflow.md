@@ -218,9 +218,10 @@ not have to replay prerequisite readiness, but graph damage still prevents
 downstream trust.
 
 Recorded planned or in-progress goals still need explicit approval before they
-are made available. References to existing campaigns are informational;
-adopting ownership of open legacy campaigns is deferred. Draft-only membership
-locks still apply. An externally completed goal satisfies dependencies, even
+are made available. References to existing campaigns are informational and
+never link a goal. To bring a recorded goal into an open or paused campaign,
+make it available and adopt it with campaign_adopt_bosses; the draft-only
+replacement and post-draft locks above still apply. An externally completed goal satisfies dependencies, even
 when archived, and is frozen like any other completed content. Mistakes need
 documented developer repair, never direct edits by an assistant, and there is
 no undo operation. Failures roll back the affected records while preserving
@@ -336,8 +337,11 @@ prerequisites.
 
 While a campaign is in draft, its whole membership can be replaced with a
 nonblank reason. Retained members must still reciprocate, and removal releases
-only this campaign's links. Membership locks once the campaign leaves draft,
-including after reactivation, and body edits can never change links.
+only this campaign's links. Once the campaign leaves draft, membership can only
+grow: an open or paused campaign that was never reactivated can adopt eligible
+bosses (available, unassigned, prerequisites satisfied) with a nonblank reason,
+keeping every existing member. A reactivated, completed, abandoned or archived
+campaign's membership is locked, and body edits can never change links.
 
 Lifecycle effects on bosses:
 
@@ -347,7 +351,8 @@ Lifecycle effects on bosses:
 - **Reactivation** requires an unarchived completed campaign, a nonblank
   reason and no other open campaign. Every linked boss returns to available
   but stays assigned and frozen. The earlier Log and closed encounters remain,
-  and recompletion appends new history.
+  and recompletion appends new history. Reactivation also sets a permanent
+  `reactivated` flag, so the campaign can never adopt more bosses.
 - **Open and pause** never vanquish. Bossless campaigns follow the same
   lifecycle.
 

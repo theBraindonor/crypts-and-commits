@@ -129,7 +129,7 @@ the full workflow into every project.
 | Older CAC guidance | Targeted replacement or clarification |
 | --- | --- |
 | Plan every future idea as a campaign; only two skills exist | Route static context to world-manager, goal/roadmap/readiness and rumor triage to world-planner, and explicit tactical selection/execution to campaign-manager. |
-| An available boss is immediately executable, or one campaign always has one boss | Availability records readiness; selection checks prerequisites/graph/integration and exclusive ownership. A draft can choose zero/one/many bosses; tactics address the whole group. Assignment freezes designs; opening locks draft membership. |
+| An available boss is immediately executable, or one campaign always has one boss | Availability records readiness; selection checks prerequisites/graph/integration and exclusive ownership. A draft can choose zero/one/many bosses; tactics address the whole group. Assignment freezes designs; opening ends draft replacement, after which open or paused, never-reactivated campaigns can only adopt more goals. |
 | Open campaigns directly on main | Main/planning/assignment have no open campaign under the recommended workflow. Register selected bosses on the campaign's -assignment branch, then open on the exact campaign-name execution branch. Bossless campaigns may skip registration. |
 | Pick the next number from the visible list or reuse an old number | Skills use complete retained/archive-inclusive inventories plus known campaign branch reservations, numeric max plus one and per-campaign encounters. Check collisions at creation, after integration and before completion/recompletion; resolve manually. Rumor numbers may collide across branches and are renumbered on planning. |
 | Edit assigned goal notes when discoveries appear | Capture discoveries from anywhere as standalone rumors (`rumor_create`); triage integrated rumors on planning with world-planner into selected goals or dismissals, without deletion or scope expansion. |
@@ -325,10 +325,14 @@ completed bosses; no undo/edit/restore API is added. Mistakes require deliberate
 developer repair, preserving graph/index consistency; this grants agents no direct
 managed-file access. Use normal supported operations for incomplete goals.
 
-Capture references to existing campaigns as context. Adopting already-open legacy
-campaign ownership is deferred; recording never changes campaign membership or
-status. Existing draft-only membership, single ownership, and lifecycle guards
-remain. Planning/branch guidance, skills deployment, and local-instruction adoption
+Capture references to existing campaigns as context; recording never changes
+campaign membership or status. To link a recorded goal to an already-open legacy
+campaign, make it available and adopt it with campaign_adopt_bosses / `cac
+campaign adopt-bosses` (open or paused, never-reactivated campaigns only).
+Reactivation records a `reactivated` flag only from this release on: a campaign
+reactivated by an older library carries just a `Reactivated` Log entry and is
+not detected by the adoption guard, so do not adopt goals into it. Existing
+single ownership and lifecycle guards remain. Planning/branch guidance, skills deployment, and local-instruction adoption
 follow the separate stages above; agents must not run bootstrap.
 
 No mandatory record migrations are documented yet; sourcebook schema remains 1.

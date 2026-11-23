@@ -539,3 +539,33 @@ def test_repeatable_boss_input_body_file_and_draft_set_command(tmp_path):
     result = runner.invoke(app, ["campaign", "set-bosses", "c001", "-m", "Clear"])
     assert result.exit_code == 0, result.output
     assert campaign.read_campaign(tmp_path, "c001-work").bosses == []
+
+
+def test_adopt_bosses_matches_mcp_membership_and_errors(tmp_path: Path) -> None:
+    from cac.core import boss, campaign, world
+    from cac.mcp import campaign as mcp_campaign
+
+    world.initialize_world(tmp_path)
+    for name in ("b001-one", "b002-two", "b003-three", "b004-four"):
+        boss.create_boss(tmp_path, name, "Design", "Summary")
+        boss.make_available(tmp_path, name)
+    campaign.create_campaign(tmp_path, "c001-cli", "Tactics", ["b001"])
+    campaign.open_campaign(tmp_path, "c001-cli")
+    assert runner.invoke(app, ["campaign", "adopt-bosses", "c001", "-m", "No bosses"]).exit_code != 0
+
+    result = runner.invoke(app, ["campaign", "adopt-bosses", "c001", "--boss", "b002", "-m", "[reason] Found"])
+
+    assert result.exit_code == 0, result.output
+    assert "Updated boss membership" in result.output
+    assert campaign.read_campaign(tmp_path, "c001-cli").bosses == ["b001-one", "b002-two"]
+    assert "[reason] Found" in runner.invoke(app, ["campaign", "get", "c001"]).output
+    campaign.pause_campaign(tmp_path, "c001-cli")
+    mcp_result = mcp_campaign.campaign_adopt_bosses("c001", ["b003"], "Via MCP")
+    assert mcp_result["bosses"] == ["b001-one", "b002-two", "b003-three"]
+
+    campaign.create_campaign(tmp_path, "c002-draft", "Draft", [])
+    cli_error = runner.invoke(app, ["campaign", "adopt-bosses", "c002", "--boss", "b004", "-m", "No"])
+    with pytest.raises(campaign.CampaignNotMutableError) as mcp_error:
+        mcp_campaign.campaign_adopt_bosses("c002", ["b004"], "No")
+    assert cli_error.exit_code != 0
+    assert str(mcp_error.value) in " ".join(cli_error.output.split())

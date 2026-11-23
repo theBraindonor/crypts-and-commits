@@ -204,8 +204,11 @@ prerequisites.
 
 While a campaign is in draft, its whole membership can be replaced with a
 nonblank reason. Retained members must still reciprocate, and removal releases
-only this campaign's links. Membership locks once the campaign leaves draft,
-including after reactivation, and body edits can never change links.
+only this campaign's links. Once the campaign leaves draft, membership can only
+grow: an open or paused campaign that was never reactivated can adopt eligible
+bosses (available, unassigned, prerequisites satisfied) with a nonblank reason,
+keeping every existing member. A reactivated, completed, abandoned or archived
+campaign's membership is locked, and body edits can never change links.
 
 Lifecycle effects on bosses:
 
@@ -215,7 +218,8 @@ Lifecycle effects on bosses:
 - **Reactivation** requires an unarchived completed campaign, a nonblank
   reason and no other open campaign. Every linked boss returns to available
   but stays assigned and frozen. The earlier Log and closed encounters remain,
-  and recompletion appends new history.
+  and recompletion appends new history. Reactivation also sets a permanent
+  `reactivated` flag, so the campaign can never adopt more bosses.
 - **Open and pause** never vanquish. Bossless campaigns follow the same
   lifecycle.
 
@@ -533,7 +537,8 @@ execution branch and only with explicit approval. Under the recommended
 workflow, the merge target and planning branches never have an open campaign,
 and paused work stays on its execution branch. These are skill guidance, not
 endpoint gates or mandatory CI or hosting rules. Honor custom branch settings.
-Draft membership changes need a reason; opening or reopening locks membership.
+Draft membership changes need a reason; after opening, membership only grows
+through adoption with a reason, and reactivation locks it.
 Boss designs stay frozen.
 
 ### Capture rulings

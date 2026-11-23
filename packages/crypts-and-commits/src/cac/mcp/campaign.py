@@ -62,6 +62,17 @@ def campaign_set_bosses(name: str, bosses: list[str], message: str) -> dict[str,
 
 @mcp.tool()
 @references.inputs("campaign")
+def campaign_adopt_bosses(name: str, bosses: list[str], message: str) -> dict[str, Any]:
+    """Add eligible available, unassigned bosses to an open or paused campaign that was never reactivated;
+    existing members are kept, a nonblank message is logged, and an all-member request is read-only.
+    Draft campaigns use campaign_set_bosses; closed, archived or reactivated campaigns are locked."""
+    root = resolve_project_root()
+    campaign_core.adopt_bosses(root, name, bosses, message)
+    return campaign_to_dict(campaign_core.read_campaign(root, name))
+
+
+@mcp.tool()
+@references.inputs("campaign")
 def campaign_update(name: str, body: str) -> dict[str, Any]:
     """Replace an existing campaign's body. Fails once the campaign is 'completed' or 'abandoned' -
     its body is locked once its postmortem is recorded."""

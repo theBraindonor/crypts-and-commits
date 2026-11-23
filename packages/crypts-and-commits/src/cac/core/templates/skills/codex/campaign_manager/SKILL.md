@@ -89,6 +89,7 @@ managed-file edits. Existing unnumbered history remains valid.
 | Create tactical draft | campaign_create(name,body,bosses=None) | cac campaign create NAME [--boss REF ...] --body-file PATH |
 | Single-goal selection | boss_assign_campaign(name,campaign_name,body) | cac boss assign-campaign BOSS CAMPAIGN --body-file PATH |
 | Replace entire draft membership | campaign_set_bosses(name,bosses,message) | cac campaign set-bosses NAME [--boss REF ...] --message REASON |
+| Adopt goals into open/paused campaign | campaign_adopt_bosses(name,bosses,message) | cac campaign adopt-bosses NAME --boss REF [--boss REF ...] --message REASON |
 | Edit tactics | campaign_update(name,body) | cac campaign update NAME --body-file PATH |
 | Open/pause | campaign_open / campaign_pause | cac campaign open / pause NAME |
 | Complete/abandon | campaign_complete / campaign_abandon | cac campaign complete / abandon NAME --message TEXT |
@@ -99,8 +100,11 @@ managed-file edits. Existing unnumbered history remains valid.
 MCP body arguments are strings. CLI --body and --body-file conflict; absent both,
 editor behavior applies. Repeat --boss per member; omitted bosses creates bossless,
 and no --boss on set-bosses clears the set. Draft replacement requires a reason
-and valid reciprocal retained members; same-set requests are read-only. Membership
-locks after opening, including reactivation. Assigned boss designs remain frozen;
+and valid reciprocal retained members; same-set requests are read-only. After
+opening, membership only grows: an open or paused campaign that was never
+reactivated can adopt eligible goals (same eligibility as selection) with a
+reason, keeping every member; all-member requests are read-only. Reactivated,
+closed and archived membership is locked. Assigned boss designs remain frozen;
 campaign body text cannot change links. Zero/one/many goals have no primary boss.
 
 Only one campaign can be open in the checkout. Pause/complete/abandon fail with
