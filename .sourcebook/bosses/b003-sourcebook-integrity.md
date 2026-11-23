@@ -1,5 +1,6 @@
 ---
 archived: false
+campaign: c008-sourcebook-integrity
 created_by: John Hoff
 created_on: '2026-11-20T23:43:29Z'
 depends_on:
@@ -12,7 +13,7 @@ summary: 'Close two sourcebook integrity gaps: let an open or paused (not reacti
   needed), and make lore/region/campaign deletes refuse while referenced by live records,
   listing every referrer, instead of leaving dangling references.'
 updated_by: John Hoff
-updated_on: '2026-11-23T18:41:19Z'
+updated_on: '2026-11-23T21:55:46Z'
 ---
 
 ## Goal
