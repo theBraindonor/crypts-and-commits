@@ -1,5 +1,6 @@
 ---
 archived: false
+campaign: c007-plain-list-json-paging
 created_by: John Hoff
 created_on: '2026-11-23T18:37:48Z'
 depends_on: []
@@ -11,7 +12,7 @@ summary: 'Give the plain MCP lists (lore_list, region_list, docs_list) the same 
   helper rather than adding one per list. MCP pages must fit the response budget and
   break where the CLI''s do; tool-reference''s budget contract is updated to match.'
 updated_by: John Hoff
-updated_on: '2026-11-23T18:41:19Z'
+updated_on: '2026-11-23T20:59:57Z'
 ---
 
 ## Goal
