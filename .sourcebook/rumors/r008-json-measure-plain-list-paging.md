@@ -1,21 +1,27 @@
 ---
 archived: false
-boss: null
+boss: b009-json-measured-plain-list-paging
 created_by: John Hoff
 created_on: '2026-11-23T18:13:12Z'
-history: []
+history:
+- action: promote
+  by: John Hoff
+  message: Developer chose a dedicated goal, b009, for JSON-measured paging of the
+    plain lists during planning 2026-11-23.
+  'on': '2026-11-23T18:37:48Z'
 name: r008-json-measure-plain-list-paging
 origin: Consequence noted in ruling c006-e001-json-measured-applicable-lore-paging;
   captured during c006 ruling triage on planning, 2026-11-23, at the developer's request
-resolution: null
-status: open
+resolution: Developer chose a dedicated goal, b009, for JSON-measured paging of the
+  plain lists during planning 2026-11-23.
+status: promoted
 summary: The plain MCP lists (lore_list, region_list, docs_list) still size pages
   by a looser rendering than the compact JSON they return, so an MCP page could exceed
   the response budget. prime_applicable_lore now measures items as compact JSON and
   reserves its envelope via a shared core helper. Consider aligning the other plain
   lists with the same approach.
 updated_by: John Hoff
-updated_on: '2026-11-23T18:13:12Z'
+updated_on: '2026-11-23T18:37:48Z'
 ---
 
 ## Observation

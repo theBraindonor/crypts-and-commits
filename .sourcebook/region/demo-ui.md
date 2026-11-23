@@ -1,36 +1,38 @@
 ---
 name: demo-ui
 path: packages/demo-ui
-summary: 'Frontend region packages/demo-ui. Scaffolded: Vite+React+TS (npm), header
-  with health indicator via dev-only Vite proxy, Vitest+RTL, oxlint. Chat UI wiring
-  to demo-api''s streaming POST /chat is next (in progress). No state-mgmt lib/CSS
-  framework. RAG grounding, conversation persistence, and production deploy/reachability
-  remain unconfirmed.'
+summary: 'Frontend region packages/demo-ui: Vite+React 19+TS (npm, outside the PDM
+  workspace) chat client for demo-api. Streams POST /chat NDJSON via a dev-only Vite
+  proxy, keeps the X-Thread-Id thread in memory, renders replies as GFM markdown (react-markdown),
+  header with health indicator, New Chat and GitHub link. Plain React state and CSS;
+  Vitest+RTL, oxlint. Conversation persistence across reloads and the production build/deploy
+  story are unconfirmed.'
 updated_by: John Hoff
-updated_on: '2026-08-06T04:31:34Z'
+updated_on: '2026-11-23T18:44:13Z'
 ---
 
 # Demo UI (frontend)
 
-The chat frontend for the demo-api RAG chatbot, demonstrating crypts-and-commits end to end.
+The chat frontend for demo-api, demonstrating crypts-and-commits end to end: a developer chats with an assistant grounded in this project's sourcebook.
 
 ## Current state
 
-- Scaffolded (`scaffold-demo-ui-chat-app-shell` encounter): a Vite + React + TypeScript app (npm, not part of the PDM workspace, which only covers Python packages). Header bar with title and a live backend-health indicator (polls `demo-api`'s `/health` via a dev-only Vite proxy). Vitest + React Testing Library for tests; the Vite `react-ts` template's bundled `oxlint` for linting.
-- A functional chat UI wired to `demo-api`'s streaming `POST /chat` is the next concrete step (`wire-demo-ui-chat-endpoint` encounter) - replacing the current disabled placeholder input/message-list with a real, streaming conversation.
+- Vite + React 19 + TypeScript app (npm; not part of the PDM workspace, which covers only Python packages).
+- Chat wired to demo-api's streaming `POST /chat` (`src/api/chat.ts`, `src/hooks/useChat.ts`, `src/components/Chat.tsx`): reads the NDJSON stream line by line, appends `content` chunks to the assistant reply, and carries the `X-Thread-Id` response header forward as `thread_id` on later messages.
+- Assistant replies render as GitHub-flavored markdown (`react-markdown` + `remark-gfm`).
+- Header: title, live backend-health indicator (polls `/health`), a New Chat button that resets messages and thread, and a GitHub source link. Banner-derived theme in plain CSS.
+- Tests: Vitest + React Testing Library (jsdom). Lint: the Vite template's `oxlint`. Scripts: `npm run dev|build|lint|test`.
 
 ## Confirmed technology decisions
 
-- **Vite** as the bundler/dev server, **npm** as the package manager - both were open questions until `scaffold-demo-ui-chat-app-shell` settled them.
-- No state-management library or CSS framework introduced - plain React state/hooks and plain CSS.
-- Talks to `demo-api` in dev via a Vite dev-server proxy (`vite.config.ts`), not CORS - keeps `demo-ui` changes self-contained without requiring `demo-api` changes. Production-time API reachability (proxy vs. CORS vs. same-origin deploy) is still an open question.
+- Vite bundler/dev server, npm package manager.
+- No state-management library or CSS framework: plain React state/hooks and plain CSS.
+- Dev-time API access via the Vite dev-server proxy (`/health`, `/chat` → `http://localhost:8000`), not CORS, so demo-ui stays self-contained without demo-api changes.
+- Sourcebook grounding lives in demo-api (live prime bundle + read-only `cac.core` tools); demo-ui is a thin client and does no retrieval itself.
 
 ## Still to confirm
 
-- RAG grounding in `.sourcebook` content - the chat UI/backend wiring so far is plumbing only, no retrieval yet.
-- Conversation persistence across page reloads/sessions (current/planned `thread_id` handling is session-only, in-memory React state).
-- Production build/deploy story for `demo-ui` and how it reaches a deployed `demo-api`.
+- Conversation persistence across page reloads (the thread id and messages are in-memory React state only; demo-api's SQLite checkpointer persists server-side).
+- Production build/deploy story and how it reaches a deployed demo-api (proxy vs. CORS vs. same-origin).
 
-## Status
-
-Scaffolded and being wired to the backend. Treat anything under "Still to confirm" as unsettled - confirm with the user before assuming implementation details not yet reflected in code.
+Treat anything under "Still to confirm" as unsettled; confirm with the developer before assuming details not reflected in code.

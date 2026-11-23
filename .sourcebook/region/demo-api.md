@@ -8,9 +8,9 @@ summary: 'Backend region packages/demo-api: FastAPI (/, /health, /docs) with str
   persona plus live sourcebook priming (cac.core prime bundle) as literal system messages;
   read-only cac.core tools for world, lore, regions, campaigns, encounters, docs and
   index search. OpenRouter model (.env, default google/gemma-4-31b-it); optional thread_id
-  (UUIDv7 via X-Thread-Id); SQLite checkpointer. demo-ui consumption still open.'
+  (UUIDv7 via X-Thread-Id); SQLite checkpointer.'
 updated_by: John Hoff
-updated_on: '2026-11-23T18:14:29Z'
+updated_on: '2026-11-23T18:44:54Z'
 ---
 
 # Demo API (backend)
@@ -25,6 +25,7 @@ The backend of a demonstration web application showing off crypts-and-commits in
 - **Context priming:** `demo_api.chat.priming.render_context_priming` renders `cac.core.prime.assemble_prime` (world name and body, global lore summaries, the region map, and the active campaign body) into a second system message.
 - **Prompt construction:** `_build_prompt` passes the persona and priming as literal `SystemMessage` entries, followed by the `messages` placeholder. Sourcebook text is never templated (c006/e002; see `demo-api-uses-cac-core-directly`).
 - **Tools:** a tool-calling loop (`ToolNode` plus `tools_condition`) binds read-only `cac.core` tools from `demo_api.chat.tools`, registered in `_BUILDERS`: campaigns (`list_campaigns`, `get_campaign`), docs (`list_docs`, `get_doc`), encounters (`list_encounters`, `get_encounter`), lore (`list_lore`, `get_lore`), regions (`list_regions`, `get_region`), world (`get_world`) and `search_sourcebook` (full-text index search). Add a domain by adding a `build_tools(root)` module and appending it to `_BUILDERS`.
+- **Consumer:** `demo-ui` reads the `/chat` NDJSON stream and carries the `X-Thread-Id` header forward as `thread_id` (see the `demo-ui` region).
 
 ## Confirmed technology decisions
 
@@ -37,9 +38,8 @@ The backend of a demonstration web application showing off crypts-and-commits in
 
 ## Still to confirm
 
-- How `demo-ui` consumes the `/chat` NDJSON stream; that integration is not yet designed in this region.
 - Whether retrieval needs anything beyond the agent's `search_sourcebook` tool and context priming (e.g. dedicated RAG retrieval steps).
 
 ## Status
 
-The chat agent works end to end: persona, live sourcebook priming, read-only sourcebook tools, streaming and SQLite checkpointing. Treat anything under "Still to confirm" as unsettled, and confirm with the user before assuming details not yet reflected in code.
+The chat agent works end to end: persona, live sourcebook priming, read-only sourcebook tools, streaming and SQLite checkpointing, consumed by demo-ui. Treat anything under "Still to confirm" as unsettled, and confirm with the user before assuming details not yet reflected in code.
