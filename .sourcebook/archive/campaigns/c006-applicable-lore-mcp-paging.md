@@ -1,5 +1,5 @@
 ---
-archived: false
+archived: true
 bosses:
 - b008-applicable-lore-mcp-paging
 created_by: John Hoff
@@ -7,7 +7,7 @@ created_on: '2026-11-21T17:07:40Z'
 name: c006-applicable-lore-mcp-paging
 status: completed
 updated_by: John Hoff
-updated_on: '2026-11-23T18:03:55Z'
+updated_on: '2026-11-23T18:14:43Z'
 ---
 
 # c006 Applicable Lore MCP Paging

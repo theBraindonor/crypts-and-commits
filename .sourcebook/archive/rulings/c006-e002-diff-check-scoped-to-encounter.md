@@ -1,22 +1,34 @@
 ---
-archived: false
+archived: true
 campaign: c006-applicable-lore-mcp-paging
 created_by: John Hoff
 created_on: '2026-11-23T17:05:30Z'
 encounter: e002-demo-api-literal-priming
-history: []
+history:
+- action: note
+  by: John Hoff
+  message: No world change needed. This only scoped one encounter's Verification diff
+    check (c006/e002) to its own files while e001's uncommitted work was on the same
+    branch, and it was applied and satisfied there. It sets no lasting convention
+    for lore, regions or the world summary. Triaged on planning, 2026-11-23, with
+    the developer.
+  'on': '2026-11-23T18:13:02Z'
 name: c006-e002-diff-check-scoped-to-encounter
 origin: John Hoff (developer/GM), approving e002 open after independent review note
   3, 2026-11-23
-resolution: null
-status: recorded
+resolution: No world change needed. This only scoped one encounter's Verification
+  diff check (c006/e002) to its own files while e001's uncommitted work was on the
+  same branch, and it was applied and satisfied there. It sets no lasting convention
+  for lore, regions or the world summary. Triaged on planning, 2026-11-23, with the
+  developer.
+status: noted
 summary: e002's Verification check "git diff touches only graph.py and test_graph.py"
   is scoped to e002's own changes, not the whole branch. Within packages/demo-api
   only src/demo_api/chat/graph.py and tests/test_graph.py change, apart from e001's
   uncommitted demo-api pyproject.toml version bump. e001's uncommitted work elsewhere
   on the branch is excluded.
 updated_by: John Hoff
-updated_on: '2026-11-23T17:05:30Z'
+updated_on: '2026-11-23T18:14:41Z'
 ---
 
 ## Decision

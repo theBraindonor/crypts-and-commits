@@ -4,14 +4,14 @@ assigned_regions:
 assigned_to_world: false
 enabled: true
 name: cli-mcp-parity
-summary: 'Every CLI command needs a matching MCP tool in mcp/ (thin wrapper into core/,
-  no CLI-only console/confirm/editor concerns), keeping cursor paging and get-body
-  continuation - except bootstrap and index rebuild, permanently CLI-only. Purpose:
-  CLI fallback when MCP is unavailable. Descriptions must agree across MCP/CLI, render
-  as clean prose, and never exceed tool-reference.md''s specificity; enumerated sets
-  get config-derived drift-guard tests. Check when any cli/ command changes.'
+summary: Every CLI command needs a matching MCP tool in mcp/ (thin wrapper into core/,
+  no CLI-only console/confirm/editor concerns) with the same cursor paging and get-body
+  continuation, except permanently CLI-only bootstrap and index rebuild. New or changed
+  MCP pages must fit the budget as emitted (compact JSON plus envelope, one core helper
+  shared with the CLI). Descriptions agree across MCP/CLI, render as clean prose,
+  never exceed tool-reference.md's specificity; enumerated sets get drift-guard tests.
 updated_by: John Hoff
-updated_on: '2026-11-21T16:08:40Z'
+updated_on: '2026-11-23T18:14:10Z'
 ---
 
 # CLI/MCP Command Parity
@@ -51,6 +51,13 @@ When reviewing any encounter that adds or changes a `cac` CLI command in
   result through the shared `budget_core.fit_response` helper and accept the
   same `cursor`/`--cursor` continuation; a truncation notice must never point
   at a file.
+- When adding or changing a paged MCP result, every page must fit the response
+  budget as emitted. Size each item as its compact JSON and reserve the full
+  result envelope, including `next_cursor` and any field the
+  `references.inputs` decorator adds (such as `identity`). Share one `core/`
+  paging helper between the MCP tool and the CLI command so both break pages
+  at the same entries. The only allowed overrun is a single item that alone
+  exceeds the budget (`paginate` always admits one item).
 - New domain modules must be wired into `mcp/server.py`'s `_TOOL_MODULES`, and
   `tests/mcp/test_server.py::test_all_domain_tools_are_registered` must be
   updated to reflect the new tool set.
