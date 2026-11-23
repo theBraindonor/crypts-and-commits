@@ -46,7 +46,8 @@ def region_update(name: str, body: str, summary: str) -> dict[str, Any]:
 
 @mcp.tool()
 def region_delete(name: str) -> dict[str, str]:
-    """Delete a region file."""
+    """Delete a region file. Refused while any lore or unarchived encounter still names it; the error
+    lists every referrer."""
     path = region_core.delete_region(resolve_project_root(), name)
     return {"deleted": str(path)}
 

@@ -267,7 +267,12 @@ def update_campaign(root: Path, name: str, body: str) -> Path:
 
 @coupling.campaign_operation("delete")
 def delete_campaign(root: Path, name: str) -> Path:
+    """Delete a campaign; the boss guard runs first, then refusal while any of its encounters or any
+    ruling still references it."""
+    from cac.core import referrers
+
     path = _existing_campaign_path(root, name)
+    referrers.ensure_unreferenced("campaign", name, referrers.campaign_referrers(root, name))
     return frontmatter_utils.delete_post(root, path)
 
 

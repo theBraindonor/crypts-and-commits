@@ -197,6 +197,25 @@ delete`, `cac encounter delete`) prompt for confirmation
 unless given `--yes`/`-y`. MCP delete tools never prompt. Confirmation never
 bypasses a core guard.
 
+### Referenced deletes
+
+`lore_delete`, `region_delete` and `campaign_delete` (and their CLI forms)
+refuse while another record references the target, before any write:
+
+| Target | Referenced by |
+| --- | --- |
+| Lore | the world's `assigned_lore`; any region's `assigned_lore` |
+| Region | any lore's `assigned_regions`; any unarchived encounter's `regions` (any status; encounters of archived campaigns don't count) |
+| Campaign | its `bosses` / a boss claim (checked first, `CampaignLinkedError`); any of its encounters, live or archived; any ruling, live or archived, whose `campaign` names it |
+
+The error (`ReferencedRecordError`) reads `Cannot delete <kind> '<name>': it is
+still referenced by <referrers>. Unassign or remove these references first.`
+Each referrer renders as `<type> <canonical name> (<field>)`, or `world
+(assigned_lore)`, sorted by type then name and never truncated; encounters show
+as `<campaign>/<encounter>`. The CLI prints it literally and exits 1. A refused
+delete changes no record or index row. Rulings cannot be deleted, so a campaign
+any ruling names can never be deleted.
+
 ## World
 
 | Operation | MCP | CLI |
@@ -290,7 +309,8 @@ Lifecycle operations update linked bosses' frontmatter, never their bodies:
 complete vanquishes every linked boss, abandon releases all current links while
 retaining the historical `bosses` list, and archive moves current bosses with
 the campaign. Delete is refused while the campaign has any current or
-historical `bosses` membership or a boss still claims it.
+historical `bosses` membership or a boss still claims it, and while any of its
+encounters (live or archived) or any ruling names it (see Referenced deletes).
 
 Campaign reads expose the canonical `bosses` list. Legacy singular `boss`
 storage reads as a one-member list and an absent or null field reads as empty;

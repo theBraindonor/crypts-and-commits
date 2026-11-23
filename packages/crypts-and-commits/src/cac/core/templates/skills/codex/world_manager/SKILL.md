@@ -30,7 +30,7 @@ A lore entry captures a standard, convention, or best practice to apply when rev
 - `lore_create(name, body, summary)` — create a new entry. `summary` (max 500 characters) is required alongside `body`: draft it from the body you just wrote and have the developer approve or edit it before the call, so the summary never drifts from the text it stands in for. CLI fallback: `cac lore create --help`.
 - `lore_update(name, body, summary)` — replace an entry's body. `summary` is required for the same reason. CLI fallback: `cac lore update --help`.
 - `lore_set_summary(name, summary)` — set the routing summary shown by `prime` calls (max 500 characters) without touching the body. CLI fallback: `cac lore set-summary --help`.
-- `lore_delete(name)` — remove an entry, unconditionally. CLI fallback: `cac lore delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
+- `lore_delete(name)` — remove an entry; refused while the world or any region still assigns it (the error lists every referrer, so unassign first). CLI fallback: `cac lore delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
 - `lore_enable(name)` / `lore_disable(name)` — toggle whether an entry is currently in force. Skip disabled lore when reviewing encounters. CLI fallback: `cac lore enable --help` / `cac lore disable --help`.
 - `lore_assign_world(name)` / `lore_unassign_world(name)` — make an entry global. CLI fallback: `cac lore assign-world --help` / `cac lore unassign-world --help`.
 - `lore_assign_region(name, region)` / `lore_unassign_region(name, region)` — scope an entry to a region. CLI fallback: `cac lore assign-region --help` / `cac lore unassign-region --help`.
@@ -45,7 +45,7 @@ A region documents a path within the repository that needs its own conventions, 
 - `region_update(name, body, summary)` — replace a region's body. `summary` is required for the same reason. CLI fallback: `cac region update --help`.
 - `region_set_summary(name, summary)` — set the routing summary shown by `prime` calls without touching the body. CLI fallback: `cac region set-summary --help`.
 - `region_set_path(name, path)` — set or change the path a region covers. CLI fallback: `cac region set-path --help`.
-- `region_delete(name)` — remove a region, unconditionally. CLI fallback: `cac region delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
+- `region_delete(name)` — remove a region; refused while any lore or unarchived encounter still names it (the error lists every referrer, so unassign first). CLI fallback: `cac region delete --help` (the CLI additionally supports a `--yes`/`-y` confirmation skip; the MCP tool always deletes without prompting).
 
 ## Prime
 

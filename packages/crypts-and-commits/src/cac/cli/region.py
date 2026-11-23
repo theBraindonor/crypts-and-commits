@@ -1,8 +1,9 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import CURSOR_HELP, edit_markdown, fail, fitted, print_body, resolve_body_input
+from cac.cli.common import CURSOR_HELP, edit_markdown, fail, fitted, print_body, refuse, resolve_body_input
 from cac.core import budget as budget_core
+from cac.core import referrers as referrers_core
 from cac.core import region as region_core
 from cac.core.git_utils import GitIdentityError
 from cac.core.paths import resolve_project_root
@@ -134,7 +135,8 @@ def delete_region(
     name: str = typer.Argument(..., help="Region name to delete."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
 ) -> None:
-    """Delete a region file."""
+    """Delete a region file. Refused while any lore or unarchived encounter still names it; the error
+    lists every referrer. --yes skips only the prompt, never the check."""
     if not yes:
         typer.confirm(f"Delete region {name!r}?", abort=True)
 
@@ -142,6 +144,8 @@ def delete_region(
         path = region_core.delete_region(resolve_project_root(), name)
     except region_core.RegionNotFoundError as exc:
         fail(console, str(exc))
+    except referrers_core.ReferencedRecordError as exc:
+        refuse(console, str(exc))
 
     console.print(f"Deleted [bold green]{path}[/bold green]")
 

@@ -122,7 +122,11 @@ def update_region(root: Path, name: str, body: str, summary: str) -> Path:
 
 
 def delete_region(root: Path, name: str) -> Path:
+    """Delete a region file; refused while any lore or unarchived encounter still names it."""
+    from cac.core import referrers
+
     path = _existing_region_path(root, name)
+    referrers.ensure_unreferenced("region", name, referrers.region_referrers(root, name))
     return frontmatter_utils.delete_post(root, path)
 
 

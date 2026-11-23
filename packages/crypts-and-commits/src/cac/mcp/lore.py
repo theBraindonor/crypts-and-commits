@@ -50,7 +50,8 @@ def lore_update(name: str, body: str, summary: str) -> dict[str, Any]:
 
 @mcp.tool()
 def lore_delete(name: str) -> dict[str, str]:
-    """Delete a lore file."""
+    """Delete a lore file. Refused while the world or any region still assigns it; the error lists
+    every referrer."""
     path = lore_core.delete_lore(resolve_project_root(), name)
     return {"deleted": str(path)}
 

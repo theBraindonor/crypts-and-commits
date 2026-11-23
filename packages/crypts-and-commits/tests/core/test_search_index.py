@@ -5,7 +5,7 @@ from pathlib import Path
 
 import frontmatter
 import pytest
-from cac.core import campaign, config, encounter, lore, region, search_index, world
+from cac.core import campaign, config, encounter, lore, referrers, region, search_index, world
 from cac.core.paths import search_index_db_path
 
 pytestmark = pytest.mark.integration
@@ -453,15 +453,21 @@ def test_writes_before_any_rebuild_do_not_create_index_file(tmp_path: Path) -> N
     assert search_index.index_counts(tmp_path) is None
 
 
-def test_delete_campaign_removes_its_own_row_but_leaves_encounters(tmp_path: Path) -> None:
+def test_delete_campaign_removes_only_its_own_row(tmp_path: Path) -> None:
     _make_campaign(tmp_path)
     encounter.create_encounter(tmp_path, "opening-gambit", "goblin-ambush", "Fight the goblins.")
+    campaign.create_campaign(tmp_path, "side-quest", "An empty detour.")
     search_index.rebuild_index(tmp_path)
+    assert search_index.index_counts(tmp_path) == {"encounter": 1, "campaign": 2}
+
+    # A campaign with encounters is refused (they would be orphaned) and leaves every row in place.
+    with pytest.raises(referrers.ReferencedRecordError, match="goblin-ambush"):
+        campaign.delete_campaign(tmp_path, "opening-gambit")
+    assert search_index.index_counts(tmp_path) == {"encounter": 1, "campaign": 2}
+
+    campaign.delete_campaign(tmp_path, "side-quest")
+
     assert search_index.index_counts(tmp_path) == {"encounter": 1, "campaign": 1}
-
-    campaign.delete_campaign(tmp_path, "opening-gambit")
-
-    assert search_index.index_counts(tmp_path) == {"encounter": 1}
     assert search_index.search(tmp_path, "goblins")[0].name == "goblin-ambush"
 
 

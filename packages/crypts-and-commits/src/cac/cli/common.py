@@ -91,6 +91,12 @@ def print_body(console: Console, response: dict) -> None:
         console.print(f"next_cursor: {response['next_cursor']}", markup=False, soft_wrap=True)
 
 
+def refuse(console: Console, message: str) -> NoReturn:
+    """Print an error that carries stored record names literally (markup disabled) and exit 1."""
+    console.print(message, markup=False, style="bold red")
+    raise typer.Exit(code=1)
+
+
 def fail(console: Console, message: str) -> NoReturn:
     console.print(f"[bold red]{message}[/bold red]")
     raise typer.Exit(code=1)

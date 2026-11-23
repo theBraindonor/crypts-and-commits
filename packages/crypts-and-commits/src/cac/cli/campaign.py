@@ -10,11 +10,13 @@ from cac.cli.common import (
     fitted,
     print_body,
     reference_inputs,
+    refuse,
     resolve_body_input,
 )
 from cac.core import budget as budget_core
 from cac.core import campaign as campaign_core
 from cac.core import references
+from cac.core import referrers as referrers_core
 from cac.core.git_utils import GitIdentityError
 from cac.core.paths import resolve_project_root
 
@@ -193,7 +195,8 @@ def delete_campaign(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
 ) -> None:
     """Delete a bossless campaign only: refused while it has any current or historical bosses membership
-    or a boss still claims it."""
+    or a boss still claims it, and while any of its encounters (live or archived) or any ruling still
+    references it; the error lists every referrer. --yes skips only the prompt, never the check."""
     if not yes:
         typer.confirm(f"Delete campaign {name!r}?", abort=True)
 
@@ -201,6 +204,8 @@ def delete_campaign(
         path = campaign_core.delete_campaign(resolve_project_root(), name)
     except campaign_core.CampaignNotFoundError as exc:
         fail(console, str(exc))
+    except referrers_core.ReferencedRecordError as exc:
+        refuse(console, str(exc))
 
     console.print(f"Deleted {path}", markup=False)
 

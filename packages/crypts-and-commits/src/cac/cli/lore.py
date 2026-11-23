@@ -1,9 +1,10 @@
 import typer
 from rich.console import Console
 
-from cac.cli.common import CURSOR_HELP, edit_markdown, fail, fitted, print_body, resolve_body_input
+from cac.cli.common import CURSOR_HELP, edit_markdown, fail, fitted, print_body, refuse, resolve_body_input
 from cac.core import budget as budget_core
 from cac.core import lore as lore_core
+from cac.core import referrers as referrers_core
 from cac.core import region as region_core
 from cac.core import world as world_core
 from cac.core.git_utils import GitIdentityError
@@ -135,7 +136,8 @@ def delete_lore(
     name: str = typer.Argument(..., help="Lore name to delete."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
 ) -> None:
-    """Delete a lore file."""
+    """Delete a lore file. Refused while the world or any region still assigns it; the error lists
+    every referrer. --yes skips only the prompt, never the check."""
     if not yes:
         typer.confirm(f"Delete lore {name!r}?", abort=True)
 
@@ -143,6 +145,8 @@ def delete_lore(
         path = lore_core.delete_lore(resolve_project_root(), name)
     except lore_core.LoreNotFoundError as exc:
         fail(console, str(exc))
+    except referrers_core.ReferencedRecordError as exc:
+        refuse(console, str(exc))
 
     console.print(f"Deleted [bold green]{path}[/bold green]")
 

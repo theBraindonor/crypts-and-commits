@@ -70,6 +70,12 @@ Every record carries common audit stamps (`created_by`, `created_on`,
   the rumor. Bosses keep no back-reference, and many rumors may share one.
 - A ruling's `campaign` and `encounter` are stored only on the ruling;
   campaigns and encounters are never written and keep no back-reference.
+- Deletes never leave these links dangling: a lore entry, region or campaign
+  cannot be deleted while another record still references it, and the error
+  lists every referrer. Lore is referenced by world and region `assigned_lore`;
+  a region by lore `assigned_regions` and unarchived encounters' `regions`; a
+  campaign by its bosses, its own encounters (live or archived) and any ruling
+  naming it (live or archived). Unassign or remove referrers first.
 
 No relationship grants permission to bypass a lifecycle guard.
 
@@ -296,8 +302,10 @@ stateDiagram-v2
 ```
 
 A campaign can be deleted only when its `bosses` list (current or historical
-membership) is empty and no boss claims it. Deletion is never a rollback or
-renumbering shortcut.
+membership) is empty, no boss claims it, it has no encounters (live or archived)
+and no ruling (live or archived) names it. A closed campaign with encounters, or
+any campaign with rulings, therefore stays permanently. Deletion is never a
+rollback or renumbering shortcut.
 
 ### Archiving
 

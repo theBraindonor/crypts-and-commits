@@ -96,7 +96,7 @@ managed-file edits. Existing unnumbered history remains valid.
 | Open/pause | mcp__crypts-and-commits__campaign_open / mcp__crypts-and-commits__campaign_pause | cac campaign open / pause NAME |
 | Complete/abandon | mcp__crypts-and-commits__campaign_complete / mcp__crypts-and-commits__campaign_abandon | cac campaign complete / abandon NAME --message TEXT |
 | Reopen for pre-merge fixes | mcp__crypts-and-commits__campaign_reactivate(name,message) | cac campaign reactivate NAME --message REASON |
-| Delete permitted bossless draft/history | mcp__crypts-and-commits__campaign_delete(name) | cac campaign delete NAME |
+| Delete unreferenced bossless campaign (no encounters/rulings) | mcp__crypts-and-commits__campaign_delete(name) | cac campaign delete NAME |
 | Archive integrated terminal history | mcp__crypts-and-commits__campaign_archive(name) | cac campaign archive NAME |
 
 MCP body arguments are strings. CLI --body and --body-file conflict; absent both,
@@ -120,8 +120,9 @@ recomplete before integration. Post-merge new scope goes back to planning.
 No campaign completion/push/merge is implied by completing one encounter.
 
 Deletion is not unconditional: a non-empty bosses list (current or historical
-membership) or a reverse boss claim blocks it; archiving does not protect a
-bossless campaign. MCP has no interactive deletion prompt; CLI
+membership), a reverse boss claim, any of its encounters (live or archived) or
+any ruling naming it (live or archived) blocks it, and the error lists every
+referrer; archiving does not protect a bossless campaign. MCP has no interactive deletion prompt; CLI
 can prompt or accept --yes, without bypassing core guards. Do not use deletion
 as a rollback/renumber shortcut. world-planner archives integrated terminal history
 on synchronized planning: current bosses move; released/reassigned goals and
