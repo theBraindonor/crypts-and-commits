@@ -1,5 +1,5 @@
 ---
-archived: false
+archived: true
 campaign: c006-applicable-lore-mcp-paging
 created_by: John Hoff
 created_on: '2026-11-21T17:28:24Z'
@@ -10,7 +10,7 @@ regions:
 - demo-api
 status: completed
 updated_by: John Hoff
-updated_on: '2026-11-23T17:31:08Z'
+updated_on: '2026-11-23T18:14:43Z'
 ---
 
 ## Requirements

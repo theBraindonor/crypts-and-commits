@@ -1,14 +1,30 @@
 ---
-archived: false
+archived: true
 campaign: c006-applicable-lore-mcp-paging
 created_by: John Hoff
 created_on: '2026-11-21T17:15:21Z'
 encounter: e001-applicable-lore-mcp-paging
-history: []
+history:
+- action: canonize
+  by: John Hoff
+  message: 'Canonized into lore cli-mcp-parity (crypts-and-commits region) with developer
+    approval on planning, 2026-11-23. A new paging bullet requires every new or changed
+    paged MCP result to fit the response budget as emitted: items sized as compact
+    JSON, the full envelope reserved, and one core paging helper shared with the CLI
+    so page breaks match, with a single oversized item as the only allowed overrun.
+    The summary was updated to match. The ruling''s consequence that the other plain
+    lists keep looser measurement was captured as rumor r008-json-measure-plain-list-paging.'
+  'on': '2026-11-23T18:14:32Z'
 name: c006-e001-json-measured-applicable-lore-paging
 origin: John Hoff (GM), responding to the c006/e001 reviewer REJECT
-resolution: null
-status: recorded
+resolution: 'Canonized into lore cli-mcp-parity (crypts-and-commits region) with developer
+  approval on planning, 2026-11-23. A new paging bullet requires every new or changed
+  paged MCP result to fit the response budget as emitted: items sized as compact JSON,
+  the full envelope reserved, and one core paging helper shared with the CLI so page
+  breaks match, with a single oversized item as the only allowed overrun. The summary
+  was updated to match. The ruling''s consequence that the other plain lists keep
+  looser measurement was captured as rumor r008-json-measure-plain-list-paging.'
+status: canonized
 summary: 'Applicable-lore paging is measured on compact JSON, not the CLI text line:
   a shared core/prime.py helper sizes each {name, summary, ref} item as compact JSON
   with headroom for the {items, next_cursor} envelope, and both MCP and CLI page with
@@ -16,7 +32,7 @@ summary: 'Applicable-lore paging is measured on compact JSON, not the CLI text l
   cursor behavior is pinned on both surfaces. Chosen over amending the docs or a GM
   override.'
 updated_by: John Hoff
-updated_on: '2026-11-21T17:15:21Z'
+updated_on: '2026-11-23T18:14:40Z'
 ---
 
 ## Decision

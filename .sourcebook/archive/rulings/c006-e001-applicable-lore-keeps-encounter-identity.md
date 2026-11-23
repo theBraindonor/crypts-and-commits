@@ -1,21 +1,35 @@
 ---
-archived: false
+archived: true
 campaign: c006-applicable-lore-mcp-paging
 created_by: John Hoff
 created_on: '2026-11-21T17:22:48Z'
 encounter: e001-applicable-lore-mcp-paging
-history: []
+history:
+- action: canonize
+  by: John Hoff
+  message: Canonized into lore cli-mcp-parity with developer approval on planning,
+    2026-11-23. The same new paging bullet (shared with c006-e001-json-measured-applicable-lore-paging)
+    requires the reserved envelope to include any field the references.inputs decorator
+    adds, such as identity, so decorator-added fields can never push a page over budget.
+    The exact {items, next_cursor, identity} shape of prime_applicable_lore stays
+    documented in tool-reference.md.
+  'on': '2026-11-23T18:14:34Z'
 name: c006-e001-applicable-lore-keeps-encounter-identity
 origin: John Hoff (GM), during c006/e001 implementation
-resolution: null
-status: recorded
+resolution: Canonized into lore cli-mcp-parity with developer approval on planning,
+  2026-11-23. The same new paging bullet (shared with c006-e001-json-measured-applicable-lore-paging)
+  requires the reserved envelope to include any field the references.inputs decorator
+  adds, such as identity, so decorator-added fields can never push a page over budget.
+  The exact {items, next_cursor, identity} shape of prime_applicable_lore stays documented
+  in tool-reference.md.
+status: canonized
 summary: 'prime_applicable_lore''s paged MCP result keeps the selected encounter''s
   identity that the shared references.inputs decorator adds to dict results: {items,
   next_cursor, identity}. The paging helper reserves that identity''s compact JSON
   in its envelope, and CLI and MCP pass the same identity, so page breaks stay identical
   and pages fit the budget. There are still no per-item identities.'
 updated_by: John Hoff
-updated_on: '2026-11-21T17:22:48Z'
+updated_on: '2026-11-23T18:14:40Z'
 ---
 
 ## Decision

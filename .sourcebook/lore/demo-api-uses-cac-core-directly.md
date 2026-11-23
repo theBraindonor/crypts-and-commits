@@ -6,14 +6,14 @@ created_by: John Hoff
 created_on: '2026-08-06T14:58:29Z'
 enabled: true
 name: demo-api-uses-cac-core-directly
-summary: 'When demo-api needs sourcebook data (chat context priming, future RAG retrieval),
-  it depends on crypts-and-commits and calls cac.core.* functions directly (e.g. cac.core.prime.assemble_prime)
-  — never the cac CLI as a subprocess or the MCP server. The .sourcebook-is-MCP/CLI-only
-  guardrail governs coding-assistant sessions, not same-workspace application code
-  doing in-process reads. demo-api stays read-only: only non-mutating core calls,
-  never writes.'
+summary: 'demo-api reads sourcebook data (context priming, chat tools, future RAG)
+  by calling cac.core.* directly as a Python dependency - never the cac CLI as a subprocess
+  or the MCP server; the MCP/CLI-only guardrail governs assistant sessions, not in-process
+  app reads. Read-only: only non-mutating core calls. Sourcebook text is data: pass
+  it to the model as literal messages (e.g. SystemMessage), never through prompt templating,
+  which parses braces as variables.'
 updated_by: John Hoff
-updated_on: '2026-08-06T14:58:31Z'
+updated_on: '2026-11-23T18:14:16Z'
 ---
 
 # `demo-api` calls `cac.core` directly, not the CLI or MCP surface
@@ -28,3 +28,7 @@ It must never shell out to the `cac` CLI as a subprocess, and never speak the MC
 This lore applies to any `demo-api` functionality that reads `.sourcebook` content, not just the initial chat persona/priming work.
 
 `demo-api` remains read-only against `.sourcebook`: it may only call non-mutating `core` functions (reads/queries) — never anything that writes. The wider RAG-demo campaign requires the application to have no ability to write to `.sourcebook`, by construction, not just by convention.
+
+## Sourcebook text is data, not a prompt template
+
+Sourcebook content (context priming, tool results, future retrieval) must reach the chat model literally. Never pass it through prompt templating, such as a `("system", text)` tuple in `ChatPromptTemplate.from_messages`, which parses `{...}` as variables. Wrap it in a message object such as `SystemMessage(content=...)` instead. Sourcebook text routinely contains braces (e.g. `{items, next_cursor}`), and templating it either fails when the prompt is built or silently substitutes content.

@@ -1,21 +1,35 @@
 ---
-archived: false
+archived: true
 boss: null
 created_by: John Hoff
 created_on: '2026-11-23T17:33:05Z'
-history: []
+history:
+- action: dismiss
+  by: John Hoff
+  message: Resolved directly on planning, 2026-11-23, with developer approval; no
+    goal needed. The demo-api region's summary and body were refreshed via region_update
+    to describe the current persona, live sourcebook priming, literal SystemMessage
+    prompt construction, the read-only cac.core tool set (including search_sourcebook),
+    NDJSON streaming and SQLite checkpointing. Still to confirm now covers only demo-ui
+    consumption of /chat and any retrieval beyond search_sourcebook.
+  'on': '2026-11-23T18:14:38Z'
 name: r007-refresh-demo-api-region-record
 origin: Independent reviewer of c006/e002 (flagged as out of scope), captured at the
   developer's request on 2026-11-23
-resolution: null
-status: open
+resolution: Resolved directly on planning, 2026-11-23, with developer approval; no
+  goal needed. The demo-api region's summary and body were refreshed via region_update
+  to describe the current persona, live sourcebook priming, literal SystemMessage
+  prompt construction, the read-only cac.core tool set (including search_sourcebook),
+  NDJSON streaming and SQLite checkpointing. Still to confirm now covers only demo-ui
+  consumption of /chat and any retrieval beyond search_sourcebook.
+status: dismissed
 summary: The demo-api region record (summary and body, last updated 2026-08-06) is
   stale. It still describes the system prompt as "You are a friendly assistant." and
   says there are no tools, but the code now has a CAC project-assistant persona, sourcebook
   context priming via cac.core, read-only sourcebook lookup tools, and (since c006/e002)
   literal SystemMessage prompt entries. Refresh the summary and body to match.
 updated_by: John Hoff
-updated_on: '2026-11-23T17:33:05Z'
+updated_on: '2026-11-23T18:14:42Z'
 ---
 
 ## Observation

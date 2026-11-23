@@ -1,5 +1,5 @@
 ---
-archived: false
+archived: true
 campaign: c006-applicable-lore-mcp-paging
 created_by: John Hoff
 created_on: '2026-11-21T17:10:01Z'
@@ -10,7 +10,7 @@ regions:
 - crypts-and-commits
 status: completed
 updated_by: John Hoff
-updated_on: '2026-11-23T17:31:10Z'
+updated_on: '2026-11-23T18:14:42Z'
 ---
 
 ## Requirements

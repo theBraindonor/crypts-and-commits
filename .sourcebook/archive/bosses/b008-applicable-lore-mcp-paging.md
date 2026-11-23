@@ -1,5 +1,5 @@
 ---
-archived: false
+archived: true
 campaign: c006-applicable-lore-mcp-paging
 created_by: John Hoff
 created_on: '2026-11-21T16:11:02Z'
@@ -13,7 +13,7 @@ summary: 'Give the MCP tool prime_applicable_lore the same cursor paging as cac 
   a 0.4.0 subsection, separate from prior releases. Update tool-reference.md, guides,
   skill templates and tests.'
 updated_by: John Hoff
-updated_on: '2026-11-23T18:03:55Z'
+updated_on: '2026-11-23T18:14:42Z'
 ---
 
 ## Goal
