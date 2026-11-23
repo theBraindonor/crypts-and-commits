@@ -4,7 +4,7 @@ from typing import Any
 
 import frontmatter
 
-from cac.core import frontmatter_utils, templates
+from cac.core import budget, frontmatter_utils, templates
 from cac.core.config import LORE_DIR_NAME, NAME_PATTERN, RESERVED_NAMES, SUMMARY_KEY
 from cac.core.frontmatter_utils import (
     SummaryTooLongError,
@@ -62,6 +62,11 @@ def list_lore(root: Path) -> list[str]:
     if not directory.is_dir():
         return []
     return sorted(path.stem for path in directory.glob("*.md"))
+
+
+def page_lore(root: Path, cursor: str | None) -> budget.Page[str]:
+    """Page lore names for CLI and MCP alike, measured as the compact JSON `lore_list` returns."""
+    return budget.json_page(list_lore(root), cursor)
 
 
 def template_body() -> str:

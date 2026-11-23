@@ -46,13 +46,13 @@ def list_regions(
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
 ) -> None:
     """List the region files in .sourcebook/region, paged under the response budget."""
-    names = region_core.list_regions(resolve_project_root())
-    if not names:
+    root = resolve_project_root()
+    if not region_core.list_regions(root):
         console.print("No region files found.")
         return
 
     try:
-        page = budget_core.paginate(names, cursor)
+        page = region_core.page_regions(root, cursor)
     except budget_core.InvalidCursorError as exc:
         fail(console, str(exc))
 

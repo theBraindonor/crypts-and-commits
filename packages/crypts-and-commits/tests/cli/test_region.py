@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -345,3 +346,34 @@ def test_set_path_missing_region_fails() -> None:
     result = runner.invoke(app, ["region", "set-path", "missing", "src/backend"])
 
     assert result.exit_code == 1
+
+
+def test_list_pages_break_at_the_same_items_as_mcp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from cac.core import region
+    from cac.mcp import region as mcp_region
+
+    for index in range(12):
+        region.create_region(tmp_path, f"region-{index:02d}", "Body.", "Summary.")
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 80)
+
+    cli_pages, cursor = [], None
+    while True:
+        result = runner.invoke(app, ["region", "list"] + ([] if cursor is None else ["--cursor", cursor]))
+        assert result.exit_code == 0
+        hint = re.search(r"pass --cursor (\S+) to continue", result.output)
+        cursor = hint[1] if hint else None
+        items = [line for line in result.output.splitlines() if line and not line.startswith("More results")]
+        cli_pages.append((items, cursor))
+        if cursor is None:
+            break
+
+    mcp_pages, cursor = [], None
+    while True:
+        page = mcp_region.region_list(cursor)
+        mcp_pages.append((page["items"], page["next_cursor"]))
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+
+    assert cli_pages == mcp_pages
+    assert len(cli_pages) > 1

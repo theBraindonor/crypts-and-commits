@@ -48,13 +48,13 @@ def list_lore(
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
 ) -> None:
     """List the lore files in .sourcebook/lore, paged under the response budget."""
-    names = lore_core.list_lore(resolve_project_root())
-    if not names:
+    root = resolve_project_root()
+    if not lore_core.list_lore(root):
         console.print("No lore files found.")
         return
 
     try:
-        page = budget_core.paginate(names, cursor)
+        page = lore_core.page_lore(root, cursor)
     except budget_core.InvalidCursorError as exc:
         fail(console, str(exc))
 

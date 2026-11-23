@@ -12,8 +12,7 @@ def docs_list(cursor: str | None = None) -> dict[str, Any]:
     Docs are framework-owned guide documents (e.g. the phase workflows) - read-only,
     distinct from .sourcebook content. summary is a routing signal; hydrate with docs_get(name)
     for the full body."""
-    items = [{"name": name, "summary": summary} for name, summary in docs_core.list_docs()]
-    page = budget_core.paginate(items, cursor, render=lambda item: item["name"] + item["summary"])
+    page = docs_core.page_docs(cursor)
     return {"items": page.items, "next_cursor": page.next_cursor}
 
 

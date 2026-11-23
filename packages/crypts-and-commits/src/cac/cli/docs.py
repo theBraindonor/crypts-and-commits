@@ -20,13 +20,12 @@ def list_docs(
     cursor: str | None = typer.Option(None, "--cursor", help="Resume from a previous page's cursor."),
 ) -> None:
     """List registered docs as name + summary pairs, paged under the response budget."""
-    items = [{"name": name, "summary": summary} for name, summary in docs_core.list_docs()]
-    if not items:
+    if not docs_core.list_docs():
         console.print("No docs registered.")
         return
 
     try:
-        page = budget_core.paginate(items, cursor, render=lambda item: item["name"] + item["summary"])
+        page = docs_core.page_docs(cursor)
     except budget_core.InvalidCursorError as exc:
         fail(console, str(exc))
 

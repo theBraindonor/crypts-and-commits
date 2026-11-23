@@ -21,8 +21,7 @@ def region_get(name: str, cursor: str | None = None) -> dict[str, Any]:
 @mcp.tool()
 def region_list(cursor: str | None = None) -> dict[str, Any]:
     """List region names in .sourcebook/region, paged under the response budget."""
-    names = region_core.list_regions(resolve_project_root())
-    page = budget_core.paginate(names, cursor)
+    page = region_core.page_regions(resolve_project_root(), cursor)
     return {"items": page.items, "next_cursor": page.next_cursor}
 
 

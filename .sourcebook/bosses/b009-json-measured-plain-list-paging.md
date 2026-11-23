@@ -5,14 +5,14 @@ created_by: John Hoff
 created_on: '2026-11-23T18:37:48Z'
 depends_on: []
 name: b009-json-measured-plain-list-paging
-status: available
+status: vanquished
 summary: 'Give the plain MCP lists (lore_list, region_list, docs_list) the same JSON-measured
   paging prime_applicable_lore got in c006: measure each item as the compact JSON
   actually returned and reserve the result envelope, by generalizing the shared core
   helper rather than adding one per list. MCP pages must fit the response budget and
   break where the CLI''s do; tool-reference''s budget contract is updated to match.'
 updated_by: John Hoff
-updated_on: '2026-11-23T20:59:57Z'
+updated_on: '2026-11-23T21:51:50Z'
 ---
 
 ## Goal

@@ -26,8 +26,7 @@ def lore_get(name: str, cursor: str | None = None) -> dict[str, Any]:
 def lore_list(cursor: str | None = None) -> dict[str, Any]:
     """List lore names in .sourcebook/lore, paged under the response budget. Pass the returned
     next_cursor to resume."""
-    names = lore_core.list_lore(resolve_project_root())
-    page = budget_core.paginate(names, cursor)
+    page = lore_core.page_lore(resolve_project_root(), cursor)
     return {"items": page.items, "next_cursor": page.next_cursor}
 
 
