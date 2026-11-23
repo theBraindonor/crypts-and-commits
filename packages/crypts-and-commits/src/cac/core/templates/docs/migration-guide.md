@@ -31,6 +31,10 @@ section should give the agent every concrete change needed to bring a
 sourcebook fully onto the new version - what changed structurally, and
 exactly how to apply it.
 
+Version-specific notes that need no schema bump go under "Version-specific
+migrations", grouped in one release-labeled subsection per release, newest
+first, so an upgrade only reads the releases it crosses.
+
 ## Boss Edition upgrade and workflow adoption
 
 Boss Edition is the feature target for these instructions. The development
@@ -241,6 +245,32 @@ and exited deliberately:
 
 ## Version-specific migrations
 
+### Upgrading from 0.3.0 to 0.4.0
+
+Rulings are additive within schema version 1. Upgrading the library provides
+`ruling_*` tools and `cac ruling` commands; missing `rulings/` and
+`archive/rulings/` storage is empty and created lazily. Existing worlds,
+campaigns, encounters, bosses and rumors are not rewritten, and no record
+migration, schema bump, guardrail suspension or bootstrap migration is needed.
+Prime gains `recorded_rulings`, `recorded_ruling_count` and `ruling_diagnostics`
+(recorded rulings appear until triaged); update prime consumers with the library.
+Search gains the `ruling` object type, and an index built before rulings were
+indexed reports stale once any ruling exists: tell the developer, who runs
+`cac index rebuild`. Adopting the capture and triage procedure is a skill change,
+so the developer redeploys skills with `cac bootstrap init` as described above.
+
+`prime_applicable_lore` is paged within schema version 1. Its MCP result
+changes from a bare list of `{name, summary, ref}` entries to
+`{items, next_cursor, identity}`, and it takes an optional `cursor`: repeat
+the call with `cursor=next_cursor` until `next_cursor` is null. `cac prime
+applicable-lore` pages at the same JSON-measured boundaries. No record
+migration, schema bump, guardrail suspension or bootstrap migration is
+needed; update MCP consumers with the library. Following the paged result is
+a skill change, so the developer redeploys skills with `cac bootstrap init`
+as described above.
+
+### Boss Edition (0.3.0)
+
 Boss planning storage is additive within schema version 1. Upgrading the library
 provides boss create/read/update, planning transitions, withdrawn-boss archive,
 and dependency operations. Missing boss storage is empty and directories are
@@ -262,18 +292,6 @@ on plural records or downgrade without a developer-planned conversion. Campaign
 API results expose bosses; prime replaces active_boss/active_boss_diagnostic with
 active_boss_names/active_bosses/active_boss_diagnostics. Update consumers with the
 library. Preserve abandoned campaign lists as history; they are not current claims.
-
-Rulings are additive within schema version 1. Upgrading the library provides
-`ruling_*` tools and `cac ruling` commands; missing `rulings/` and
-`archive/rulings/` storage is empty and created lazily. Existing worlds,
-campaigns, encounters, bosses and rumors are not rewritten, and no record
-migration, schema bump, guardrail suspension or bootstrap migration is needed.
-Prime gains `recorded_rulings`, `recorded_ruling_count` and `ruling_diagnostics`
-(recorded rulings appear until triaged); update prime consumers with the library.
-Search gains the `ruling` object type, and an index built before rulings were
-indexed reports stale once any ruling exists: tell the developer, who runs
-`cac index rebuild`. Adopting the capture and triage procedure is a skill change,
-so the developer redeploys skills with `cac bootstrap init` as described above.
 
 ### Adopt an existing roadmap
 

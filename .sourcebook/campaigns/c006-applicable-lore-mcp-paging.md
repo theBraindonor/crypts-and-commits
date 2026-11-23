@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-21T17:07:40Z'
 name: c006-applicable-lore-mcp-paging
-status: draft
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-21T17:07:40Z'
+updated_on: '2026-11-23T18:03:55Z'
 ---
 
 # c006 Applicable Lore MCP Paging
@@ -30,3 +30,15 @@ Vanquish b008-applicable-lore-mcp-paging: `prime_applicable_lore` over MCP pages
 ## Branches
 
 Registered on `c006-applicable-lore-mcp-paging-assignment`; executed on `c006-applicable-lore-mcp-paging`; integrated into `main`.
+
+## Log
+
+### Completed - 2026-11-23T18:03:55Z - John Hoff
+
+Postmortem. b008 is vanquished: `prime_applicable_lore` over MCP now takes an optional `cursor` and pages its applicable-lore set like `cac prime applicable-lore`, through a shared core helper that measures compact JSON, so both surfaces break pages identically and pages stay within the response budget (except a single oversized entry). The result is `{items, next_cursor, identity}`. There is still no per-item identities array; the top-level encounter `identity` comes from the shared reference decorator (ruling c006-e001-applicable-lore-keeps-encounter-identity). tool-reference, both phase guides, the Claude and Codex skill templates, the 0.4.0 pyproject bumps and the release-segregated 0.4.0 migration-guide section all landed. The schema stays at 1, and there is no CHANGELOG, tag or release.
+
+What went well: the independent review caught a real flaw in e001's first draft (sizing pages by CLI text let MCP pages exceed the budget), and the JSON-measured redesign held. Tests written first caught a second budget issue (the identity envelope), which was handled as a logged deviation.
+
+What surprised us: a pre-existing demo-api bug (sourcebook text was parsed as `ChatPromptTemplate` templates) surfaced only because c006's own campaign body contained braces. It was split into e002 rather than folded into e001, fixed with literal `SystemMessage` entries and a regression test. The final suite has 1743 passed, and ruff is clean.
+
+Follow-ups: the developer redeploys skills with `cac bootstrap init`; integration into main goes through a PR. On planning: triage the 4 c006 rulings and rumor r007 (stale demo-api region record).

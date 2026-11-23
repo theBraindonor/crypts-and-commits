@@ -12,6 +12,15 @@ def test_prompt_orders_persona_then_priming_then_messages() -> None:
     assert [message.content for message in messages] == [SYSTEM_PROMPT, "MARKER-PRIMING-TEXT"]
 
 
+def test_prompt_passes_priming_with_braces_literally() -> None:
+    priming = "Returns {items, next_cursor} and {name}"
+    prompt = _build_prompt(priming)
+
+    messages = prompt.format_messages(messages=[])
+
+    assert messages[1].content == priming
+
+
 def test_tool_call_round_trip_executes_and_returns_final_reply(tmp_path: Path, fake_graph) -> None:
     tool_call_reply = AIMessage(content="", tool_calls=[{"name": "list_campaigns", "args": {}, "id": "call_1"}])
     graph = fake_graph(tool_call_reply, "Final answer.", root=tmp_path, priming="MARKER-PRIMING-TEXT")

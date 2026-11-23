@@ -247,7 +247,9 @@ server isn't available in your session:
 - `mcp__crypts-and-commits__prime_applicable_lore(encounter="<ENCOUNTER>", campaign="<CAMPAIGN>")`
   / `cac prime applicable-lore <ENCOUNTER> -c <CAMPAIGN>` — resolve the exact
   enabled lore set that applies (world-assigned union every region this
-  encounter is assigned to), returned as `name` + `summary` + `ref`. Then, for
+  encounter is assigned to), returned as `name` + `summary` + `ref` items. The
+  result is paged: repeat with `cursor=next_cursor` (CLI `--cursor`) until
+  `next_cursor` is null, so no applicable lore is missed. Then, for
   each `ref` returned, `mcp__crypts-and-commits__lore_get(name=ref)` / `cac lore get <ref>`
   to hydrate its full body — the summary is only a routing signal; the body
   is what you check against.

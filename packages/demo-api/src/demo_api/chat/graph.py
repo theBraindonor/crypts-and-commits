@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -24,8 +25,8 @@ SYSTEM_PROMPT = (
 def _build_prompt(priming: str) -> ChatPromptTemplate:
     return ChatPromptTemplate.from_messages(
         [
-            ("system", SYSTEM_PROMPT),
-            ("system", priming),
+            SystemMessage(content=SYSTEM_PROMPT),
+            SystemMessage(content=priming),
             MessagesPlaceholder("messages"),
         ]
     )

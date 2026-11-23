@@ -434,8 +434,9 @@ much context as a task needs:
    named member that is missing or broken.
 2. **Focus** on a region when one is in scope: read the region, then the
    summaries of its assigned lore.
-3. **Review** with `prime_applicable_lore` for an encounter, then read each
-   applicable lore body in full. Only the bodies are authoritative.
+3. **Review** with `prime_applicable_lore` for an encounter, following
+   `next_cursor` until it is null, then read each applicable lore body in
+   full. Only the bodies are authoritative.
 4. **Go deeper** only when a procedural or contract question remains. Read
    the Planning Workflow for goals, triage, context or maintenance, the
    [Development Workflow](development-workflow.md) for campaigns, encounters

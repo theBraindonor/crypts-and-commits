@@ -381,3 +381,21 @@ def test_prime_with_rulings_writes_nothing(tmp_path):
     prime.present(prime.assemble_prime(tmp_path))
     assert {p: p.read_bytes() for p in files} == before
     assert sorted(p for p in (tmp_path / ".sourcebook").rglob("*") if p.is_file()) == sorted(files)
+
+
+def test_page_applicable_lore_budget_counts_json_items_and_envelope(monkeypatch):
+    from cac.core import references
+
+    entries = [prime.ApplicableLoreEntry(name=f"l{i}", summary="s" * 40, ref=f"l{i}") for i in range(10)]
+    item_cost = len(references.encoded(prime.applicable_lore_item(entries[0]))) + 1
+    identity = {"canonical": "e001-work", "short": "c001/e001", "reason": None}
+    envelope = len(references.encoded({"items": [], "next_cursor": "10", "identity": identity}))
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", envelope + 3 * item_cost)
+
+    page = prime.page_applicable_lore(entries, None, identity)
+
+    assert [entry.name for entry in page.items] == ["l0", "l1", "l2"]
+    assert page.next_cursor == "3"
+    assert prime.page_applicable_lore(entries, "9", identity).next_cursor is None
+    assert len(prime.page_applicable_lore(entries, None).items) == 3  # same budget minus a smaller envelope
+    assert prime.page_applicable_lore([], None).items == []

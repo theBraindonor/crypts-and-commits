@@ -74,7 +74,9 @@ def test_boss_mixed_refs_and_missing_edge_repair(tmp_path):
 
 def test_prime_selector_and_lists_expose_identity(tmp_path):
     encounters.encounter_assign_region("c001/e001", "b001")
-    assert prime.prime_applicable_lore("c001/e001") == []
+    applicable = prime.prime_applicable_lore("c001/e001")
+    assert applicable["items"] == [] and applicable["next_cursor"] is None
+    assert applicable["identity"]["short"] == "c001/e001"
     page = encounters.encounter_list(campaign="c001")
     assert page["items"] == ["e001-first", "e002-second"]
     assert [value["short"] for value in page["identities"]] == ["c001/e001", "c001/e002"]
