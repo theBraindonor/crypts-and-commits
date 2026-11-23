@@ -5,7 +5,7 @@ created_by: John Hoff
 created_on: '2026-11-21T16:11:02Z'
 depends_on: []
 name: b008-applicable-lore-mcp-paging
-status: available
+status: vanquished
 summary: 'Give the MCP tool prime_applicable_lore the same cursor paging as cac prime
   applicable-lore (cli-mcp-parity): an optional cursor and a paged {items, next_cursor}
   result (no identities) via budget_core.paginate. Breaking, so bump the pyproject
@@ -13,7 +13,7 @@ summary: 'Give the MCP tool prime_applicable_lore the same cursor paging as cac 
   a 0.4.0 subsection, separate from prior releases. Update tool-reference.md, guides,
   skill templates and tests.'
 updated_by: John Hoff
-updated_on: '2026-11-21T17:07:40Z'
+updated_on: '2026-11-23T18:03:55Z'
 ---
 
 ## Goal
