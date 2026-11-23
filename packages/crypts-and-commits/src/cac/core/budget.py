@@ -121,6 +121,25 @@ def paginate(
     return Page(items=selected, next_cursor=None)
 
 
+def json_page(
+    items: Sequence[T],
+    cursor: str | None,
+    *,
+    project: Callable[[T], object] = lambda item: item,
+    envelope: dict | None = None,
+    budget: int | None = None,
+) -> Page[T]:
+    """Page `items` as the compact JSON an MCP list returns: each item is measured by the compact
+    JSON of `project(item)` (the exact value MCP returns for it), and the `{items, next_cursor}`
+    envelope - plus any extra `envelope` fields, such as an identity - is reserved first at the
+    worst-case cursor width. CLI and MCP surfaces that share this call break pages at the same
+    items. Returned items are the originals, so callers project them for output. Cursor rules
+    and the always-at-least-one-item rule are `paginate`'s."""
+    budget = config.RESPONSE_BUDGET if budget is None else budget
+    reserve = len(_encoded({"items": [], "next_cursor": str(len(items)), **(envelope or {})}))
+    return paginate(items, cursor, render=lambda item: _encoded(project(item)), budget=budget - reserve)
+
+
 def _parse_cursor(cursor: str | None, length: int) -> int:
     if cursor is None:
         return 0

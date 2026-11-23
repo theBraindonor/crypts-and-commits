@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -491,3 +492,43 @@ def test_list_rejects_invalid_cursor() -> None:
     result = runner.invoke(app, ["lore", "list", "--cursor", "not-a-number"])
 
     assert result.exit_code == 1
+
+
+def _cli_list_pages(command: list[str], parse) -> list[tuple[list, str | None]]:
+    pages, cursor = [], None
+    while True:
+        args = command + ([] if cursor is None else ["--cursor", cursor])
+        result = runner.invoke(app, args)
+        assert result.exit_code == 0
+        hint = re.search(r"pass --cursor (\S+) to continue", result.output)
+        cursor = hint[1] if hint else None
+        pages.append((parse(result.output), cursor))
+        if cursor is None:
+            return pages
+
+
+def _mcp_list_pages(call) -> list[tuple[list, str | None]]:
+    pages, cursor = [], None
+    while True:
+        page = call(cursor)
+        pages.append((page["items"], page["next_cursor"]))
+        cursor = page["next_cursor"]
+        if cursor is None:
+            return pages
+
+
+def test_list_pages_break_at_the_same_items_as_mcp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from cac.core import lore
+    from cac.mcp import lore as mcp_lore
+
+    for index in range(12):
+        lore.create_lore(tmp_path, f"lore-entry-{index:02d}", "Body.", "Summary.")
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 90)
+
+    def names(output: str) -> list[str]:
+        return [line for line in output.splitlines() if line and not line.startswith("More results")]
+
+    cli_pages = _cli_list_pages(["lore", "list"], names)
+
+    assert cli_pages == _mcp_list_pages(mcp_lore.lore_list)
+    assert len(cli_pages) > 1

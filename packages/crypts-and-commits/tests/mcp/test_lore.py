@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from cac.core import lore, region, world
+from cac.core.references import encoded
 from cac.mcp import lore as mcp_lore
 
 
@@ -94,3 +95,25 @@ def test_lore_enable_and_disable(tmp_path: Path) -> None:
 
     mcp_lore.lore_enable("clean-code")
     assert lore.read_metadata(tmp_path, "clean-code")[0]["enabled"] is True
+
+
+def test_lore_list_pages_fit_the_response_budget_as_compact_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    names = [f"lore-entry-{index:02d}" for index in range(12)]
+    for name in names:
+        lore.create_lore(tmp_path, name, "Body.", "Summary.")
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 90)
+
+    seen, cursor, pages = [], None, 0
+    while True:
+        page = mcp_lore.lore_list(cursor)
+        assert len(encoded(page)) <= 90
+        seen.extend(page["items"])
+        pages += 1
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+
+    assert seen == names
+    assert pages > 1

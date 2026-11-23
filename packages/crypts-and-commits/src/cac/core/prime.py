@@ -254,16 +254,11 @@ def page_applicable_lore(
     response budget less the `{items, next_cursor, identity}` envelope, so surfaces break pages
     identically. Like every paged list, a single entry larger than the whole budget still gets its
     own page."""
-    from cac.core.references import encoded
-
-    envelope: dict = {"items": [], "next_cursor": str(len(entries))}
-    if identity is not None:
-        envelope["identity"] = identity
-    return budget.paginate(
+    return budget.json_page(
         entries,
         cursor,
-        render=lambda entry: encoded(applicable_lore_item(entry)),
-        budget=config.RESPONSE_BUDGET - len(encoded(envelope)),
+        project=applicable_lore_item,
+        envelope={"identity": identity} if identity is not None else None,
     )
 
 

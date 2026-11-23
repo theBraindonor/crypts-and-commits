@@ -1,5 +1,6 @@
 import pytest
 from cac.core import docs as docs_core
+from cac.core.references import encoded
 from cac.mcp import docs as mcp_docs
 
 
@@ -73,3 +74,23 @@ def test_docs_get_description_names_every_registered_doc() -> None:
         if not re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", description)
     ]
     assert missing == [], f"docs_get description omits registered docs: {missing}"
+
+
+def test_docs_list_pages_fit_the_response_budget_as_compact_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    items = [{"name": name, "summary": summary} for name, summary in docs_core.list_docs()]
+    largest = max(len(encoded(item)) for item in items)
+    budget = len(encoded({"items": [], "next_cursor": str(len(items))})) + 2 * largest + 2
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", budget)
+
+    seen, cursor, pages = [], None, 0
+    while True:
+        page = mcp_docs.docs_list(cursor)
+        assert len(encoded(page)) <= budget
+        seen.extend(page["items"])
+        pages += 1
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+
+    assert seen == items
+    assert pages > 1

@@ -65,7 +65,14 @@ record changed) fails. Never read managed files to recover the rest of a body.
 
 Paged lists (`*_list`, `boss_candidates`, `docs_list`, `prime_applicable_lore`)
 return `items` and `next_cursor` and follow the same cursor rules. Cursors assume an unchanged
-store; there are no snapshots.
+store; there are no snapshots. Every paged list measures the compact JSON of each
+item as MCP returns it, after reserving the result envelope (`items`, a
+worst-case `next_cursor`, and any other result field such as `identities` or
+`identity`), so each MCP page fits the ordinary response budget. The plain lists
+(`lore_list`, `region_list`, `docs_list`) and `prime_applicable_lore` share one
+core pager, and their CLI commands page through the same call, so CLI and MCP
+pages break at the same items. A single item larger than the whole budget still
+gets its own page, so paging never stalls.
 
 ### Canonical identity
 
@@ -613,7 +620,8 @@ sourcebook schema version.
 | List | `docs_list(cursor=None)` | `cac docs list [--cursor]` |
 | Read | `docs_get(name, cursor=None)` | `cac docs get NAME [--cursor]` |
 
-`docs_list` pages `{name, summary}` pairs. `docs_get` returns `name`,
+`docs_list` pages `{name, summary}` pairs under the ordinary response budget
+(the dedicated docs budget applies only to `docs_get` bodies). `docs_get` returns `name`,
 `summary` and `body`, using the dedicated docs budget and the shared
 continuation rules. Docs are packaged, read-only and framework-owned. The
 registered docs are `workflow` (routing index), `planning-workflow`,

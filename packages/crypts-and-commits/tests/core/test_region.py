@@ -412,3 +412,19 @@ def test_unassign_lore_missing_lore_raises(tmp_path: Path) -> None:
 
     with pytest.raises(lore.LoreNotFoundError):
         region.unassign_lore(tmp_path, "northlands", "missing")
+
+
+def test_page_regions_measures_compact_json_names_after_reserving_envelope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    names = [f"region-{index:02d}" for index in range(10)]
+    for name in names:
+        region.create_region(tmp_path, name, "Body.", "Summary.")
+    reserve = len('{"items":[],"next_cursor":"10"}')
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", reserve + 3 * (len('"region-00"') + 1))
+
+    first = region.page_regions(tmp_path, None)
+
+    assert first.items == names[:3]
+    assert first.next_cursor == "3"
+    assert region.page_regions(tmp_path, first.next_cursor).items == names[3:6]

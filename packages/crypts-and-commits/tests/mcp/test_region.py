@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from cac.core import region
+from cac.core.references import encoded
 from cac.mcp import region as mcp_region
 
 
@@ -69,3 +70,25 @@ def test_region_set_path_updates_path(tmp_path: Path) -> None:
 
     assert result["path"] == "packages/backend"
     assert region.read_region(tmp_path, "backend").path == "packages/backend"
+
+
+def test_region_list_pages_fit_the_response_budget_as_compact_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    names = [f"region-{index:02d}" for index in range(12)]
+    for name in names:
+        region.create_region(tmp_path, name, "Body.", "Summary.")
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 80)
+
+    seen, cursor, pages = [], None, 0
+    while True:
+        page = mcp_region.region_list(cursor)
+        assert len(encoded(page)) <= 80
+        seen.extend(page["items"])
+        pages += 1
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+
+    assert seen == names
+    assert pages > 1

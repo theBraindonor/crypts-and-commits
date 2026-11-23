@@ -4,7 +4,7 @@ from typing import Any
 
 import frontmatter
 
-from cac.core import frontmatter_utils, templates
+from cac.core import budget, frontmatter_utils, templates
 from cac.core import lore as lore_core
 from cac.core.config import NAME_PATTERN, REGION_DIR_NAME, RESERVED_NAMES, SUMMARY_KEY
 from cac.core.frontmatter_utils import (
@@ -64,6 +64,11 @@ def list_regions(root: Path) -> list[str]:
     if not directory.is_dir():
         return []
     return sorted(path.stem for path in directory.glob("*.md"))
+
+
+def page_regions(root: Path, cursor: str | None) -> budget.Page[str]:
+    """Page region names for CLI and MCP alike, measured as the compact JSON `region_list` returns."""
+    return budget.json_page(list_regions(root), cursor)
 
 
 def template_body() -> str:

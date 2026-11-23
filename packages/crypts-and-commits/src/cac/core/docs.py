@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 
-from cac.core import templates
+from cac.core import budget, templates
 
 _TEMPLATE_PACKAGE = "docs"
 _DOC_RESOURCE_PACKAGE = "cac.core.templates.docs"
@@ -80,6 +80,13 @@ _DOCS: dict[str, DocEntry] = {
 def list_docs() -> list[tuple[str, str]]:
     """Return (name, summary) pairs for every registered doc, sorted by name."""
     return [(entry.name, entry.summary) for entry in sorted(_DOCS.values(), key=lambda entry: entry.name)]
+
+
+def page_docs(cursor: str | None) -> budget.Page[dict[str, str]]:
+    """Page `{name, summary}` doc items for CLI and MCP alike, measured as the compact JSON
+    `docs_list` returns. Lists use the normal response budget; the larger docs budget applies only
+    to `docs_get` bodies."""
+    return budget.json_page([{"name": name, "summary": summary} for name, summary in list_docs()], cursor)
 
 
 def doc_summary(name: str) -> str:

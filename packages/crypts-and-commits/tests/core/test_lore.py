@@ -447,3 +447,20 @@ def test_delete_lore_missing_raises(tmp_path: Path) -> None:
 
 def test_lore_path_returns_on_disk_path(tmp_path: Path) -> None:
     assert lore.lore_path(tmp_path, "conventions") == tmp_path / ".sourcebook" / "lore" / "conventions.md"
+
+
+def test_page_lore_measures_compact_json_names_after_reserving_envelope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    names = [f"lore-entry-{index:02d}" for index in range(10)]
+    for name in names:
+        lore.create_lore(tmp_path, name, "Body.", "Summary.")
+    reserve = len('{"items":[],"next_cursor":"10"}')
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", reserve + 3 * (len('"lore-entry-00"') + 1))
+
+    first = lore.page_lore(tmp_path, None)
+
+    # A plain-text measure would have fit a fourth name; compact JSON plus the envelope does not.
+    assert first.items == names[:3]
+    assert first.next_cursor == "3"
+    assert lore.page_lore(tmp_path, first.next_cursor).items == names[3:6]

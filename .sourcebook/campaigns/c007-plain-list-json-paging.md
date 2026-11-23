@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-23T20:59:56Z'
 name: c007-plain-list-json-paging
-status: draft
+status: open
 updated_by: John Hoff
-updated_on: '2026-11-23T20:59:56Z'
+updated_on: '2026-11-23T21:01:25Z'
 ---
 
 # c007: JSON-measured paging for plain lists

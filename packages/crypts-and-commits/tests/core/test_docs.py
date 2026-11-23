@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -140,3 +141,17 @@ def test_workflow_index_routes_to_self_contained_phase_guides() -> None:
         assert f'docs_get("{name}")' in body
     assert "## Encounter" not in body
     assert "## Bosses" not in body
+
+
+def test_page_docs_measures_compact_json_items_after_reserving_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
+    items = [{"name": name, "summary": summary} for name, summary in docs.list_docs()]
+    encoded = [len(json.dumps(item, ensure_ascii=False, separators=(",", ":"))) + 1 for item in items]
+    reserve = len(json.dumps({"items": [], "next_cursor": str(len(items))}, separators=(",", ":")))
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", reserve + encoded[0] + encoded[1])
+
+    first = docs.page_docs(None)
+
+    assert first.items == items[:2]
+    assert first.next_cursor == "2"
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", reserve + encoded[0] + encoded[1] - 1)
+    assert docs.page_docs(None).items == items[:1]
