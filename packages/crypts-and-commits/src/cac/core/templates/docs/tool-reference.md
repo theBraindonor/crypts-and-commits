@@ -63,8 +63,8 @@ is absent, then join the `body` fields in order. Cursors are bound to the body
 content: a malformed, out-of-range, or stale cursor (one issued before the
 record changed) fails. Never read managed files to recover the rest of a body.
 
-Paged lists (`*_list`, `boss_candidates`, `docs_list`) return `items` and
-`next_cursor` and follow the same cursor rules. Cursors assume an unchanged
+Paged lists (`*_list`, `boss_candidates`, `docs_list`, `prime_applicable_lore`)
+return `items` and `next_cursor` and follow the same cursor rules. Cursors assume an unchanged
 store; there are no snapshots.
 
 ### Canonical identity
@@ -89,7 +89,8 @@ and reason `deleted`.
 Boss, campaign and encounter paged lists keep their original `items` and
 `next_cursor` and add a parallel `identities` array for that page only.
 Encounter order rows and candidate items carry an identity per row.
-`prime_applicable_lore` keeps its lore-entry shape. Prime and search expose
+`prime_applicable_lore` items keep their lore-entry shape with no
+`identities` array; the result carries the selected encounter's `identity`. Prime and search expose
 canonical stored names. Stored relationships always hold canonical names,
 independent of identity display.
 
@@ -160,7 +161,7 @@ numbers, performs branch or network lookups, or migrates records.
 | Rumor renumber | existing rumor | new name |
 | Ruling get/update/canonize/note/reopen/archive | existing canonical name only | body, summary, origin, message |
 | Boss/campaign/rumor/ruling create | none | new name, body, summary, origin where applicable |
-| Prime applicable-lore | encounter, optional campaign | returned lore refs unchanged |
+| Prime applicable-lore | encounter, optional campaign | cursor; returned lore refs unchanged |
 | Boss/campaign/rumor/ruling lists and candidates | none | cursor, flags, rumor/ruling status |
 
 Lore, region and doc names, world keys and values, messages, bodies, summaries
@@ -504,7 +505,7 @@ prime as `recorded_rulings` until they are canonized or noted.
 | Operation | MCP | CLI |
 | --- | --- | --- |
 | Global bundle | `prime_get()` | `cac prime get` |
-| Applicable lore for an encounter | `prime_applicable_lore(encounter, campaign=None)` | `cac prime applicable-lore NAME [-c] [--cursor]` |
+| Applicable lore for an encounter | `prime_applicable_lore(encounter, campaign=None, cursor=None)` | `cac prime applicable-lore NAME [-c] [--cursor]` |
 
 `prime_get` returns `world` (metadata with effective branch settings, and
 body), `world_lore` (enabled world-assigned lore summaries), `regions` (each
@@ -540,8 +541,15 @@ status: "recorded"}}` is added; the count and diagnostics are never cut. If
 the remaining metadata cannot fit, the call fails; routing is never silently
 dropped. The CLI renders the same facts literally.
 
-`prime_applicable_lore` returns a list of `{name, summary, ref}` entries, where
-`ref` is the lore name to pass to `lore_get`.
+`prime_applicable_lore` returns `{items, next_cursor, identity}`: `items` are
+`{name, summary, ref}` entries, where `ref` is the lore name to pass to
+`lore_get`, and `identity` is the selected encounter's identity. Repeat with
+`cursor=next_cursor` (CLI `--cursor`) until `next_cursor` is null. Pages are
+measured on the compact JSON of the items plus the `{items, next_cursor,
+identity}` envelope, identically for MCP and CLI, so both break pages at the
+same entries and every page fits the response budget, except a single entry
+that alone exceeds it. A malformed or out-of-range cursor fails, even when no
+lore applies.
 
 ## Search index
 

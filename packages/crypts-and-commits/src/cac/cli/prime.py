@@ -110,21 +110,23 @@ def applicable_lore(
     """Resolve the enabled lore set applicable to an encounter: world-assigned lore union
     lore assigned to the encounter's region(s). Paged under the response budget."""
     resolved_campaign = _resolve_campaign(campaign)
+    root = resolve_project_root()
     try:
-        entries = prime_core.applicable_lore(resolve_project_root(), resolved_campaign, name)
+        entries = prime_core.applicable_lore(root, resolved_campaign, name)
     except encounter_core.EncounterNotFoundError as exc:
+        fail(console, str(exc))
+
+    # Page first so a stale cursor fails even when no lore applies; reserve the same identity
+    # MCP returns so both surfaces break pages at the same entries.
+    try:
+        identity = prime_core.applicable_lore_identity(root, resolved_campaign, name)
+        page = prime_core.page_applicable_lore(entries, cursor, identity)
+    except budget_core.InvalidCursorError as exc:
         fail(console, str(exc))
 
     if not entries:
         console.print("No applicable enabled lore was found for this encounter.", markup=False)
         return
-
-    try:
-        page = budget_core.paginate(
-            entries, cursor, render=lambda entry: f"{entry.name} (ref: {entry.ref}): {entry.summary}"
-        )
-    except budget_core.InvalidCursorError as exc:
-        fail(console, str(exc))
 
     for entry in page.items:
         console.print(f"{entry.name} (ref: {entry.ref}):", end=" ", markup=False)

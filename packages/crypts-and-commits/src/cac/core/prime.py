@@ -5,7 +5,7 @@ from pathlib import Path
 import frontmatter
 import yaml
 
-from cac.core import boss, campaign_bosses, config, coupling
+from cac.core import boss, budget, campaign_bosses, config, coupling
 from cac.core import campaign as campaign_core
 from cac.core import encounter as encounter_core
 from cac.core import lore as lore_core
@@ -233,6 +233,38 @@ def applicable_lore(root: Path, campaign: str, encounter_name: str) -> list[Appl
         ApplicableLoreEntry(name=summary.name, summary=summary.summary, ref=summary.name)
         for summary in _enabled_lore_summaries(root, names)
     ]
+
+
+def applicable_lore_item(entry: ApplicableLoreEntry) -> dict[str, str]:
+    """The structured `{name, summary, ref}` item MCP returns and paging measures."""
+    return {"name": entry.name, "summary": entry.summary, "ref": entry.ref}
+
+
+def applicable_lore_identity(root: Path, campaign: str, encounter_name: str) -> dict:
+    """The selected encounter's identity, which the reference decorator adds to the MCP result."""
+    from cac.core.references import Inventory
+
+    return Inventory(root).identity("encounter", encounter_name, campaign)
+
+
+def page_applicable_lore(
+    entries: list[ApplicableLoreEntry], cursor: str | None, identity: dict | None = None
+) -> budget.Page:
+    """Page applicable lore for both CLI and MCP, measuring each item's compact JSON against the
+    response budget less the `{items, next_cursor, identity}` envelope, so surfaces break pages
+    identically. Like every paged list, a single entry larger than the whole budget still gets its
+    own page."""
+    from cac.core.references import encoded
+
+    envelope: dict = {"items": [], "next_cursor": str(len(entries))}
+    if identity is not None:
+        envelope["identity"] = identity
+    return budget.paginate(
+        entries,
+        cursor,
+        render=lambda entry: encoded(applicable_lore_item(entry)),
+        budget=config.RESPONSE_BUDGET - len(encoded(envelope)),
+    )
 
 
 def _enabled_lore_summaries(root: Path, names: set[str] | list[str]) -> list[LoreSummary]:

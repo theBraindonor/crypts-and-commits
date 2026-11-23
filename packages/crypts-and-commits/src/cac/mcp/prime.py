@@ -24,12 +24,15 @@ def prime_get() -> dict[str, Any]:
 
 @mcp.tool()
 @references.inputs("encounter")
-def prime_applicable_lore(encounter: str, campaign: str | None = None) -> list[dict[str, Any]]:
+def prime_applicable_lore(encounter: str, campaign: str | None = None, cursor: str | None = None) -> dict[str, Any]:
     """Resolve the enabled lore set applicable to an encounter: world-assigned lore union
-    lore assigned to the encounter's region(s). Returns name/summary/ref entries for
-    selective hydration - `ref` is the lore name. Campaign defaults to the active (open)
-    campaign when omitted."""
+    lore assigned to the encounter's region(s). Returns items of name/summary/ref entries for
+    selective hydration - `ref` is the lore name - paged under the response budget; pass the
+    returned next_cursor until it is null. The result also carries the encounter's identity.
+    Campaign defaults to the active (open) campaign when omitted."""
     root = resolve_project_root()
     resolved_campaign = campaign_core.resolve_campaign(root, campaign, require_mutable=False)
     entries = prime_core.applicable_lore(root, resolved_campaign, encounter)
-    return [{"name": entry.name, "summary": entry.summary, "ref": entry.ref} for entry in entries]
+    identity = prime_core.applicable_lore_identity(root, resolved_campaign, encounter)
+    page = prime_core.page_applicable_lore(entries, cursor, identity)
+    return {"items": [prime_core.applicable_lore_item(entry) for entry in page.items], "next_cursor": page.next_cursor}

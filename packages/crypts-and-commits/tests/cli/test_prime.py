@@ -306,3 +306,50 @@ def test_get_prints_bracketed_ruling_diagnostics_literally(tmp_path):
     result = runner.invoke(app, ["prime", "get"])
     assert result.exit_code == 0, result.output
     assert "invalid_ruling" in result.output and "[bad]" in result.output
+
+
+def _many_lore(count: int) -> None:
+    from cac.core import campaign, encounter, lore, world
+    from cac.core.paths import resolve_project_root
+
+    root = resolve_project_root()
+    world.initialize_world(root)
+    campaign.create_campaign(root, "opening-gambit", "Body.")
+    campaign.open_campaign(root, "opening-gambit")
+    encounter.create_encounter(root, "opening-gambit", "goblin-ambush", "Body.")
+    for index in range(count):
+        name = f"lore-{index:02d}"
+        lore.create_lore(root, name, "Body.", f"Summary {index} " + "x" * 60)
+        world.assign_lore(root, name)
+
+
+def test_applicable_lore_pages_break_where_mcp_pages_break(monkeypatch) -> None:
+    from cac.mcp import prime as mcp_prime
+
+    _many_lore(12)
+    monkeypatch.setattr("cac.core.config.RESPONSE_BUDGET", 400)
+
+    cursor = None
+    while True:
+        expected = mcp_prime.prime_applicable_lore("goblin-ambush", cursor=cursor)
+        args = ["prime", "applicable-lore", "goblin-ambush"] + (["--cursor", cursor] if cursor else [])
+        result = runner.invoke(app, args, terminal_width=1000)
+        assert result.exit_code == 0, result.output
+        shown = [line.split(" ", 1)[0] for line in result.output.splitlines() if line.startswith("lore-")]
+        assert shown == [item["name"] for item in expected["items"]]
+        cursor = expected["next_cursor"]
+        if cursor is None:
+            assert "--cursor" not in result.output
+            break
+        assert f"--cursor {cursor}" in result.output
+
+
+@pytest.mark.parametrize("count", [0, 3])
+def test_applicable_lore_rejects_out_of_range_cursor(count: int) -> None:
+    _many_lore(count)
+
+    result = runner.invoke(app, ["prime", "applicable-lore", "goblin-ambush", "--cursor", "99"])
+
+    assert result.exit_code == 1
+    assert "out of range" in result.output
+    assert "No applicable enabled lore" not in result.output
