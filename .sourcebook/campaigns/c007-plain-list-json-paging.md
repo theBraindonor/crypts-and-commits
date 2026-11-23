@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-23T20:59:56Z'
 name: c007-plain-list-json-paging
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-23T21:01:25Z'
+updated_on: '2026-11-23T21:51:50Z'
 ---
 
 # c007: JSON-measured paging for plain lists
@@ -39,3 +39,7 @@ Vanquish b009-json-measured-plain-list-paging. Every plain (unnumbered) list pag
 - demo-api's own `list_lore` tool, which calls `cac.core` directly and is not paged.
 
 ## Log
+
+### Completed - 2026-11-23T21:51:50Z - John Hoff
+
+Postmortem: b009 vanquished in a single encounter (e001). budget.json_page now sizes every plain list page (lore_list, region_list, docs_list, CLI and MCP) from compact JSON after reserving the envelope, and prime_applicable_lore shares it unchanged. The inventory confirmed that the identity_page lists, boss_candidates and index_search were already compliant, so scope did not grow. tool-reference.md's paging contract was updated; no skill or phase-guide changes were needed, so no redeploy is required. What went well: the reviewer's notes were concrete and all three were closed during execution. What to watch: a line-ending normalization script during execution touched unrelated working-copy files. It was caught and reverted before commit, but bulk file rewrites should be scoped to the files actually edited.
