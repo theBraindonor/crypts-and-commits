@@ -89,18 +89,22 @@ managed-file edits. Existing unnumbered history remains valid.
 | Create tactical draft | campaign_create(name,body,bosses=None) | cac campaign create NAME [--boss REF ...] --body-file PATH |
 | Single-goal selection | boss_assign_campaign(name,campaign_name,body) | cac boss assign-campaign BOSS CAMPAIGN --body-file PATH |
 | Replace entire draft membership | campaign_set_bosses(name,bosses,message) | cac campaign set-bosses NAME [--boss REF ...] --message REASON |
+| Adopt goals into open/paused campaign | campaign_adopt_bosses(name,bosses,message) | cac campaign adopt-bosses NAME --boss REF [--boss REF ...] --message REASON |
 | Edit tactics | campaign_update(name,body) | cac campaign update NAME --body-file PATH |
 | Open/pause | campaign_open / campaign_pause | cac campaign open / pause NAME |
 | Complete/abandon | campaign_complete / campaign_abandon | cac campaign complete / abandon NAME --message TEXT |
 | Reopen for pre-merge fixes | campaign_reactivate(name,message) | cac campaign reactivate NAME --message REASON |
-| Delete permitted bossless draft/history | campaign_delete(name) | cac campaign delete NAME |
+| Delete unreferenced bossless campaign (no encounters/rulings) | campaign_delete(name) | cac campaign delete NAME |
 | Archive integrated terminal history | campaign_archive(name) | cac campaign archive NAME |
 
 MCP body arguments are strings. CLI --body and --body-file conflict; absent both,
 editor behavior applies. Repeat --boss per member; omitted bosses creates bossless,
 and no --boss on set-bosses clears the set. Draft replacement requires a reason
-and valid reciprocal retained members; same-set requests are read-only. Membership
-locks after opening, including reactivation. Assigned boss designs remain frozen;
+and valid reciprocal retained members; same-set requests are read-only. After
+opening, membership only grows: an open or paused campaign that was never
+reactivated can adopt eligible goals (same eligibility as selection) with a
+reason, keeping every member; all-member requests are read-only. Reactivated,
+closed and archived membership is locked. Assigned boss designs remain frozen;
 campaign body text cannot change links. Zero/one/many goals have no primary boss.
 
 Only one campaign can be open in the checkout. Pause/complete/abandon fail with
@@ -114,8 +118,9 @@ recomplete before integration. Post-merge new scope goes back to planning.
 No campaign completion/push/merge is implied by completing one encounter.
 
 Deletion is not unconditional: a non-empty bosses list (current or historical
-membership) or a reverse boss claim blocks it; archiving does not protect a
-bossless campaign. MCP has no interactive deletion prompt; CLI
+membership), a reverse boss claim, any of its encounters (live or archived) or
+any ruling naming it (live or archived) blocks it, and the error lists every
+referrer; archiving does not protect a bossless campaign. MCP has no interactive deletion prompt; CLI
 can prompt or accept --yes, without bypassing core guards. Do not use deletion
 as a rollback/renumber shortcut. world-planner archives integrated terminal history
 on synchronized planning: current bosses move; released/reassigned goals and
