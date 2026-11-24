@@ -343,7 +343,9 @@ The recommended flow, which the skills walk through with you:
 
    Promotion creates a draft with reciprocal links; it doesn't open the campaign
    or create encounters. Select every boss you want before opening the campaign:
-   membership locks when the campaign opens. To pursue several bosses together, create the campaign
+   after it opens, membership can only grow, by adopting more ready bosses with
+   `cac campaign adopt-bosses` while the campaign is open or paused and has never been
+   reactivated. To pursue several bosses together, create the campaign
    with a repeated `--boss` option:
 
    ```bash

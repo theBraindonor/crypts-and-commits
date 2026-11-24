@@ -3,15 +3,19 @@
 All notable changes to Crypts and Commits (CAC) are documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.4.0] - 2026-11-23
 
 Rulings give the decisions a developer (Game Master) confirms during active
 development an identity and a lifecycle, so planning can review them in
 hindsight and decide which ones become standing lore, region or world
-context. Everything below is the result of the `c002-rulings` campaign tracked in this repository's own
-`.sourcebook`. The sourcebook schema stays at version 1: ruling storage is
+context. The workflow guide is split by phase, list paging is measured
+consistently across the CLI and MCP, open campaigns can adopt more goals, and
+deletes no longer leave dangling references. Everything below is the result
+of the `c002` through `c008` campaigns tracked in this repository's own
+`.sourcebook`. The sourcebook schema stays at version 1: all new storage is
 additive and created lazily, with no record migration or bootstrap rerun
-required.
+required. Upgraders should read the Migration Guide's 0.3.0 to 0.4.0 notes,
+since some result shapes and delete behavior changed.
 
 ### Added
 
@@ -35,8 +39,44 @@ required.
   world-planner triages recorded rulings on planning (canonize into approved
   lore, region or world changes, or note, then archive); world-manager's
   prime and disclosure ladder cover recorded rulings.
-- Docs: rulings in the Workflow Reference Guide, Tool Reference, Branching
-  Guide and Migration Guide.
+- Phase workflow guides: `planning-workflow` (goals, static context, triage
+  and archival) and `development-workflow` (campaign selection, encounters,
+  review gates and execution), each self-contained and retrievable with
+  `docs_get` / `cac docs get`.
+- Open-campaign goal adoption: `campaign_adopt_bosses` /
+  `cac campaign adopt-bosses` adds eligible available, unassigned bosses to
+  an open or paused campaign with a logged reason, keeping every existing
+  member. Reactivation now records a persistent `reactivated` flag, and a
+  reactivated campaign's membership stays locked.
+- Docs: rulings, adoption and referenced deletes are covered in the planning
+  and development workflow guides, Tool Reference, Branching Guide and
+  Migration Guide.
+
+### Changed
+
+- The `workflow` guide is now a short task router; the full procedure,
+  lifecycles and guards moved into the two phase guides above. Consumers
+  that relied on `docs_get("workflow")` as the complete reference should
+  read the phase guides instead.
+- **Breaking for MCP consumers:** `prime_applicable_lore` is paged. It takes
+  an optional `cursor` and returns `{items, next_cursor}` (plus the
+  encounter's identity) instead of a bare list of `{name, summary, ref}`
+  entries. `cac prime applicable-lore` pages at the same boundaries.
+- `lore_list`, `region_list` and `docs_list` (and their CLI forms) measure
+  each page as the compact JSON MCP returns, so the CLI and MCP break pages
+  at the same items. Page boundaries may move; follow `next_cursor`.
+- `lore_delete`, `region_delete` and `campaign_delete` (and their CLI forms)
+  refuse while another record still references the target. Lore is
+  referenced by world or region `assigned_lore`; a region by lore
+  `assigned_regions` or an unarchived encounter's `regions`; a campaign by
+  its own encounters (live or archived) or any ruling naming it, in addition
+  to the existing boss-link guard. The error lists every referrer.
+- MCP tool and CLI help descriptions were corrected for accuracy, including
+  every searchable index type, and MCP tool descriptions are registered with
+  docstring indentation cleaned.
+- demo-api passes its persona and sourcebook priming as literal system
+  messages, so braces in priming text are no longer treated as prompt
+  template variables.
 
 ## [0.3.0] - 2026-10-28 - Boss Edition
 
@@ -44,9 +84,9 @@ Boss Edition adds project goals ("bosses") that can be captured and refined
 before any campaign commits to them, plus the numbered-name and branch
 workflow that ties bosses, campaigns, and encounters together. Everything
 below is the result of the `c001-boss-edition` campaign tracked in this
-repository's own `.sourcebook`. The release number has not been chosen yet.
-The sourcebook schema stays at version 1: all new storage is additive and
-created lazily, with no record migration or bootstrap rerun required.
+repository's own `.sourcebook`. The sourcebook schema stays at version 1:
+all new storage is additive and created lazily, with no record migration or
+bootstrap rerun required.
 
 ### Added
 

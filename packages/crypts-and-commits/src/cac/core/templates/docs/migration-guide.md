@@ -269,6 +269,33 @@ needed; update MCP consumers with the library. Following the paged result is
 a skill change, so the developer redeploys skills with `cac bootstrap init`
 as described above.
 
+`lore_list`, `region_list` and `docs_list` (and their CLI forms) now measure
+each page as the compact JSON MCP returns, so page boundaries may move after
+the upgrade. Result shapes are unchanged; consumers must follow `next_cursor`
+until it is null and never assume a page size. No record migration is needed.
+
+`lore_delete`, `region_delete` and `campaign_delete` (and their CLI forms) now
+refuse, before any write, while another record still references the target,
+and the error lists every referrer. A delete that used to succeed and leave
+dangling names behind now fails: unassign or remove the listed references
+first, or keep the record. Existing dangling references are not detected or
+rewritten, and no record migration is needed.
+
+The workflow guide is split by phase. `docs_get("workflow")` / `cac docs get
+workflow` now returns a short routing index; the full procedure, lifecycles
+and guards live in `planning-workflow` and `development-workflow`. Local agent
+instructions or consumers that cite `workflow` as the complete reference
+should point at the phase guides instead. The packaged skills already do, so
+the developer redeploys skills with `cac bootstrap init` as described above.
+
+Open or paused campaigns that were never reactivated can now adopt more
+eligible bosses with `campaign_adopt_bosses` / `cac campaign adopt-bosses`;
+draft membership is still replaced with `campaign_set_bosses`. Reactivation
+now records a persistent `reactivated` flag that locks membership, but a
+campaign reactivated by an older library has no flag, so do not adopt goals
+into it. See "Adopt an existing roadmap" below for linking recorded goals to
+an already-open campaign.
+
 ### Boss Edition (0.3.0)
 
 Boss planning storage is additive within schema version 1. Upgrading the library
