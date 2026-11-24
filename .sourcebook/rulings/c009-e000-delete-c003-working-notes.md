@@ -4,15 +4,26 @@ campaign: c009-release-0-4-0-docs
 created_by: John Hoff
 created_on: '2026-11-24T02:05:56Z'
 encounter: null
-history: []
+history:
+- action: note
+  by: John Hoff
+  message: 'One-off cleanup decision, carried out in c009/e001 and merged in PR #13:
+    the two c003 working notes were deleted. It sets no standing convention, so no
+    lore, region or world change is needed. Where campaign working notes should live
+    in general is left open; if that question comes up again, it should be captured
+    as a rumor.'
+  'on': '2026-11-24T02:17:02Z'
 name: c009-e000-delete-c003-working-notes
 origin: Developer (GM), c009 chartering after the 0.4.0 pre-release review
-resolution: null
-status: recorded
+resolution: 'One-off cleanup decision, carried out in c009/e001 and merged in PR #13:
+  the two c003 working notes were deleted. It sets no standing convention, so no lore,
+  region or world change is needed. Where campaign working notes should live in general
+  is left open; if that question comes up again, it should be captured as a rumor.'
+status: noted
 summary: Delete the c003 working notes docs/workflow-guide-split-design.md and docs/workflow-context-update-proposal.md
   rather than archiving or relabeling them.
 updated_by: John Hoff
-updated_on: '2026-11-24T02:05:56Z'
+updated_on: '2026-11-24T02:17:02Z'
 ---
 
 ## Decision
