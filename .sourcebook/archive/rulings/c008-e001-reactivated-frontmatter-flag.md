@@ -1,22 +1,36 @@
 ---
-archived: false
+archived: true
 campaign: c008-sourcebook-integrity
 created_by: John Hoff
 created_on: '2026-11-23T22:49:27Z'
 encounter: e001-open-campaign-goal-adoption
-history: []
+history:
+- action: note
+  by: John Hoff
+  message: 'Triaged on planning, 2026-11-23, with the developer: no lore, region or
+    world change is needed. The decision is implementation behavior, and c008/e001
+    already wrote it into the packaged docs that own it: tool-reference.md (the campaign
+    `reactivated` flag and the adopt-bosses guards), migration-guide.md (campaigns
+    reactivated by older libraries are not detected) and the Reactivation bullet in
+    both phase guides. It sets no review convention for future encounters.'
+  'on': '2026-11-24T00:12:11Z'
 name: c008-e001-reactivated-frontmatter-flag
 origin: Developer (GM) answer to the c008/e001 plan choice, 2026-11-23, before independent
   review
-resolution: null
-status: recorded
+resolution: 'Triaged on planning, 2026-11-23, with the developer: no lore, region
+  or world change is needed. The decision is implementation behavior, and c008/e001
+  already wrote it into the packaged docs that own it: tool-reference.md (the campaign
+  `reactivated` flag and the adopt-bosses guards), migration-guide.md (campaigns reactivated
+  by older libraries are not detected) and the Reactivation bullet in both phase guides.
+  It sets no review convention for future encounters.'
+status: noted
 summary: 'A campaign counts as reactivated (and so refuses campaign_adopt_bosses)
   through a persistent `reactivated: true` frontmatter flag set by campaign_reactivate
   and never cleared. An absent flag means false, so no migration is needed. The Log
   text is not parsed. Campaigns reactivated before the flag existed are not detected;
   none is open.'
 updated_by: John Hoff
-updated_on: '2026-11-23T22:49:27Z'
+updated_on: '2026-11-24T00:12:14Z'
 ---
 
 ## Decision
