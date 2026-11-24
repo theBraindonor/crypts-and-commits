@@ -1,5 +1,5 @@
 ---
-archived: false
+archived: true
 campaign: v0.1.8-release-readiness
 created_by: John Hoff
 created_on: '2026-08-05T02:51:26Z'
@@ -9,7 +9,7 @@ regions:
 - crypts-and-commits
 status: completed
 updated_by: John Hoff
-updated_on: '2026-08-09T04:48:09Z'
+updated_on: '2026-11-24T01:34:51Z'
 ---
 
 # Encounter

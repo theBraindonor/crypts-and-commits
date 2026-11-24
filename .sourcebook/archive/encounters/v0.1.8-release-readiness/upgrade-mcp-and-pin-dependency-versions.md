@@ -1,5 +1,5 @@
 ---
-archived: false
+archived: true
 campaign: v0.1.8-release-readiness
 created_by: John Hoff
 created_on: '2026-08-06T15:48:26Z'
@@ -9,7 +9,7 @@ regions:
 - crypts-and-commits
 status: completed
 updated_by: John Hoff
-updated_on: '2026-08-09T02:16:11Z'
+updated_on: '2026-11-24T01:34:51Z'
 ---
 
 # Upgrade to latest mcp and put better version pins in place
