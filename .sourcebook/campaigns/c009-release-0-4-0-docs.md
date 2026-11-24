@@ -4,9 +4,9 @@ bosses: []
 created_by: John Hoff
 created_on: '2026-11-24T02:04:13Z'
 name: c009-release-0-4-0-docs
-status: open
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-24T02:05:50Z'
+updated_on: '2026-11-24T02:14:18Z'
 ---
 
 # c009 - Release 0.4.0 documentation
@@ -36,3 +36,9 @@ Bossless release-readiness campaign. A pre-release review of `v0.3.0..HEAD` (cam
 ## Success
 
 All four goals done, `pdm run pytest -q` and ruff clean, and the changelog and migration guide accurately describe everything shipping in 0.4.0.
+
+## Log
+
+### Completed - 2026-11-24T02:14:18Z - John Hoff
+
+Postmortem: the 0.4.0 release documentation is complete, done in a single encounter (e001). A pre-release review of v0.3.0..HEAD found the code ready but the docs behind it. The changelog covered only c002, the migration guide was missing four changes users would notice, CLAUDE.md and QUICKSTART still said boss membership locks when a campaign opens, and two c003 working notes had gone stale. e001 wrote the [0.4.0] - 2026-11-23 changelog entry, added the missing migration notes, fixed the membership wording, and deleted the working notes (ruling c009-e000-delete-c003-working-notes). Every claim was checked against the code first. The independent review passed with notes, and all of its notes were addressed. Tests (1795) and ruff are clean. The campaign had no boss, so no goals were vanquished. Follow-up on planning: triage the c009 ruling and archive the campaign.
