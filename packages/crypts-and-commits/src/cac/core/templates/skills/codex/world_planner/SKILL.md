@@ -99,8 +99,9 @@ depends_on=None) / cac boss record NAME --progress VALUE --source TEXT
   fabricated campaigns/encounters or a claim of independent verification/merge.
   Completed content is frozen. No undo/edit/restore workaround; mistakes require
   deliberate developer repair, never assistant filesystem edits.
-- Existing campaign references are informational. Adopting ownership into an
-  already-open legacy campaign is deferred; capture never bypasses draft locks.
+- Existing campaign references are informational and never link a goal. To
+  bring a recorded goal into an open or paused campaign, make it available and
+  hand it to campaign-manager's adoption operation; capture never bypasses locks.
 
 ## Rumors, archival, and handoff
 

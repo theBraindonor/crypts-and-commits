@@ -69,6 +69,12 @@ Every record carries common audit stamps (`created_by`, `created_on`,
   the rumor. Bosses keep no back-reference, and many rumors may share one.
 - A ruling's `campaign` and `encounter` are stored only on the ruling;
   campaigns and encounters are never written and keep no back-reference.
+- Deletes never leave these links dangling: a lore entry, region or campaign
+  cannot be deleted while another record still references it, and the error
+  lists every referrer. Lore is referenced by world and region `assigned_lore`;
+  a region by lore `assigned_regions` and unarchived encounters' `regions`; a
+  campaign by its bosses, its own encounters (live or archived) and any ruling
+  naming it (live or archived). Unassign or remove referrers first.
 
 No relationship grants permission to bypass a lifecycle guard.
 
@@ -163,8 +169,10 @@ stateDiagram-v2
 ```
 
 A campaign can be deleted only when its `bosses` list (current or historical
-membership) is empty and no boss claims it. Deletion is never a rollback or
-renumbering shortcut.
+membership) is empty, no boss claims it, it has no encounters (live or archived)
+and no ruling (live or archived) names it. A closed campaign with encounters, or
+any campaign with rulings, therefore stays permanently. Deletion is never a
+rollback or renumbering shortcut.
 
 ### Archiving
 
@@ -204,8 +212,11 @@ prerequisites.
 
 While a campaign is in draft, its whole membership can be replaced with a
 nonblank reason. Retained members must still reciprocate, and removal releases
-only this campaign's links. Membership locks once the campaign leaves draft,
-including after reactivation, and body edits can never change links.
+only this campaign's links. Once the campaign leaves draft, membership can only
+grow: an open or paused campaign that was never reactivated can adopt eligible
+bosses (available, unassigned, prerequisites satisfied) with a nonblank reason,
+keeping every existing member. A reactivated, completed, abandoned or archived
+campaign's membership is locked, and body edits can never change links.
 
 Lifecycle effects on bosses:
 
@@ -215,7 +226,8 @@ Lifecycle effects on bosses:
 - **Reactivation** requires an unarchived completed campaign, a nonblank
   reason and no other open campaign. Every linked boss returns to available
   but stays assigned and frozen. The earlier Log and closed encounters remain,
-  and recompletion appends new history.
+  and recompletion appends new history. Reactivation also sets a permanent
+  `reactivated` flag, so the campaign can never adopt more bosses.
 - **Open and pause** never vanquish. Bossless campaigns follow the same
   lifecycle.
 
@@ -533,7 +545,8 @@ execution branch and only with explicit approval. Under the recommended
 workflow, the merge target and planning branches never have an open campaign,
 and paused work stays on its execution branch. These are skill guidance, not
 endpoint gates or mandatory CI or hosting rules. Honor custom branch settings.
-Draft membership changes need a reason; opening or reopening locks membership.
+Draft membership changes need a reason; after opening, membership only grows
+through adoption with a reason, and reactivation locks it.
 Boss designs stay frozen.
 
 ### Capture rulings

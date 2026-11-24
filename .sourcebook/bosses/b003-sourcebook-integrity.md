@@ -6,14 +6,14 @@ created_on: '2026-11-20T23:43:29Z'
 depends_on:
 - b005-ruling-records
 name: b003-sourcebook-integrity
-status: available
+status: vanquished
 summary: 'Close two sourcebook integrity gaps: let an open or paused (not reactivated)
   campaign adopt existing unassigned bosses through a guarded, logged operation using
   the same eligibility as draft selection (replacing the developer hand-edit c001
   needed), and make lore/region/campaign deletes refuse while referenced by live records,
   listing every referrer, instead of leaving dangling references.'
 updated_by: John Hoff
-updated_on: '2026-11-23T21:55:46Z'
+updated_on: '2026-11-23T23:59:36Z'
 ---
 
 ## Goal

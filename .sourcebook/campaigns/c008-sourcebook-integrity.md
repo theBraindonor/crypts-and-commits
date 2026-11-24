@@ -5,9 +5,9 @@ bosses:
 created_by: John Hoff
 created_on: '2026-11-23T21:55:46Z'
 name: c008-sourcebook-integrity
-status: draft
+status: completed
 updated_by: John Hoff
-updated_on: '2026-11-23T21:55:46Z'
+updated_on: '2026-11-23T23:59:36Z'
 ---
 
 # c008: Sourcebook integrity
@@ -53,3 +53,7 @@ Vanquish b003-sourcebook-integrity by closing two gaps where links between sourc
 - Repairing historical hand-edited links from c001.
 
 ## Log
+
+### Completed - 2026-11-23T23:59:36Z - John Hoff
+
+Postmortem: b003 vanquished across two encounters. e001 added campaign_adopt_bosses / cac campaign adopt-bosses: open or paused, never-reactivated campaigns can adopt eligible goals with a logged reason, and campaign_reactivate now sets a permanent `reactivated` flag (ruling c008-e001-reactivated-frontmatter-flag). e002 made lore_delete, region_delete and campaign_delete refuse while referenced, listing every referrer through core/referrers.py (ruling c008-e002-delete-referrer-set); CLAUDE.md's "known limitation" was replaced with developer approval. Docs (tool-reference, both phase guides, branching and migration guides, README) and the campaign-manager, world-planner and world-manager skill templates were updated; the developer must redeploy skills. What went well: settling design choices as rulings before review kept both reviews to PASS-WITH-NOTES, and every review note was closed during execution. What to watch: e002's new guard broke two existing tests that relied on orphaning deletes. They were rewritten with their intent preserved, a reminder that tightening guards needs a sweep for tests that depend on the old behavior. Also, closed campaigns with encounters are now permanently undeletable, by design.

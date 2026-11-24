@@ -81,7 +81,7 @@ Bosses, campaigns, encounters and rumors use numbered names (`b001-slug`, `c001-
 
 Cross-object linking always lives on the "target" object's `core` module (e.g. `world.py` owns `assign_lore`/`unassign_lore`, `region.py` owns its own `assign_lore`/`unassign_lore`), while the corresponding CLI commands live under the "source" object being assigned (e.g. `cac lore assign-world`, `cac lore assign-region`, `cac encounter assign-region`).
 
-Known limitation: deleting a lore/region/campaign entry does not cascade-clean stale references left in objects that were assigned to it.
+Referenced deletes are refused: `lore_delete`, `region_delete` and `campaign_delete` fail while another record still references the target (world/region `assigned_lore`, lore `assigned_regions`, unarchived encounters' `regions`, a campaign's bosses, encounters or rulings), and the error lists every referrer to unassign first.
 
 ## Agent skills
 

@@ -119,7 +119,11 @@ def update_lore(root: Path, name: str, body: str, summary: str) -> Path:
 
 
 def delete_lore(root: Path, name: str) -> Path:
+    """Delete a lore file; refused while the world or any region still assigns it."""
+    from cac.core import referrers
+
     path = _existing_lore_path(root, name)
+    referrers.ensure_unreferenced("lore", name, referrers.lore_referrers(root, name))
     return frontmatter_utils.delete_post(root, path)
 
 

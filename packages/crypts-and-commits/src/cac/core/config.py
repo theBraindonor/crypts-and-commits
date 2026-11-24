@@ -77,3 +77,5 @@ SEARCH_MAX_SNIPPET_TOKENS = 64
 SEARCH_INDEX_BUSY_TIMEOUT_MS = 5000
 ARCHIVE_DIR_NAME = "archive"
 ARCHIVED_KEY = "archived"
+# Set by campaign reactivation and never cleared; absent reads as False.
+REACTIVATED_KEY = "reactivated"

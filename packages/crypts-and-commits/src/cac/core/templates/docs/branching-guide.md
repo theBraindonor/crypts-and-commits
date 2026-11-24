@@ -115,7 +115,8 @@ managed-file writes. Inspect exact command help where argument detail is needed.
    boss_assign_campaign / `cac boss assign-campaign` is the single-goal convenience.
    Registration creates a draft and reciprocal ownership, freezing the goal designs;
    it does not open a campaign or authorize encounters. Draft-only campaign_set_bosses
-   replaces the entire group with a required reason; opening locks membership.
+   replaces the entire group with a required reason; after opening, membership can
+   only grow through campaign_adopt_bosses, and reactivation locks it.
 3. Integrate the small registration into main. Create c012-search-tools from updated
    main, or from the assignment branch and reconcile accepted registration before
    opening. The execution branch exactly matches the campaign's canonical name.

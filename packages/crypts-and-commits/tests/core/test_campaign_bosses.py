@@ -384,3 +384,151 @@ def test_unrelated_stale_source_remains_stale_after_group_mutation(tmp_path):
     assert search_index.status(tmp_path)["freshness"] == "stale"
     with pytest.raises(search_index.StaleIndexError):
         search_index.search(tmp_path, "Summary")
+
+
+def open_single(root, *, paused=False):
+    campaign.create_campaign(root, "c001-work", "Tactics", ["b001"])
+    campaign.open_campaign(root, "c001-work")
+    if paused:
+        campaign.pause_campaign(root, "c001-work")
+
+
+@pytest.mark.parametrize("paused", [False, True])
+def test_adoption_adds_members_logs_and_freezes_designs(tmp_path, paused):
+    open_single(tmp_path, paused=paused)
+    search_index.rebuild_index(tmp_path)
+    design = coupling._body_suffix(boss.boss_path(tmp_path, "b003-goal").read_bytes())[1]
+
+    path = campaign.adopt_bosses(tmp_path, "c001-work", ["b003", "b002"], "Found mid-campaign")
+
+    names = ["b001-goal", "b002-goal", "b003-goal"]
+    post = frontmatter.load(path)
+    assert post["bosses"] == names
+    assert post["status"] == ("paused" if paused else "open")
+    assert coupling.Links(tmp_path).current("c001-work") == names
+    for name in ("b002-goal", "b003-goal"):
+        metadata = boss.read_metadata(tmp_path, name)[0]
+        assert metadata["campaign"] == "c001-work" and metadata["status"] == "available"
+        with pytest.raises(boss.BossError):
+            boss.update_boss(tmp_path, name, "No", "No")
+    assert coupling._body_suffix(boss.boss_path(tmp_path, "b003-goal").read_bytes())[1] == design
+    assert "### Bosses adopted" in post.content and "Found mid-campaign" in post.content
+    assert "Previous bosses: ['b001-goal']" in post.content
+    assert "Adopted: ['b002-goal', 'b003-goal']" in post.content
+    assert boss_candidates.candidates(tmp_path)["healthy"]
+    assert search_index.status(tmp_path)["freshness"] == "fresh"
+
+
+def test_adoption_keeps_members_and_all_member_request_is_read_only(tmp_path):
+    open_single(tmp_path)
+    campaign.adopt_bosses(tmp_path, "c001-work", ["b002"], "First adoption")
+    before = files(tmp_path)
+
+    campaign.adopt_bosses(tmp_path, "c001-work", ["b002-goal", "b001"], "Nothing new")
+
+    assert files(tmp_path) == before
+    campaign.adopt_bosses(tmp_path, "c001-work", ["b001", "b003"], "One new")
+    assert campaign.read_campaign(tmp_path, "c001-work").bosses == ["b001-goal", "b002-goal", "b003-goal"]
+
+
+@pytest.mark.parametrize("state", ["draft", "completed", "abandoned", "archived", "reactivated"])
+def test_adoption_refuses_locked_campaigns(tmp_path, state):
+    campaign.create_campaign(tmp_path, "c001-work", "Tactics", ["b001"])
+    if state != "draft":
+        campaign.open_campaign(tmp_path, "c001-work")
+    if state == "abandoned":
+        campaign.abandon_campaign(tmp_path, "c001-work", "Cancelled")
+    elif state in ("completed", "archived", "reactivated"):
+        campaign.complete_campaign(tmp_path, "c001-work", "Done")
+        if state == "archived":
+            campaign.archive_campaign(tmp_path, "c001-work")
+        elif state == "reactivated":
+            campaign.reactivate_campaign(tmp_path, "c001-work", "Review")
+    before = files(tmp_path)
+    expected = {"draft": "set_bosses", "reactivated": "reactivated", "archived": "archived"}.get(state, state)
+    with pytest.raises(campaign.CampaignNotMutableError, match=expected):
+        campaign.adopt_bosses(tmp_path, "c001-work", ["b004"], "Scope creep")
+    assert files(tmp_path) == before
+
+
+def test_reactivated_flag_persists_after_recompletion(tmp_path):
+    open_single(tmp_path)
+    campaign.complete_campaign(tmp_path, "c001-work", "Done")
+    assert config.REACTIVATED_KEY not in campaign.read_metadata(tmp_path, "c001-work")[0]
+    campaign.reactivate_campaign(tmp_path, "c001-work", "Review")
+    assert campaign.read_metadata(tmp_path, "c001-work")[0][config.REACTIVATED_KEY] is True
+    campaign.complete_campaign(tmp_path, "c001-work", "Done again")
+    assert campaign.read_metadata(tmp_path, "c001-work")[0][config.REACTIVATED_KEY] is True
+
+
+@pytest.mark.parametrize(
+    ("bosses", "message", "error"),
+    [
+        ([], "Reason", "at least one boss"),
+        (["b002"], " ", "nonblank message"),
+        (["b002", "b002-goal"], "Reason", "Duplicate"),
+        (["b999"], "Reason", "does not exist"),
+    ],
+)
+def test_adoption_rejects_invalid_requests_before_writes(tmp_path, bosses, message, error):
+    open_single(tmp_path)
+    before = files(tmp_path)
+    with pytest.raises((ValueError, FileNotFoundError), match=error):
+        campaign.adopt_bosses(tmp_path, "c001-work", bosses, message)
+    assert files(tmp_path) == before
+
+
+@pytest.mark.parametrize("problem", ["proposed", "withdrawn", "vanquished", "prerequisite", "owned"])
+def test_adoption_uses_selection_eligibility(tmp_path, problem):
+    if problem == "proposed":
+        boss.create_boss(tmp_path, "b005-goal", "Design", "Summary")
+        target = "b005"
+    elif problem == "withdrawn":
+        boss.withdraw(tmp_path, "b004-goal")
+        target = "b004"
+    elif problem == "vanquished":
+        campaign.create_campaign(tmp_path, "c002-done", "Done", ["b004"])
+        campaign.open_campaign(tmp_path, "c002-done")
+        campaign.complete_campaign(tmp_path, "c002-done", "Done")
+        target = "b004"
+    elif problem == "prerequisite":
+        boss.assign_dependency(tmp_path, "b004-goal", "b003-goal")
+        target = "b004"
+    else:
+        campaign.create_campaign(tmp_path, "c002-other", "Other", ["b004"])
+        target = "b004"
+    open_single(tmp_path)
+    before = files(tmp_path)
+    with pytest.raises((boss.BossError, coupling.LinkError)):
+        campaign.adopt_bosses(tmp_path, "c001-work", [target], "Ineligible")
+    assert files(tmp_path) == before
+
+
+def test_adopted_bosses_are_vanquished_with_the_campaign(tmp_path):
+    open_single(tmp_path)
+    campaign.adopt_bosses(tmp_path, "c001-work", ["b002"], "Adopt")
+    campaign.complete_campaign(tmp_path, "c001-work", "Done")
+    for name in ("b001-goal", "b002-goal"):
+        assert boss.read_metadata(tmp_path, name)[0]["status"] == "vanquished"
+
+
+@pytest.mark.parametrize("fail_at", [1, 2])
+def test_adoption_failure_rolls_back_all_records_rows_and_fingerprints(tmp_path, monkeypatch, fail_at):
+    open_single(tmp_path)
+    search_index.rebuild_index(tmp_path)
+    before, prior = files(tmp_path), evidence(tmp_path)
+    original = coupling._write_boss
+    calls = 0
+
+    def fail(*args):
+        nonlocal calls
+        calls += 1
+        original(*args)
+        if calls == fail_at:
+            raise OSError("injected member failure")
+
+    monkeypatch.setattr(coupling, "_write_boss", fail)
+    with pytest.raises(OSError):
+        campaign.adopt_bosses(tmp_path, "c001-work", ["b002", "b003"], "Adopt")
+    assert files(tmp_path) == before and evidence(tmp_path) == prior
+    assert search_index.status(tmp_path)["freshness"] == "fresh"

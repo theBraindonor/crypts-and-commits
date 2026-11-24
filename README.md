@@ -175,8 +175,8 @@ number of their own and always use their full name.
 2. On the planning branch, triage rumors and capture goals as bosses. A
    rumor worth acting on is promoted to a boss; the rest are dismissed.
    Refine bosses until they're ready.
-3. Select one or more ready bosses into a draft campaign. Membership locks
-   when the campaign opens.
+3. Select one or more ready bosses into a draft campaign. Once the campaign
+   opens, its membership can only grow, by adopting more ready bosses.
 4. Open the campaign on its own execution branch.
 5. Carry the work out as encounters, each reviewed against lore and approved
    before it runs and before it's marked complete. Record each decision the

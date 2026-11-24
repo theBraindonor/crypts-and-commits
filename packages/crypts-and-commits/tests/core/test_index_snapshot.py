@@ -3,7 +3,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from cac.core import boss, campaign, coupling, encounter, index_snapshot, lore, rumor, search_index, world
+from cac.core import boss, campaign, coupling, encounter, index_snapshot, lore, referrers, rumor, search_index, world
 from cac.core.paths import search_index_db_path
 
 
@@ -228,7 +228,10 @@ def test_failed_rebuild_keeps_prior_snapshot_transaction(tmp_path, monkeypatch):
 
 def test_rebuild_retains_orphan_encounters(tmp_path):
     encounter.create_encounter(tmp_path, "c001-work", "e001-orphan", "Orphanbody")
-    campaign.delete_campaign(tmp_path, "c001-work")
+    # Supported deletes now refuse to orphan encounters; older libraries could leave them behind.
+    with pytest.raises(referrers.ReferencedRecordError):
+        campaign.delete_campaign(tmp_path, "c001-work")
+    campaign.campaign_path(tmp_path, "c001-work").unlink()
     search_index.rebuild_index(tmp_path)
     assert_fresh(tmp_path)
     assert search_index.search(tmp_path, "Orphanbody")[0].name == "e001-orphan"

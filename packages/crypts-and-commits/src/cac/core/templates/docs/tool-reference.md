@@ -158,7 +158,7 @@ numbers, performs branch or network lookups, or migrates records.
 | Boss assign/unassign-dependency | source name, prerequisite | missing canonical edge on explicit removal |
 | Boss assign-campaign | existing boss | new campaign_name, body |
 | Campaign get/update/delete/open/pause/complete/abandon/archive/reactivate | existing name | body, message |
-| Campaign create / set-bosses | boss list refs; existing campaign for set | new create name, body, message |
+| Campaign create / set-bosses / adopt-bosses | boss list refs; existing campaign for set/adopt | new create name, body, message |
 | Encounter get/update/delete/review/open/record-message/complete/abandon | name, optional campaign | body, message |
 | Encounter assign/unassign-region | name, optional campaign | region |
 | Encounter assign/unassign-dependency | source, prerequisite, optional campaign | missing canonical edge on explicit removal |
@@ -196,6 +196,25 @@ CLI delete commands (`cac lore delete`, `cac region delete`, `cac campaign
 delete`, `cac encounter delete`) prompt for confirmation
 unless given `--yes`/`-y`. MCP delete tools never prompt. Confirmation never
 bypasses a core guard.
+
+### Referenced deletes
+
+`lore_delete`, `region_delete` and `campaign_delete` (and their CLI forms)
+refuse while another record references the target, before any write:
+
+| Target | Referenced by |
+| --- | --- |
+| Lore | the world's `assigned_lore`; any region's `assigned_lore` |
+| Region | any lore's `assigned_regions`; any unarchived encounter's `regions` (any status; encounters of archived campaigns don't count) |
+| Campaign | its `bosses` / a boss claim (checked first, `CampaignLinkedError`); any of its encounters, live or archived; any ruling, live or archived, whose `campaign` names it |
+
+The error (`ReferencedRecordError`) reads `Cannot delete <kind> '<name>': it is
+still referenced by <referrers>. Unassign or remove these references first.`
+Each referrer renders as `<type> <canonical name> (<field>)`, or `world
+(assigned_lore)`, sorted by type then name and never truncated; encounters show
+as `<campaign>/<encounter>`. The CLI prints it literally and exits 1. A refused
+delete changes no record or index row. Rulings cannot be deleted, so a campaign
+any ruling names can never be deleted.
 
 ## World
 
@@ -252,6 +271,7 @@ the target object.
 | List names and status | `campaign_list(cursor=None, include_archived=False)` | `cac campaign list [--cursor] [--include-archived]` |
 | Create (starts draft) | `campaign_create(name, body, bosses=None)` | `cac campaign create NAME [--boss REF ...] [--body/-b \| --body-file]` |
 | Replace draft membership | `campaign_set_bosses(name, bosses, message)` | `cac campaign set-bosses NAME [--boss REF ...] --message/-m REASON` |
+| Adopt into open/paused membership | `campaign_adopt_bosses(name, bosses, message)` | `cac campaign adopt-bosses NAME --boss REF [--boss REF ...] --message/-m REASON` |
 | Replace body | `campaign_update(name, body)` | `cac campaign update NAME [--body/-b \| --body-file]` |
 | Delete | `campaign_delete(name)` | `cac campaign delete NAME [--yes/-y]` |
 | Open / pause | `campaign_open(name)` / `campaign_pause(name)` | `cac campaign open NAME` / `pause NAME` |
@@ -266,11 +286,31 @@ after alias resolution are rejected. A same-set `set-bosses` request is
 read-only regardless of order. Membership changes log the old names, new names
 and reason once, and later body updates preserve that Log entry.
 
+`adopt-bosses` adds one or more bosses to an `open` or `paused`, unarchived
+campaign whose `reactivated` flag is not set. It never removes members: the new
+set is the existing members plus the adopted ones, in canonical boss order.
+Each newly adopted boss must pass the same eligibility as draft selection
+(`available`, unassigned, every prerequisite satisfied) and becomes assigned
+and frozen; its status stays `available`. A nonblank reason is required and is
+logged once under `Bosses adopted` with the previous, adopted and new names. A
+request whose bosses are all already members is read-only. Errors, raised
+before any write: draft campaign (use `set-bosses`), completed, abandoned,
+archived or reactivated campaign, blank reason, empty boss list, duplicate refs
+after alias resolution, unknown boss, ineligible boss (naming unsatisfied
+prerequisites), boss owned by another campaign, and inconsistent reciprocal
+links. A failure mid-write restores every record.
+
+`campaign_reactivate` sets a permanent `reactivated: true` frontmatter flag,
+shown in campaign metadata and never cleared, even by recompletion. An absent
+flag reads as false. Campaigns reactivated by an older library carry only a
+`Reactivated` Log entry and are not detected.
+
 Lifecycle operations update linked bosses' frontmatter, never their bodies:
 complete vanquishes every linked boss, abandon releases all current links while
 retaining the historical `bosses` list, and archive moves current bosses with
 the campaign. Delete is refused while the campaign has any current or
-historical `bosses` membership or a boss still claims it.
+historical `bosses` membership or a boss still claims it, and while any of its
+encounters (live or archived) or any ruling names it (see Referenced deletes).
 
 Campaign reads expose the canonical `bosses` list. Legacy singular `boss`
 storage reads as a one-member list and an absent or null field reads as empty;

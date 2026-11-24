@@ -219,3 +219,24 @@ def test_group_api_validation_and_complete_envelope_budget(tmp_path, monkeypatch
     with pytest.raises(ValueError, match="budget"):
         mcp_campaign.campaign_set_bosses("c001", [], "Would clear")
     assert campaign.campaign_path(tmp_path, "c001-work").read_bytes() == before
+
+
+def test_adopt_bosses_on_open_campaign_and_reactivated_refusal(tmp_path):
+    from cac.core import boss, world
+
+    world.initialize_world(tmp_path)
+    for name in ("b001-one", "b002-two", "b003-three"):
+        boss.create_boss(tmp_path, name, "Design", "Summary")
+        boss.make_available(tmp_path, name)
+    mcp_campaign.campaign_create("c001-work", "Tactics", ["b001"])
+    mcp_campaign.campaign_open("c001")
+
+    adopted = mcp_campaign.campaign_adopt_bosses("c001", ["b002"], "[message] Found later")
+
+    assert adopted["bosses"] == ["b001-one", "b002-two"]
+    assert adopted["status"] == "open" and "[message] Found later" in adopted["body"]
+    mcp_campaign.campaign_complete("c001", "Done")
+    mcp_campaign.campaign_reactivate("c001", "Review fixes")
+    assert mcp_campaign.campaign_get("c001")["metadata"]["reactivated"] is True
+    with pytest.raises(campaign.CampaignNotMutableError, match="reactivated"):
+        mcp_campaign.campaign_adopt_bosses("c001", ["b003"], "Scope creep")
